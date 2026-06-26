@@ -23,10 +23,18 @@ platform :android do
 
   desc "Deploy a new version to the Google Play"
   lane :beta do
+    # Play rejects a reused version code, so derive the next one from the
+    # highest already on the internal track (+1). Keeps the marketing name
+    # from pubspec.yaml as the single source of truth.
+    latest_code = (google_play_track_version_codes(track: "internal").max || 0)
+    new_code = latest_code + 1
+    marketing = flutter_version()["version_name"]
+
     # Build the release App Bundle. Run from the repo root (two levels up
     # from android/fastlane) so the Flutter toolchain resolves the workspace.
     Dir.chdir "../.." do
-      sh("flutter", "build", "appbundle", "--release")
+      sh("flutter", "build", "appbundle", "--release",
+         "--build-name=#{marketing}", "--build-number=#{new_code}")
     end
 
     # Resolve the AAB by glob so the path holds whatever fastlane's cwd is
@@ -40,7 +48,7 @@ platform :android do
     upload_to_play_store(
       timeout: 600,
       track: "internal",
-      version_code: flutter_version()["version_code"],
+      version_code: new_code,
       aab: File.expand_path(aab_path),
       skip_upload_screenshots: true,
       skip_upload_images: true
