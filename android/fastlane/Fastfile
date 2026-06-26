@@ -29,11 +29,19 @@ platform :android do
       sh("flutter", "build", "appbundle", "--release")
     end
 
+    # Resolve the AAB by glob so the path holds whatever fastlane's cwd is
+    # (project dir vs. fastlane dir differs across setups).
+    aab_path = (
+      Dir["../build/app/outputs/bundle/release/*.aab"] +
+      Dir["../../build/app/outputs/bundle/release/*.aab"]
+    ).first
+    UI.user_error!("No release AAB found — did the build run?") if aab_path.nil?
+
     upload_to_play_store(
       timeout: 600,
       track: "internal",
       version_code: flutter_version()["version_code"],
-      aab: "../build/app/outputs/bundle/release/app-release.aab",
+      aab: File.expand_path(aab_path),
       skip_upload_screenshots: true,
       skip_upload_images: true
     )
