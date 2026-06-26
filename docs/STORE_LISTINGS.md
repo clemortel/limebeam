@@ -22,6 +22,7 @@ Pré-requis (une fois) : `cd ios && bundle install` et `cd android && bundle ins
 
 | But | Commande |
 |-----|----------|
+| **Tout livrer (codegen+analyze+iOS+Android)** | `bin/release.sh` (`ios`/`android`/`--no-deploy` en option) |
 | Créer la fiche App Store (1×) | `cd ios && bundle exec fastlane create_app` |
 | Pousser la fiche App Store | `cd ios && bundle exec fastlane upload_metadata` |
 | Pousser la fiche Play Store | `cd android && bundle exec fastlane upload_metadata` |
