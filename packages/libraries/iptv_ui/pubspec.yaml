@@ -1,0 +1,41 @@
+name: iptv_ui
+description: Publishable design system — pure widgets, design tokens, focus. NO business logic.
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ">=3.6.0 <4.0.0"
+  flutter: ">=3.24.0"
+
+# IMPORTANT: iptv_ui is publishable and must stay business-logic free.
+# Do NOT add iptv_core, Failures, Riverpod, or any feature package here.
+# Components take primitives + callbacks only.
+dependencies:
+  cached_network_image: ^3.4.1
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_lints: ^4.0.0
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/brand/
+  # Bundle Inter so cross-platform rendering matches the spec. On iOS the
+  # system SF Pro fallback is used first (see AppType.fontFamilyFallback), so
+  # the app renders correctly even before these are added. Drop the .ttf files
+  # into assets/fonts/ (see assets/fonts/README.md) then UNCOMMENT this block.
+  #
+  # fonts:
+  #   - family: Inter
+  #     fonts:
+  #       - asset: assets/fonts/Inter-Regular.ttf
+  #         weight: 400
+  #       - asset: assets/fonts/Inter-SemiBold.ttf
+  #         weight: 600
+  #       - asset: assets/fonts/Inter-Bold.ttf
+  #         weight: 700

@@ -1,0 +1,10 @@
+# Stricter ruleset used in CI. Treats infos/warnings as build failures.
+# Run via: melos run analyze:ci
+include: analysis_options.yaml
+
+analyzer:
+  errors:
+    always_specify_types: error
+    require_trailing_commas: error
+    unawaited_futures: error
+    avoid_print: error

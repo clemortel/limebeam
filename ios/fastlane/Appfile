@@ -1,0 +1,8 @@
+app_identifier("com.limebeam.app") # The bundle identifier of your app
+apple_id("clement@stairling.com") # Your Apple Developer Portal username
+
+team_id("84QCKW49ZQ") # Developer Portal Team ID
+# itc_team_id("TODO") # App Store Connect Team ID (rempli si plusieurs equipes)
+
+# For more information about the Appfile, see:
+#     https://docs.fastlane.tools/advanced/#appfile

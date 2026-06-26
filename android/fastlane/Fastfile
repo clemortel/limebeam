@@ -1,0 +1,54 @@
+# This file contains the fastlane.tools configuration
+# You can find the documentation at https://docs.fastlane.tools
+#
+# For a list of all available actions, check out
+#
+#     https://docs.fastlane.tools/actions
+#
+# For a list of all available plugins, check out
+#
+#     https://docs.fastlane.tools/plugins/available-plugins
+#
+
+# Uncomment the line if you want fastlane to automatically update itself
+# update_fastlane
+
+default_platform(:android)
+
+platform :android do
+  desc "Runs all the tests"
+  lane :test do
+    gradle(task: "test")
+  end
+
+  desc "Deploy a new version to the Google Play"
+  lane :beta do
+    # Build the release App Bundle. Run from the repo root (two levels up
+    # from android/fastlane) so the Flutter toolchain resolves the workspace.
+    Dir.chdir "../.." do
+      sh("flutter", "build", "appbundle", "--release")
+    end
+
+    upload_to_play_store(
+      timeout: 600,
+      track: "internal",
+      version_code: flutter_version()["version_code"],
+      aab: "../build/app/outputs/bundle/release/app-release.aab",
+      skip_upload_screenshots: true,
+      skip_upload_images: true
+    )
+  end
+
+  desc "Upload only the Play Store listing (no binary, no images)"
+  lane :upload_metadata do
+    # Changelogs attach to a release, so they ship with the `beta` lane; here we
+    # push the store listing text only (title / short / full description).
+    upload_to_play_store(
+      skip_upload_aab: true,
+      skip_upload_apk: true,
+      skip_upload_changelogs: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+  end
+end

@@ -1,0 +1,136 @@
+name: green_iptv
+description: IPTV client (live, VOD, series) built on a Melos monorepo.
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.6.0 <4.0.0"
+  flutter: ">=3.24.0"
+
+# Dart pub workspace (Melos 7+). Every member declares `resolution: workspace`.
+workspace:
+  - packages/libraries/iptv_core
+  - packages/libraries/iptv_ui
+  - packages/libraries/iptv_api
+  - packages/libraries/iptv_auth
+  - packages/libraries/iptv_playlist
+  - packages/libraries/iptv_epg
+  - packages/libraries/iptv_live
+  - packages/libraries/iptv_vod
+  - packages/libraries/iptv_series
+  - packages/libraries/iptv_player
+  - packages/libraries/iptv_cast
+  - packages/libraries/iptv_favorites
+  - packages/libraries/iptv_settings
+  - packages/libraries/iptv_donations
+  - packages/parts/iptv_home_part
+  - packages/parts/iptv_player_part
+  - packages/parts/iptv_settings_part
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State & DI
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+  get_it: ^7.7.0
+  injectable: ^2.4.4
+
+  # Routing
+  auto_route: ^9.2.0
+
+  # App metadata (version on the About screen)
+  package_info_plus: ^9.0.0
+
+  # Functional / models
+  dartz: ^0.10.1
+  freezed_annotation: ^2.4.4
+  json_annotation: ^4.9.0
+  fast_immutable_collections: ^10.2.4
+
+  # Storage
+  hive_flutter: ^1.1.0
+
+  # Workspace packages — libraries
+  iptv_core:
+    path: packages/libraries/iptv_core
+  iptv_ui:
+    path: packages/libraries/iptv_ui
+  iptv_api:
+    path: packages/libraries/iptv_api
+  iptv_auth:
+    path: packages/libraries/iptv_auth
+  iptv_playlist:
+    path: packages/libraries/iptv_playlist
+  iptv_epg:
+    path: packages/libraries/iptv_epg
+  iptv_live:
+    path: packages/libraries/iptv_live
+  iptv_vod:
+    path: packages/libraries/iptv_vod
+  iptv_series:
+    path: packages/libraries/iptv_series
+  iptv_player:
+    path: packages/libraries/iptv_player
+  iptv_cast:
+    path: packages/libraries/iptv_cast
+  iptv_favorites:
+    path: packages/libraries/iptv_favorites
+  iptv_settings:
+    path: packages/libraries/iptv_settings
+  iptv_donations:
+    path: packages/libraries/iptv_donations
+
+  # Workspace packages — parts
+  iptv_home_part:
+    path: packages/parts/iptv_home_part
+  iptv_player_part:
+    path: packages/parts/iptv_player_part
+  iptv_settings_part:
+    path: packages/parts/iptv_settings_part
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  build_runner: ^2.4.11
+  freezed: ^2.5.7
+  json_serializable: ^6.8.0
+  riverpod_generator: ^2.4.3
+  injectable_generator: ^2.6.2
+  auto_route_generator: ^9.0.0
+  mockito: ^5.4.4
+  flutter_launcher_icons: ^0.14.1
+
+flutter:
+  uses-material-design: true
+
+# LimeBeam launcher icon (iOS + Android). Regenerate with:
+#   dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  image_path: "assets/branding/limebeam_appicon_1024.png"
+  background_color_ios: "#0B0C0E"
+
+melos:
+  scripts:
+    analyze:
+      description: Analyze all packages.
+      run: dart analyze .
+      exec:
+        concurrency: 1
+    build_runner:
+      description: Run code generation in packages that need it.
+      run: dart run build_runner build --delete-conflicting-outputs
+      packageFilters:
+        dependsOn: build_runner
+    test:
+      description: Run all tests.
+      run: flutter test
+      packageFilters:
+        dirExists: test

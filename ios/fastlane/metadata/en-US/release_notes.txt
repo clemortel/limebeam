@@ -1,0 +1,9 @@
+First release of LimeBeam.
+
+- Live, movies and series from your Xtream and M3U sources
+- TV guide (EPG) and resume playback
+- Floating window to keep watching while you browse
+- Parental control, light/dark themes, search and favorites
+- 100% local, no ads, no tracking
+
+Thanks for trying LimeBeam\!

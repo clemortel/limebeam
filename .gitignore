@@ -1,0 +1,54 @@
+# Dart / Flutter
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+pubspec.lock
+
+# Generated code (regenerated via `melos run build_runner`)
+*.freezed.dart
+*.g.dart
+*.gr.dart
+*.config.dart
+*.mocks.dart
+
+# Melos
+.melos_tool/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+
+# Secrets
+*.env
+.env
+.env.*
+!*.env.default
+
+# Android release signing secrets
+android/key.properties
+*.jks
+*.keystore
+
+# Store credentials & API keys (NEVER commit)
+*.p8
+*.mobileprovision
+*.p12
+**/fastlane/json_secret_file.json
+**/fastlane/.env
+**/fastlane/report.xml
+google-services.json
+GoogleService-Info.plist
+
+# Logs
+*.log
+
+# Node / web (Astro) — extra safety on top of web/.gitignore
+node_modules/
+web/dist/
+.astro/

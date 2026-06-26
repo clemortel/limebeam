@@ -1,0 +1,7 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img">
+  <title>LimeBeam mark</title>
+  <desc>The LimeBeam beam mark on a transparent background.</desc>
+  <circle cx="156" cy="256" r="43" fill="#C5F03A"/>
+  <path d="M184 235 L396 148 L396 364 L184 277 Z" fill="#C5F03A"/>
+  <path d="M184 244 L338 198 L338 314 L184 268 Z" fill="#0B0C0E" opacity="0.16"/>
+</svg>

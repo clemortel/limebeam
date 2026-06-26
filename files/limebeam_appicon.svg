@@ -1,0 +1,13 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" role="img">
+  <title>LimeBeam app icon</title>
+  <desc>A lime beam emanating from a luminous point on a soft-black background.</desc>
+  <rect x="0" y="0" width="1024" height="1024" rx="224" fill="#0B0C0E"/>
+  <rect x="0" y="0" width="1024" height="1024" rx="224" fill="#141619" opacity="0.5"/>
+  <!-- source point -->
+  <circle cx="312" cy="512" r="86" fill="#C5F03A"/>
+  <circle cx="312" cy="512" r="86" fill="#A8D625" opacity="0.0"/>
+  <!-- beam -->
+  <path d="M368 470 L792 296 L792 728 L368 554 Z" fill="#C5F03A"/>
+  <!-- inner depth notch -->
+  <path d="M368 489 L676 396 L676 628 L368 535 Z" fill="#0B0C0E" opacity="0.16"/>
+</svg>

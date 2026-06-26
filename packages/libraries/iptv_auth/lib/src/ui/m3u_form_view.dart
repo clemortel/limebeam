@@ -1,0 +1,100 @@
+import "package:flutter/material.dart";
+import "package:flutter_riverpod/flutter_riverpod.dart"
+    hide AsyncData, AsyncError, AsyncLoading, AsyncValue;
+import "package:iptv_ui/iptv_ui.dart";
+
+import "../riverpods/add_m3u_source_notifier.dart";
+import "../riverpods/m3u_form_state.dart";
+
+/// Form — M3U playlist. Name + playlist URL (+ optional EPG URL); "Continuer"
+/// enabled only when valid. Field state + validation live in the notifier.
+class M3uFormView extends ConsumerStatefulWidget {
+  const M3uFormView({required this.onContinue, super.key});
+
+  final VoidCallback onContinue;
+
+  @override
+  ConsumerState<M3uFormView> createState() => _M3uFormViewState();
+}
+
+class _M3uFormViewState extends ConsumerState<M3uFormView> {
+  late final TextEditingController _name;
+  late final TextEditingController _url;
+  late final TextEditingController _epg;
+
+  @override
+  void initState() {
+    super.initState();
+    final M3uFormState s = ref.read(addM3uSourceNotifierProvider);
+    _name = TextEditingController(text: s.name);
+    _url = TextEditingController(text: s.url);
+    _epg = TextEditingController(text: s.epgUrl);
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _url.dispose();
+    _epg.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final AppTheme t = context.appTheme;
+    final M3uFormState state = ref.watch(addM3uSourceNotifierProvider);
+    final AddM3uSourceNotifier notifier =
+        ref.read(addM3uSourceNotifierProvider.notifier);
+
+    return Scaffold(
+      backgroundColor: t.colors.bgBase,
+      appBar: AppBar(
+        backgroundColor: t.colors.bgBase,
+        title: Text("Playlist M3U", style: t.typography.h3),
+      ),
+      body: SafeArea(
+        child: ListView(
+          padding: EdgeInsets.all(t.space.x4),
+          children: <Widget>[
+            AppInput(
+              controller: _name,
+              label: "Nom de la source",
+              placeholder: "Ma playlist",
+              errorText: state.nameError,
+              onChanged: notifier.setName,
+            ),
+            SizedBox(height: t.space.x4),
+            AppInput(
+              controller: _url,
+              label: "URL M3U",
+              placeholder: "http://exemple.com/playlist.m3u",
+              helperText: "Lien direct vers votre fichier .m3u / .m3u8",
+              keyboardType: TextInputType.url,
+              errorText: state.urlError,
+              onChanged: notifier.setUrl,
+            ),
+            SizedBox(height: t.space.x4),
+            AppInput(
+              controller: _epg,
+              label: "URL EPG (optionnel)",
+              placeholder: "http://exemple.com/epg.xml",
+              keyboardType: TextInputType.url,
+              onChanged: notifier.setEpgUrl,
+            ),
+            SizedBox(height: t.space.x3),
+            Text(
+              "Le M3U fournit les chaînes en direct. Les films et séries "
+              "nécessitent un portail Xtream.",
+              style: t.typography.caption.copyWith(color: t.colors.textTertiary),
+            ),
+            SizedBox(height: t.space.x6),
+            PrimaryButton(
+              label: "Continuer",
+              onPressed: state.canSubmit ? widget.onContinue : null,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

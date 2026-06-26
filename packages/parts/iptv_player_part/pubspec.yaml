@@ -1,0 +1,34 @@
+name: iptv_player_part
+description: Full player screen + controls + EPG overlay.
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ">=3.6.0 <4.0.0"
+  flutter: ">=3.24.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  auto_route: ^9.2.0
+  flutter_riverpod: ^2.5.1
+  iptv_core:
+    path: ../../libraries/iptv_core
+  iptv_ui:
+    path: ../../libraries/iptv_ui
+  iptv_player:
+    path: ../../libraries/iptv_player
+  iptv_live:
+    path: ../../libraries/iptv_live
+  iptv_epg:
+    path: ../../libraries/iptv_epg
+  iptv_favorites:
+    path: ../../libraries/iptv_favorites
+
+dev_dependencies:
+  build_runner: ^2.4.11
+  flutter_lints: ^4.0.0
+  flutter_test:
+    sdk: flutter
+  auto_route_generator: ^9.0.0

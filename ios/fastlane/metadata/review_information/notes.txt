@@ -1,0 +1,14 @@
+LimeBeam is a generic IPTV player. It does NOT provide, host or bundle any
+channels, movies or media. Users connect their own Xtream Codes account or
+M3U/M3U8 playlist.
+
+NO ACCOUNT IS REQUIRED to review the app. On the welcome screen, tap
+"Essayer la demo" / "Try the demo" to load a small set of free, public test
+streams (official Apple/Mux HLS samples, Tears of Steel, etc.) and exercise
+every feature: live, VOD, playback, floating window, settings, parental lock.
+
+The "Soutenir le developpeur" (Tip Jar) screen uses standard consumable
+in-app purchases and unlocks NO content or feature: it is purely an optional
+donation.
+
+Contact: clement@stairling.com

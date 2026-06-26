@@ -1,0 +1,22 @@
+LimeBeam is a modern, fast and elegant IPTV player for watching your own streams.
+
+LimeBeam provides no content. The app ships no channels, movies or series: you connect your own IPTV subscription through an Xtream Codes account or an M3U / M3U8 playlist.
+
+WHAT YOU GET
+- Live TV, movies and series, organized automatically from your source
+- A clear, readable TV guide (EPG)
+- Resume playback: pick up exactly where you left off
+- Floating window: keep watching while you browse the app
+- Fast search and favorites
+- Parental control with a PIN code
+- Light and dark themes, adjustable font size
+- Smooth player with gestures (brightness, volume, seek)
+
+PRIVACY FIRST
+- 100% local: your credentials and playlists stay on your device
+- No ads, no trackers, no LimeBeam account required
+
+SUPPORT DEVELOPMENT
+LimeBeam is free. If you enjoy it, an optional Tip Jar lets you support the developer via in-app purchases: it unlocks no content or feature.
+
+Try the built-in demo from the welcome screen, with no credentials at all.

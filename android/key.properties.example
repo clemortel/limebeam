@@ -1,0 +1,17 @@
+# Copie ce fichier en `android/key.properties` (gitignore) et remplis-le.
+#
+#   cp android/key.properties.example android/key.properties
+#
+# Genere d'abord le keystore (voir commande dans le README / ci-dessous) :
+#
+#   keytool -genkey -v -keystore ~/upload-keystore.jks \
+#     -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+#
+# storeFile : chemin ABSOLU vers le .jks, ou relatif au dossier android/app/.
+# Conserve le keystore + ces mots de passe en lieu sur : les perdre = tu ne
+# peux plus mettre a jour l'app sur le Play Store.
+
+storePassword=motDePasseDuKeystore
+keyPassword=motDePasseDeLaCle
+keyAlias=upload
+storeFile=/Users/clem/upload-keystore.jks

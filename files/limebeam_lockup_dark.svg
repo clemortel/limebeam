@@ -1,0 +1,11 @@
+<svg width="760" height="220" viewBox="0 0 760 220" xmlns="http://www.w3.org/2000/svg" role="img">
+  <title>LimeBeam lockup on dark</title>
+  <desc>The LimeBeam lockup centered on a soft-black panel.</desc>
+  <rect x="0" y="0" width="760" height="220" rx="28" fill="#0B0C0E"/>
+  <circle cx="108" cy="110" r="26" fill="#C5F03A"/>
+  <path d="M142 85 L218 52 L218 168 L142 135 Z" fill="#C5F03A"/>
+  <path d="M142 96 L188 76 L188 144 L142 124 Z" fill="#0B0C0E" opacity="0.18"/>
+  <text x="260" y="133" font-family="Inter, -apple-system, Segoe UI, Roboto, sans-serif" font-size="68" font-weight="600" letter-spacing="-1.4">
+    <tspan fill="#F4F6F8">Lime</tspan><tspan fill="#C5F03A">Beam</tspan>
+  </text>
+</svg>
