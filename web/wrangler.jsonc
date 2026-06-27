@@ -1,0 +1,10 @@
+{
+  // Cloudflare config for the static LimeBeam site.
+  // Astro builds to ./dist, so serve assets from there (NOT the default
+  // ./public, which is what triggers the "public/.assetsignore" error).
+  "name": "limebeam",
+  "compatibility_date": "2025-06-01",
+  "assets": {
+    "directory": "./dist"
+  }
+}
