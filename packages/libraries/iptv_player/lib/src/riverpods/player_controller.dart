@@ -1,16 +1,21 @@
 import "dart:async";
 
 import "package:dartz/dartz.dart" hide IList, IMap, ISet;
+import "package:flutter/foundation.dart";
+import "package:flutter/widgets.dart";
 import "package:get_it/get_it.dart";
 import "package:iptv_cast/iptv_cast.dart";
 import "package:iptv_core/iptv_core.dart";
-import "package:media_kit/media_kit.dart";
-import "package:media_kit_video/media_kit_video.dart";
 import "package:riverpod_annotation/riverpod_annotation.dart";
 
+import "../domain/media_track.dart";
+import "../domain/playback_engine.dart";
 import "../domain/playback_queue.dart";
 import "../domain/playback_request.dart";
-import "../player_init.dart";
+import "../domain/subtitle_style.dart";
+import "../infrastructure/airplay_monitor.dart";
+import "../infrastructure/av_player_engine.dart";
+import "../infrastructure/media_kit_engine.dart";
 import "player_ui_state.dart";
 
 part "player_controller.g.dart";
@@ -39,14 +44,17 @@ const Duration _kResumeSeekTimeout = Duration(seconds: 6);
 /// Poll interval for the remote (Chromecast) playhead while casting.
 const Duration _kCastPollInterval = Duration(seconds: 1);
 
+/// Maximum subtitle / audio sync offset the UI allows, in milliseconds (±10s).
+const int _kMaxSyncOffsetMs = 10000;
+
 /// App-scoped playback engine (keepAlive): playback **survives** popping the
 /// full-screen player, which is what powers the docked mini-player. Call
-/// [start] to (re)play a queue; [stop] tears the engine down. The media_kit
-/// types never leave this file; all logic/timers live here, not in widgets.
+/// [start] to (re)play a queue; [stop] tears the engine down. The concrete
+/// [PlaybackEngine] (media_kit on Android, native AVPlayer on iOS) stays behind
+/// its boundary; all logic/timers live here, not in widgets.
 @Riverpod(keepAlive: true)
 class PlaybackController extends _$PlaybackController {
-  Player? _player;
-  VideoController? _videoController;
+  PlaybackEngine? _engine;
   PlaybackQueue? _queue;
   final List<StreamSubscription<dynamic>> _subscriptions =
       <StreamSubscription<dynamic>>[];
@@ -78,6 +86,24 @@ class PlaybackController extends _$PlaybackController {
           ? GetIt.instance<ICastRepository>()
           : null;
 
+  /// Optional playback preferences (registered by iptv_settings) — drives
+  /// track auto-selection and subtitle styling. Null = no preferences seam.
+  final PlaybackPreferences? _prefs =
+      GetIt.instance.isRegistered<PlaybackPreferences>()
+          ? GetIt.instance<PlaybackPreferences>()
+          : null;
+
+  /// True between opening an item and applying the preferred-language
+  /// auto-selection once its track list first arrives.
+  bool _autoSelectPending = false;
+
+  /// Watches the iOS output route so playback can swap to the AVPlayer engine
+  /// while AirPlay is active and back to libmpv otherwise. Null off iOS.
+  StreamSubscription<bool>? _routeSub;
+
+  /// True while the active local engine is the AVPlayer (iOS AirPlay handoff).
+  bool _externalPlayback = false;
+
   /// Polls the remote playhead while casting; null when playing locally.
   Timer? _castPollTimer;
 
@@ -96,8 +122,12 @@ class PlaybackController extends _$PlaybackController {
     return const PlayerUiState();
   }
 
-  /// Non-null only while playback is active (the [Video] widget needs it).
-  VideoController? get videoController => _videoController;
+  /// The engine's video surface, or null when nothing is playing. iOS renders
+  /// the native AVPlayer view; elsewhere the media_kit `Video`.
+  Widget? buildVideoView() => _engine?.buildView();
+
+  /// Whether an engine exists (playback is active).
+  bool get hasVideo => _engine != null;
 
   /// The active queue, or null when nothing is playing.
   PlaybackQueue? get queue => _queue;
@@ -109,22 +139,26 @@ class PlaybackController extends _$PlaybackController {
     return q.items[state.queueIndex];
   }
 
+  /// Builds the local engine. Default everywhere is libmpv (media_kit), which
+  /// decodes the MPEG-TS / MKV that Xtream serves — AVPlayer cannot. On iOS we
+  /// switch to the native AVPlayer only while [_externalPlayback] (AirPlay) is
+  /// active, since libmpv renders to a texture and cannot AirPlay video.
+  PlaybackEngine _createEngine() {
+    if (defaultTargetPlatform == TargetPlatform.iOS && _externalPlayback) {
+      return AvPlayerEngine();
+    }
+    return MediaKitEngine();
+  }
+
   /// Begins (or replaces) playback with [queue].
   void start(PlaybackQueue queue) {
     _countdownTimer?.cancel();
-    if (_player == null) {
-      final Player player = Player();
-      _player = player;
-      // Emulators can't create a hardware GL context (black video), so fall
-      // back to software rendering there; real devices keep acceleration.
-      _videoController = VideoController(
-        player,
-        configuration: VideoControllerConfiguration(
-          enableHardwareAcceleration: !playerSoftwareRenderingOnly,
-        ),
-      );
-      _listen(player);
+    if (_engine == null) {
+      final PlaybackEngine engine = _createEngine();
+      _engine = engine;
+      _listen(engine);
     }
+    _watchOutputRoute();
     _queue = queue;
     _lastSavedSeconds = 0;
     _set(
@@ -133,10 +167,52 @@ class PlaybackController extends _$PlaybackController {
         overlayVisible: true,
         isLive: queue.current.isLive,
         queueIndex: queue.index,
+        supportsSyncOffsets: _engine?.supportsSyncOffsets ?? false,
       ),
     );
     unawaited(_openIndex(queue.index, queue.current.startAt));
     _restartHideTimer();
+  }
+
+  /// Subscribes once to the iOS output-route stream; swaps engines as AirPlay
+  /// comes and goes. No-op off iOS (the stream is empty there).
+  void _watchOutputRoute() {
+    if (_routeSub != null) return;
+    _routeSub = const AirPlayMonitor().airPlayActive.listen(_onAirPlayChanged);
+  }
+
+  /// Swaps to the AVPlayer engine when AirPlay turns on and back to libmpv when
+  /// it turns off, preserving the current position. Ignored while Chromecast
+  /// owns playback (that path manages its own handoff).
+  Future<void> _onAirPlayChanged(bool active) async {
+    if (_disposed || isCasting || active == _externalPlayback) return;
+    _externalPlayback = active;
+    if (_engine == null) return;
+    await _swapEngine();
+  }
+
+  /// Tears down the current engine and rebuilds it via [_createEngine] at the
+  /// current position, re-subscribing its streams. Used for the AirPlay handoff.
+  Future<void> _swapEngine() async {
+    final PlaybackQueue? q = _queue;
+    if (q == null) return;
+    final Duration resumeAt = state.isLive ? Duration.zero : state.position;
+    for (final StreamSubscription<dynamic> sub in _subscriptions) {
+      await sub.cancel();
+    }
+    _subscriptions.clear();
+    await _engine?.dispose();
+    if (_disposed) return;
+    final PlaybackEngine engine = _createEngine();
+    _engine = engine;
+    _listen(engine);
+    _set(
+      state.copyWith(
+        buffering: true,
+        supportsSyncOffsets: engine.supportsSyncOffsets,
+      ),
+    );
+    await _openIndex(state.queueIndex, resumeAt);
   }
 
   /// Stops playback and releases the engine (mini-player close).
@@ -149,23 +225,25 @@ class PlaybackController extends _$PlaybackController {
     _castPollTimer = null;
     await _castConnSub?.cancel();
     _castConnSub = null;
+    await _routeSub?.cancel();
+    _routeSub = null;
+    _externalPlayback = false;
     if (isCasting) await _castRepo?.endSession();
     for (final StreamSubscription<dynamic> sub in _subscriptions) {
       await sub.cancel();
     }
     _subscriptions.clear();
-    await _player?.dispose();
-    _player = null;
-    _videoController = null;
+    await _engine?.dispose();
+    _engine = null;
     _queue = null;
     _set(const PlayerUiState());
   }
 
-  void _listen(Player player) {
+  void _listen(PlaybackEngine engine) {
     // While casting, the local engine is paused and the remote owns playback
     // state; ignore its (stale) stream events so they don't clobber the UI.
     _subscriptions.add(
-      player.stream.position.listen((Duration p) {
+      engine.position.listen((Duration p) {
         if (isCasting) return;
         _set(state.copyWith(position: p));
         _maybeSaveProgress();
@@ -175,13 +253,13 @@ class PlaybackController extends _$PlaybackController {
       }),
     );
     _subscriptions.add(
-      player.stream.duration.listen((Duration d) {
+      engine.duration.listen((Duration d) {
         if (isCasting) return;
         _set(state.copyWith(duration: d));
       }),
     );
     _subscriptions.add(
-      player.stream.playing.listen((bool p) {
+      engine.playing.listen((bool p) {
         if (isCasting) return;
         _set(state.copyWith(playing: p, error: p ? null : state.error));
         if (p) {
@@ -193,20 +271,38 @@ class PlaybackController extends _$PlaybackController {
       }),
     );
     _subscriptions.add(
-      player.stream.buffering.listen((bool b) {
+      engine.buffering.listen((bool b) {
         if (isCasting) return;
         _set(state.copyWith(buffering: b));
       }),
     );
     _subscriptions.add(
-      player.stream.buffer.listen((Duration b) {
+      engine.buffer.listen((Duration b) {
         if (isCasting) return;
         _set(state.copyWith(buffer: b));
       }),
     );
     _subscriptions.add(
-      player.stream.error.listen((String _) {
+      engine.error.listen((String message) {
         if (isCasting) return;
+        // Surface the engine's real reason in debug builds; the UI keeps the
+        // generic failure. Helps diagnose codec/container issues (e.g. AVPlayer
+        // rejecting MPEG-TS / MKV) that otherwise leave no trace.
+        debugPrint("PlaybackEngine error: $message");
+        // Audio-init failures (no output device — common on the iOS Simulator)
+        // are NOT fatal: video keeps playing, so never show the error overlay.
+        final String reason = message.toLowerCase();
+        if (reason.contains("audio device") || reason.contains("no sound")) {
+          return;
+        }
+        // If the AVPlayer (AirPlay) engine fails — e.g. the HLS variant is
+        // rejected — fall back to libmpv so local playback continues instead of
+        // a hard error. AirPlay then degrades to audio-only rather than failing.
+        if (_externalPlayback) {
+          _externalPlayback = false;
+          unawaited(_swapEngine());
+          return;
+        }
         _set(
           state.copyWith(
             error: const Failures.streamUnavailable(),
@@ -216,26 +312,124 @@ class PlaybackController extends _$PlaybackController {
       }),
     );
     _subscriptions.add(
-      player.stream.completed.listen((bool c) {
+      engine.completed.listen((bool c) {
         if (isCasting) return;
         _onCompleted(c);
       }),
     );
+    _subscriptions.add(
+      engine.tracks.listen((AvailableTracks t) {
+        if (isCasting) return;
+        _set(
+          state.copyWith(
+            tracks: state.tracks.copyWith(
+              audio: t.audio,
+              subtitle: t.subtitle,
+            ),
+          ),
+        );
+        _maybeAutoSelectTracks();
+      }),
+    );
+    _subscriptions.add(
+      engine.selectedTracks.listen((SelectedTrackIds s) {
+        if (isCasting) return;
+        _set(
+          state.copyWith(
+            tracks: state.tracks.copyWith(
+              selectedAudioId: s.audioId,
+              selectedSubtitleId: s.subtitleId,
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
+  /// Applies the user's preferred audio/subtitle languages once the freshly
+  /// opened item reports its track list. Runs at most once per open.
+  void _maybeAutoSelectTracks() {
+    if (!_autoSelectPending) return;
+    final PlaybackEngine? engine = _engine;
+    final PlayerTracks tracks = state.tracks;
+    if (engine == null || !tracks.hasAny) return;
+    _autoSelectPending = false;
+    final PlaybackPreferences? prefs = _prefs;
+    if (prefs == null) return;
+
+    final String? audioLang = prefs.preferredAudioLanguage;
+    if (audioLang != null) {
+      final MediaTrack? match = matchTrackByLanguage(tracks.audio, audioLang);
+      if (match != null) unawaited(engine.setAudioTrack(match.id));
+    }
+
+    if (prefs.subtitlesEnabledByDefault) {
+      final String? subLang = prefs.preferredSubtitleLanguage;
+      final MediaTrack? match = subLang == null
+          ? null
+          : matchTrackByLanguage(tracks.subtitle, subLang);
+      if (match != null) unawaited(engine.setSubtitleTrack(match.id));
+    } else {
+      // Honor "subtitles off by default" explicitly.
+      unawaited(engine.setSubtitleTrack(MediaTrack.noneId));
+    }
+  }
+
+  /// Pushes the user's saved subtitle appearance to the engine.
+  void _applySavedSubtitleStyle() {
+    final PlaybackEngine? engine = _engine;
+    final PlaybackPreferences? prefs = _prefs;
+    if (engine == null || prefs == null) return;
+    unawaited(
+      engine.applySubtitleStyle(
+        SubtitleStyle(
+          fontScale: prefs.subtitleFontScale,
+          textColorArgb: prefs.subtitleTextColorArgb,
+          backgroundOpacity: prefs.subtitleBackgroundOpacity,
+        ),
+      ),
+    );
   }
 
   Future<void> _openIndex(int index, Duration startAt) async {
-    final Player? player = _player;
+    final PlaybackEngine? engine = _engine;
     final PlaybackQueue? q = _queue;
-    if (player == null || q == null) return;
-    _set(state.copyWith(error: null, buffering: true));
-    await player.open(Media(q.items[index].url));
+    if (engine == null || q == null) return;
+    // New item: re-run preferred-track auto-select and reset any sync offsets.
+    _autoSelectPending = true;
+    _set(
+      state.copyWith(
+        error: null,
+        buffering: true,
+        tracks: const PlayerTracks(),
+        subtitleDelayMs: 0,
+        audioDelayMs: 0,
+      ),
+    );
+    if (engine.supportsSyncOffsets) {
+      unawaited(engine.setSubtitleDelay(0));
+      unawaited(engine.setAudioDelay(0));
+    }
+    // AVPlayer (AirPlay) needs the HLS variant; libmpv uses the default URL.
+    final PlaybackRequest item = q.items[index];
+    final String url =
+        _externalPlayback ? (item.externalUrl ?? item.url) : item.url;
+    await engine.open(url);
+    _applySavedSubtitleStyle();
     if (startAt > Duration.zero) {
-      final Duration total = await player.stream.duration
-          .firstWhere((Duration d) => d > Duration.zero)
+      // `orElse` guards against "Bad state: No element": if the engine fails to
+      // open (e.g. AVPlayer rejected by the source), its duration stream closes
+      // without emitting, and a bare firstWhere would throw an unhandled async
+      // error instead of just skipping the resume-seek.
+      final Duration total = await engine.duration
+          .firstWhere(
+            (Duration d) => d > Duration.zero,
+            orElse: () => Duration.zero,
+          )
           .timeout(_kResumeSeekTimeout, onTimeout: () => Duration.zero);
       // Bail if disposed or the user switched content during the await.
       if (_disposed || state.queueIndex != index) return;
-      if (total > Duration.zero) await player.seek(startAt);
+      if (total > Duration.zero) await engine.seek(startAt);
     }
   }
 
@@ -289,7 +483,7 @@ class PlaybackController extends _$PlaybackController {
   }
 
   /// Current volume as a 0..1 fraction (for the gesture HUD).
-  double get currentVolume01 => (_player?.state.volume ?? 100) / 100;
+  double get currentVolume01 => (_engine?.volume ?? 100) / 100;
 
   /// Whether the full-screen player is on screen. When false (and active), the
   /// floating in-app PiP window is shown instead.
@@ -368,7 +562,7 @@ class PlaybackController extends _$PlaybackController {
       revealOverlay();
       return;
     }
-    _player?.playOrPause();
+    unawaited(_engine?.playOrPause());
     revealOverlay();
   }
 
@@ -419,13 +613,13 @@ class PlaybackController extends _$PlaybackController {
   }
 
   Future<void> setVolume(double volume) async =>
-      _player?.setVolume(volume);
+      _engine?.setVolume(volume);
 
   void nudgeVolume(double deltaFraction) {
-    final Player? player = _player;
-    if (player == null) return;
-    final double next = (player.state.volume + deltaFraction * 100).clamp(0, 100);
-    unawaited(player.setVolume(next));
+    final PlaybackEngine? engine = _engine;
+    if (engine == null) return;
+    final double next = (engine.volume + deltaFraction * 100).clamp(0, 100);
+    unawaited(engine.setVolume(next));
   }
 
   /// Re-opens the current item after a stream error.
@@ -433,6 +627,42 @@ class PlaybackController extends _$PlaybackController {
     final PlaybackQueue? q = _queue;
     if (q == null) return;
     unawaited(_openIndex(state.queueIndex, q.items[state.queueIndex].startAt));
+    revealOverlay();
+  }
+
+  // --- Track selection & sync (called from the overlay) -------------------
+
+  /// Selects an audio track by [id] ([MediaTrack.autoId] for engine default).
+  /// The resulting selection flows back via the engine's selectedTracks stream.
+  void selectAudioTrack(String id) {
+    unawaited(_engine?.setAudioTrack(id));
+    revealOverlay();
+  }
+
+  /// Selects a subtitle track by [id], or [MediaTrack.noneId] to hide them.
+  void selectSubtitleTrack(String id) {
+    unawaited(_engine?.setSubtitleTrack(id));
+    revealOverlay();
+  }
+
+  void setSubtitleDelay(int milliseconds) {
+    final int clamped = milliseconds.clamp(-_kMaxSyncOffsetMs, _kMaxSyncOffsetMs);
+    unawaited(_engine?.setSubtitleDelay(clamped));
+    _set(state.copyWith(subtitleDelayMs: clamped));
+    revealOverlay();
+  }
+
+  void setAudioDelay(int milliseconds) {
+    final int clamped = milliseconds.clamp(-_kMaxSyncOffsetMs, _kMaxSyncOffsetMs);
+    unawaited(_engine?.setAudioDelay(clamped));
+    _set(state.copyWith(audioDelayMs: clamped));
+    revealOverlay();
+  }
+
+  /// Applies subtitle appearance (already persisted by the settings notifier)
+  /// to the running engine.
+  void applySubtitleStyle(SubtitleStyle style) {
+    unawaited(_engine?.applySubtitleStyle(style));
     revealOverlay();
   }
 
@@ -448,7 +678,7 @@ class PlaybackController extends _$PlaybackController {
       revealOverlay();
       return;
     }
-    unawaited(_player?.seek(clamped));
+    unawaited(_engine?.seek(clamped));
     revealOverlay();
   }
 
@@ -460,7 +690,7 @@ class PlaybackController extends _$PlaybackController {
     final PlaybackRequest? request = currentRequest;
     if (_castRepo == null || request == null) return;
     final Duration startAt = state.isLive ? Duration.zero : state.position;
-    await _player?.pause();
+    await _engine?.pause();
     _accrueWatchTime(resume: false);
     await _castLoad(device, request, startAt);
     revealOverlay();
@@ -561,9 +791,10 @@ class PlaybackController extends _$PlaybackController {
     _countdownTimer?.cancel();
     _castPollTimer?.cancel();
     await _castConnSub?.cancel();
+    await _routeSub?.cancel();
     for (final StreamSubscription<dynamic> sub in _subscriptions) {
       await sub.cancel();
     }
-    await _player?.dispose();
+    await _engine?.dispose();
   }
 }
