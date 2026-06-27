@@ -69,7 +69,7 @@ Pré-requis (une fois) : `cd ios && bundle install` et `cd android && bundle ins
    console. LimeBeam : aucune collecte (déclarer « Données non collectées »).
 3. **Classification d'âge** — questionnaire console (probable 17+).
 4. **Produits in-app** Tip Jar — `tip.coffee/meal/devsession` (iOS, déjà créés) et
-   `tip_coffee/meal/devsession` (Play, à créer comme consommables).
+   `tip-coffee/meal/devsession` (Play — traits d'union, pas underscores).
 
 ## Notes de review (déjà rédigées)
 

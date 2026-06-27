@@ -9,8 +9,8 @@ import "package:iptv_core/iptv_core.dart";
 import "../models/donation_product.dart";
 
 /// One Tip Jar catalog entry. Store ids differ per platform on purpose: App
-/// Store Connect ids use dots, but Google Play forbids them (lowercase letters,
-/// digits and underscores only). The pricing/title come from the store at load.
+/// Store Connect ids use dots, but Google Play purchase-option ids allow only
+/// lowercase letters, digits and hyphens. The pricing/title come from the store.
 @immutable
 class _TipItem {
   const _TipItem({
@@ -42,14 +42,14 @@ const List<_TipItem> _kCatalog = <_TipItem>[
     subtitle: "Juste pour dire merci",
     emoji: "☕",
     appleId: "tip.coffee",
-    googleId: "tip_coffee",
+    googleId: "tip-coffee",
   ),
   _TipItem(
     title: "Un repas",
     subtitle: "Tu soutiens vraiment le projet",
     emoji: "🍱",
     appleId: "tip.meal",
-    googleId: "tip_meal",
+    googleId: "tip-meal",
     isRecommended: true,
   ),
   _TipItem(
@@ -57,7 +57,7 @@ const List<_TipItem> _kCatalog = <_TipItem>[
     subtitle: "Pour pousser une nouvelle fonctionnalité",
     emoji: "💻",
     appleId: "tip.devsession",
-    googleId: "tip_devsession",
+    googleId: "tip-devsession",
   ),
 ];
 
