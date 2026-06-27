@@ -4,7 +4,6 @@ import "package:dartz/dartz.dart" hide IList, IMap, ISet;
 import "package:iptv_core/iptv_core.dart";
 import "package:riverpod_annotation/riverpod_annotation.dart";
 
-import "../demo_source.dart";
 import "../models/source.dart";
 import "m3u_form_state.dart";
 import "providers.dart";
@@ -65,17 +64,14 @@ class AddM3uSourceNotifier extends _$AddM3uSourceNotifier {
     );
   }
 
-  /// Seeds the bundled demo playlist as an M3U source — no form, no
-  /// validation (the URL is the in-app `asset:` playlist). Reuses [submission]
-  /// so the connecting screen reports progress exactly like a normal M3U add.
+  /// Seeds the bundled offline demo source (rich live + VOD + series) — no
+  /// form, no network. Reuses [submission] so the connecting screen reports
+  /// progress exactly like a normal add.
   Future<void> startDemo() async {
     state = state.copyWith(submission: const AsyncState<Source>.loading());
 
     final Either<Failures, Source> result =
-        await ref.read(sourceRepositoryProvider).addM3uSource(
-              name: kDemoSourceName,
-              url: kDemoM3uUrl,
-            );
+        await ref.read(sourceRepositoryProvider).addDemoSource();
 
     state = result.fold(
       (Failures failure) =>

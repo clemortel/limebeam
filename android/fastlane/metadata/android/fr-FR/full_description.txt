@@ -11,6 +11,7 @@ CE QUE VOUS OBTENEZ
 - Controle parental par code PIN
 - Themes clair et sombre, taille de police ajustable
 - Lecteur fluide avec gestes (luminosite, volume, avance rapide)
+- Diffusion vers Chromecast
 
 RESPECT DE VOTRE VIE PRIVEE
 - 100 % local : vos identifiants et playlists restent sur votre appareil

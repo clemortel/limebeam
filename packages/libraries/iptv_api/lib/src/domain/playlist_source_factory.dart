@@ -1,6 +1,7 @@
 import "package:injectable/injectable.dart";
 import "package:iptv_core/iptv_core.dart";
 
+import "../clients/demo_client.dart";
 import "../clients/m3u_client.dart";
 import "../clients/xtream_codes_client.dart";
 import "playlist_source.dart";
@@ -18,6 +19,7 @@ class PlaylistSourceFactory {
     return switch (config) {
       final XtreamConfig c => XtreamCodesClient(config: c, http: _http),
       final M3uConfig c => M3uClient(config: c, http: _http),
+      DemoConfig() => const DemoPlaylistSource(),
     };
   }
 }

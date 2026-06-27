@@ -19,4 +19,8 @@ sealed class SourceConfig with _$SourceConfig {
     required String url,
     String? epgUrl,
   }) = M3uConfig;
+
+  /// Bundled offline demo catalog (live + VOD + series). No network config —
+  /// the demo client returns built-in, legally-public sample content.
+  const factory SourceConfig.demo() = DemoConfig;
 }

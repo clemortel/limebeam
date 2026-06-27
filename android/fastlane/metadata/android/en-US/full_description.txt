@@ -11,6 +11,7 @@ WHAT YOU GET
 - Parental control with a PIN code
 - Light and dark themes, adjustable font size
 - Smooth player with gestures (brightness, volume, seek)
+- Cast to Chromecast
 
 PRIVACY FIRST
 - 100% local: your credentials and playlists stay on your device

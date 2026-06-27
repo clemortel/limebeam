@@ -8,6 +8,7 @@ import "package:injectable/injectable.dart";
 import "package:iptv_api/iptv_api.dart";
 import "package:iptv_core/iptv_core.dart";
 
+import "../demo_source.dart";
 import "../models/connection_status.dart";
 import "../models/source.dart";
 import "../models/source_type.dart";
@@ -33,6 +34,9 @@ abstract interface class ISourceRepository {
     required String url,
     String? epgUrl,
   });
+
+  /// Adds the bundled offline demo source (live + VOD + series). No network.
+  Future<Either<Failures, Source>> addDemoSource();
 
   Future<IList<Source>> getSources();
 
@@ -158,6 +162,27 @@ class SourceRepository implements ISourceRepository {
   }
 
   @override
+  Future<Either<Failures, Source>> addDemoSource() async {
+    developer.log("addDemoSource", name: "iptv.auth");
+    try {
+      const SourceConfig config = SourceConfig.demo();
+      final String id = DateTime.now().microsecondsSinceEpoch.toString();
+      final Source source = Source(
+        id: id,
+        name: kDemoSourceName,
+        type: SourceType.demo,
+        createdAtEpochMs: DateTime.now().millisecondsSinceEpoch,
+        status: ConnectionStatus.ok,
+      );
+      await _persistDemo(source);
+      await _setActiveInternal(id, config);
+      return right(source);
+    } catch (error, stackTrace) {
+      return left(catchError(error, stackTrace));
+    }
+  }
+
+  @override
   Future<IList<Source>> getSources() async {
     final List<String> ids = _readIndex();
     final List<Source> sources = <Source>[];
@@ -259,6 +284,19 @@ class SourceRepository implements ISourceRepository {
     );
   }
 
+  Future<void> _persistDemo(Source source) async {
+    final List<String> ids = _readIndex();
+    if (!ids.contains(source.id)) {
+      ids.add(source.id);
+      await _writeIndex(ids);
+    }
+    await _cache.write(_metaKey(source.id), jsonEncode(source.toJson()));
+    await _cache.write(
+      _cfgKey(source.id),
+      jsonEncode(<String, dynamic>{"type": "demo"}),
+    );
+  }
+
   Future<void> _setActiveInternal(String id, SourceConfig config) async {
     await _cache.write(_kActiveKey, id);
     _activeStore.set(sourceId: id, config: config);
@@ -294,6 +332,7 @@ class SourceRepository implements ISourceRepository {
         epgUrl: json["epgUrl"] as String?,
       );
     }
+    if (json["type"] == "demo") return const SourceConfig.demo();
     return null;
   }
 }
