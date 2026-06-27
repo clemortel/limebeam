@@ -11,3 +11,4 @@ export "src/riverpods/donation_purchase_notifier.dart";
 export "src/riverpods/providers.dart";
 export "src/ui/support_developer_view.dart";
 export "src/ui/tip_prompt_bottom_sheet.dart";
+export "src/ui/tip_thanks_bottom_sheet.dart";

@@ -8,6 +8,7 @@ import "package:iptv_ui/iptv_ui.dart";
 import "../models/donation_product.dart";
 import "../riverpods/donation_products_notifier.dart";
 import "../riverpods/donation_purchase_notifier.dart";
+import "tip_thanks_bottom_sheet.dart";
 
 const double _kHeaderIconSize = 56;
 const double _kTipEmojiSize = 28;
@@ -91,8 +92,8 @@ class SupportDeveloperView extends ConsumerWidget {
         await ref.read(donationPurchaseNotifierProvider.notifier).buy(product);
     if (!context.mounted) return;
     if (purchased) {
-      AppToast.show(context, message: "Merci pour ton soutien ❤️");
       onTipped?.call();
+      await TipThanksBottomSheet.show(context);
       return;
     }
     final AsyncState<bool> state = ref.read(donationPurchaseNotifierProvider);

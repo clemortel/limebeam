@@ -1,4 +1,4 @@
-import "package:flutter/material.dart" show Icons;
+import "package:flutter/material.dart" show Icons, Material, MaterialType;
 import "package:flutter/widgets.dart";
 
 import "../theme/app_theme.dart";
@@ -9,7 +9,11 @@ enum ToastKind { success, warning, error, info }
 /// Inline feedback toast (§2.9). Build it, then show it via [AppToast.show]
 /// using an [Overlay]. The toast itself is a pure widget.
 class AppToast extends StatelessWidget {
-  const AppToast({required this.message, this.kind = ToastKind.info, super.key});
+  const AppToast({
+    required this.message,
+    this.kind = ToastKind.info,
+    super.key,
+  });
 
   final String message;
   final ToastKind kind;
@@ -23,27 +27,33 @@ class AppToast extends StatelessWidget {
       ToastKind.error => (Icons.error_outline, t.colors.error),
       ToastKind.info => (Icons.info_outline, t.colors.textSecondary),
     };
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: t.space.x3,
-        vertical: t.space.x3,
-      ),
-      decoration: BoxDecoration(
-        color: t.colors.bgElevated,
-        borderRadius: t.radius.mdAll,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Icon(icon, color: color, size: 20),
-          SizedBox(width: t.space.x2),
-          Flexible(
-            child: Text(
-              message,
-              style: t.typography.body.copyWith(color: t.colors.textPrimary),
+    // Wrap in a (transparent) Material so the text inherits a real default
+    // style even when shown in a bare Overlay — without it the Text falls back
+    // to Flutter's debug style (the yellow double underline).
+    return Material(
+      type: MaterialType.transparency,
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: t.space.x3,
+          vertical: t.space.x3,
+        ),
+        decoration: BoxDecoration(
+          color: t.colors.bgElevated,
+          borderRadius: t.radius.mdAll,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(icon, color: color, size: 20),
+            SizedBox(width: t.space.x2),
+            Flexible(
+              child: Text(
+                message,
+                style: t.typography.body.copyWith(color: t.colors.textPrimary),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
