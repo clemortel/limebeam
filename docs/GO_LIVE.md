@@ -33,9 +33,11 @@ Produits **consommables**, mêmes prix conseillés (café < repas < session).
 - `tip.coffee` · `tip.meal` · `tip.devsession`
 
 **Play Console** → ton app → *Monetize → Products → In-app products* → créer 3 :
-- `tip-coffee` · `tip-meal` · `tip-devsession`
-  (Play n'accepte que minuscules/chiffres/**traits d'union** — d'où les tirets ;
-  Apple utilise les points. Le code choisit le bon id selon la plateforme.)
+- **ID produit** (celui que l'app interroge) : `tip_coffee` · `tip_meal` ·
+  `tip_devsession` (underscore — autorisé pour l'ID produit, pas le tiret).
+  - Si Play demande aussi un **ID d'option d'achat**, mets `tip-coffee` etc.
+    (traits d'union) — l'app ne s'en sert pas.
+  - Apple utilise les points (`tip.coffee`). Le code mappe par plateforme.
 
 > Tant qu'ils ne sont pas créés + approuvés, l'écran « Soutenir » affiche
 > « Bientôt ». Tester sur **device réel** avec un compte **sandbox**.

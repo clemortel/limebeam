@@ -68,8 +68,9 @@ Pré-requis (une fois) : `cd ios && bundle install` et `cd android && bundle ins
 2. **Apple App Privacy** (nutrition labels) et **Google Data safety** — formulaires
    console. LimeBeam : aucune collecte (déclarer « Données non collectées »).
 3. **Classification d'âge** — questionnaire console (probable 17+).
-4. **Produits in-app** Tip Jar — `tip.coffee/meal/devsession` (iOS, déjà créés) et
-   `tip-coffee/meal/devsession` (Play — traits d'union, pas underscores).
+4. **Produits in-app** Tip Jar — iOS `tip.coffee/meal/devsession` (déjà créés) ;
+   Play **ID produit** `tip_coffee/meal/devsession` (underscore — c'est l'id que
+   l'app interroge ; l'« ID d'option d'achat » en traits d'union est secondaire).
 
 ## Notes de review (déjà rédigées)
 
