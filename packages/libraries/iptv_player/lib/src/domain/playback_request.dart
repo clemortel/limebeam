@@ -22,6 +22,9 @@ sealed class PlaybackRequest with _$PlaybackRequest {
     required String url,
     String? subtitle,
     String? posterUrl,
+    // Alternate URL for engines that need HLS (iOS AVPlayer over AirPlay, which
+    // cannot decode raw MPEG-TS). Null = use [url] everywhere.
+    String? externalUrl,
     @Default("") String containerExtension,
     @Default(Duration.zero) Duration startAt,
   }) = _PlaybackRequest;

@@ -33,6 +33,13 @@ void main() {
       );
     });
 
+    test("should build live HLS URL (.m3u8) when hls is requested", () {
+      expect(
+        client.buildLiveUrl("123", hls: true),
+        "http://portal.tv:8080/live/user/pass/123.m3u8",
+      );
+    });
+
     test("should build movie URL with its container extension", () {
       expect(
         client.buildMovieUrl("55", "mkv"),

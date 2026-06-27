@@ -11,6 +11,42 @@ import "../riverpods/parental_session.dart";
 const int _kPinLength = 4;
 const double _kActionIconSize = 20;
 
+/// Common track languages offered for the preferred-language pickers. `null`
+/// means "no preference" / "none". Codes are the 3-letter forms streams expose.
+const List<(String?, String)> _kLanguageOptions = <(String?, String)>[
+  (null, "Aucune"),
+  ("fra", "Français"),
+  ("eng", "English"),
+  ("spa", "Español"),
+  ("deu", "Deutsch"),
+  ("ita", "Italiano"),
+  ("ara", "العربية"),
+  ("por", "Português"),
+];
+
+/// Subtitle size multipliers offered in settings.
+const List<(double, String)> _kSubtitleScaleOptions = <(double, String)>[
+  (0.75, "Petit"),
+  (1.0, "Normal"),
+  (1.25, "Grand"),
+  (1.5, "Très grand"),
+];
+
+/// Subtitle text color choices (0xAARRGGBB).
+const List<(int, String)> _kSubtitleColorOptions = <(int, String)>[
+  (0xFFFFFFFF, "Blanc"),
+  (0xFFFFEB3B, "Jaune"),
+  (0xFF00E5FF, "Cyan"),
+  (0xFF00E676, "Vert"),
+];
+
+/// Subtitle background-box opacity choices.
+const List<(double, String)> _kSubtitleBackgroundOptions = <(double, String)>[
+  (0.0, "Aucun"),
+  (0.5, "Moyen"),
+  (1.0, "Opaque"),
+];
+
 /// Réglages sections (§4.6): Interface, Lecture, Contrôle parental. Embeddable
 /// (no Scaffold) so the app shell can host it alongside the Sources section.
 class SettingsView extends StatelessWidget {
@@ -25,6 +61,8 @@ class SettingsView extends StatelessWidget {
         const _InterfaceSection(),
         SizedBox(height: t.space.x4),
         const _LectureSection(),
+        SizedBox(height: t.space.x4),
+        const _SubtitlesSection(),
         SizedBox(height: t.space.x4),
         const _ParentalSection(),
       ],
@@ -121,6 +159,68 @@ class _LectureSection extends ConsumerWidget {
           label: "Geste vertical pour le volume",
           value: prefs.playerGestures,
           onChanged: notifier.setPlayerGestures,
+        ),
+      ],
+    );
+  }
+}
+
+class _SubtitlesSection extends ConsumerWidget {
+  const _SubtitlesSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final AppTheme t = context.appTheme;
+    final AppPreferences prefs = ref.watch(appPreferencesNotifierProvider);
+    final AppPreferencesNotifier notifier =
+        ref.read(appPreferencesNotifierProvider.notifier);
+    return _SectionCard(
+      title: "Sous-titres & audio",
+      children: <Widget>[
+        _ChoiceRow<String?>(
+          label: "Langue audio préférée",
+          value: prefs.preferredAudioLanguage,
+          options: _kLanguageOptions,
+          onSelected: notifier.setPreferredAudioLanguage,
+        ),
+        SizedBox(height: t.space.x3),
+        _ChoiceRow<String?>(
+          label: "Langue des sous-titres préférée",
+          value: prefs.preferredSubtitleLanguage,
+          options: _kLanguageOptions,
+          onSelected: notifier.setPreferredSubtitleLanguage,
+        ),
+        SizedBox(height: t.space.x2),
+        _SwitchRow(
+          label: "Activer les sous-titres par défaut",
+          value: prefs.subtitlesEnabledByDefault,
+          onChanged: notifier.setSubtitlesEnabledByDefault,
+        ),
+        SizedBox(height: t.space.x3),
+        _ChoiceRow<double>(
+          label: "Taille des sous-titres",
+          value: prefs.subtitleFontScale,
+          options: _kSubtitleScaleOptions,
+          onSelected: notifier.setSubtitleFontScale,
+        ),
+        SizedBox(height: t.space.x3),
+        _ChoiceRow<int>(
+          label: "Couleur du texte",
+          value: prefs.subtitleTextColorArgb,
+          options: _kSubtitleColorOptions,
+          onSelected: notifier.setSubtitleTextColorArgb,
+        ),
+        SizedBox(height: t.space.x3),
+        _ChoiceRow<double>(
+          label: "Fond des sous-titres",
+          value: prefs.subtitleBackgroundOpacity,
+          options: _kSubtitleBackgroundOptions,
+          onSelected: notifier.setSubtitleBackgroundOpacity,
+        ),
+        SizedBox(height: t.space.x2),
+        Text(
+          "Les préférences s'appliquent à l'ouverture du flux suivant.",
+          style: t.typography.caption.copyWith(color: t.colors.textTertiary),
         ),
       ],
     );

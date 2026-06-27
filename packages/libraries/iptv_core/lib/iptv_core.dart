@@ -12,6 +12,7 @@ export "src/failures/failures.dart";
 export "src/failures/failures_x.dart";
 export "src/http/http_service.dart";
 export "src/parental/adult_filter.dart";
+export "src/progress/playback_preferences.dart";
 export "src/progress/watch_progress_sink.dart";
 export "src/progress/watch_time_sink.dart";
 export "src/source/active_source_store.dart";

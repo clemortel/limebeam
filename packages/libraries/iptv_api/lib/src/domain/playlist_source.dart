@@ -34,8 +34,10 @@ abstract interface class IPlaylistSource {
   /// Raw XMLTV EPG document.
   Future<Either<Failures, String>> fetchEpg();
 
-  /// Playable URL for a live stream (default container).
-  String buildLiveUrl(String streamId);
+  /// Playable URL for a live stream. When [hls] is true, requests the HLS
+  /// (`.m3u8`) variant where the provider supports it (for engines that need
+  /// HLS — e.g. iOS AVPlayer for AirPlay, which cannot decode raw MPEG-TS).
+  String buildLiveUrl(String streamId, {bool hls = false});
 
   /// Playable URL for a VOD movie with its container extension.
   String buildMovieUrl(String streamId, String containerExtension);

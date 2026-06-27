@@ -3,6 +3,7 @@ import "package:get_it/get_it.dart";
 import "package:hive/hive.dart";
 import "package:iptv_core/iptv_core.dart";
 
+import "infrastructure/playback_preferences_adapter.dart";
 import "infrastructure/preferences_repository.dart";
 import "infrastructure/usage_metrics_repository.dart";
 
@@ -12,6 +13,10 @@ Future<void> registerSettings(GetIt getIt) async {
   final Box<String> box = await Hive.openBox<String>(kPrefsBoxName);
   getIt.registerLazySingleton<IPreferencesRepository>(
     () => PreferencesRepository(box, const FlutterSecureStorage()),
+  );
+  // Exposes playback track defaults to the player without a reverse dependency.
+  getIt.registerLazySingleton<PlaybackPreferences>(
+    () => PlaybackPreferencesAdapter(getIt<IPreferencesRepository>()),
   );
 
   final Box<String> usageBox = await Hive.openBox<String>(kUsageBoxName);

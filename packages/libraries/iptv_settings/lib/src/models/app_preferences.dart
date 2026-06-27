@@ -33,6 +33,17 @@ sealed class AppPreferences with _$AppPreferences {
     @Default(0) int launchCount,
     @Default(false) bool supporter,
     @Default(true) bool donationReminders,
+    // Playback track defaults. Language codes (e.g. "eng"); null = no
+    // preference. The player auto-selects matching tracks when a stream opens.
+    String? preferredAudioLanguage,
+    String? preferredSubtitleLanguage,
+    @Default(false) bool subtitlesEnabledByDefault,
+    // Subtitle appearance, applied to the engine's renderer.
+    @Default(AppPreferences.defaultSubtitleFontScale) double subtitleFontScale,
+    @Default(AppPreferences.defaultSubtitleTextColorArgb)
+    int subtitleTextColorArgb,
+    @Default(AppPreferences.defaultSubtitleBackgroundOpacity)
+    double subtitleBackgroundOpacity,
   }) = _AppPreferences;
 
   factory AppPreferences.fromJson(Map<String, dynamic> json) =>
@@ -40,6 +51,12 @@ sealed class AppPreferences with _$AppPreferences {
 
   /// Launches before the gentle "support the dev" banner may appear.
   static const int donationReminderThreshold = 10;
+
+  /// Subtitle appearance defaults (renderer-native size, opaque white text,
+  /// no background box). Kept here so call sites avoid magic numbers.
+  static const double defaultSubtitleFontScale = 1.0;
+  static const int defaultSubtitleTextColorArgb = 0xFFFFFFFF;
+  static const double defaultSubtitleBackgroundOpacity = 0.0;
 
   /// Whether to show the non-intrusive donation banner: reminders on, not yet a
   /// supporter, and the app has been opened enough times to have proven useful.

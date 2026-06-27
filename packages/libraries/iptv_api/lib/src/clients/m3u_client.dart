@@ -85,9 +85,10 @@ class M3uClient implements IPlaylistSource {
     }
   }
 
-  // The playlist URL is the id; nothing to build for M3U.
+  // The playlist URL is the id; nothing to build for M3U. [hls] has no effect
+  // since M3U entries are already-final URLs with no derivable HLS variant.
   @override
-  String buildLiveUrl(String streamId) => streamId;
+  String buildLiveUrl(String streamId, {bool hls = false}) => streamId;
 
   @override
   String buildMovieUrl(String streamId, String containerExtension) => streamId;

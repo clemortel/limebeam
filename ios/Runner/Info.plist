@@ -32,7 +32,7 @@
 		<true/>
 	</dict>
 	<!-- Google Cast discovery happens over the local network; without these
-	     keys iOS 14+ silently returns no devices. Bonjour lists the Default
+	     keys iOS silently returns no devices. Bonjour lists the Default
 	     Media Receiver (CC1AD845) and the generic cast service. -->
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>LimeBeam uses the local network to find Cast-enabled TVs on your Wi-Fi.</string>

@@ -39,6 +39,9 @@ extension PlayerLaunch on WidgetRef {
             title: c.name,
             posterUrl: c.logoUrl,
             url: source.buildLiveUrl(c.streamId),
+            // HLS variant for the iOS AVPlayer (AirPlay) path, which cannot
+            // decode the default MPEG-TS live stream.
+            externalUrl: source.buildLiveUrl(c.streamId, hls: true),
           ),
         )
         .toIList();

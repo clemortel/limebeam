@@ -25,6 +25,10 @@ class XtreamCodesClient implements IPlaylistSource {
 
   static const String _defaultLiveExt = "ts";
 
+  /// HLS container for the live stream — used by engines that cannot decode
+  /// raw MPEG-TS (iOS AVPlayer / AirPlay). The provider must allow `m3u8`.
+  static const String _hlsLiveExt = "m3u8";
+
   String get _playerApi => "$_base/player_api.php";
 
   Map<String, dynamic> get _authQuery => <String, dynamic>{
@@ -163,8 +167,8 @@ class XtreamCodesClient implements IPlaylistSource {
   }
 
   @override
-  String buildLiveUrl(String streamId) =>
-      "$_base/live/$_user/$_pass/$streamId.$_defaultLiveExt";
+  String buildLiveUrl(String streamId, {bool hls = false}) =>
+      "$_base/live/$_user/$_pass/$streamId.${hls ? _hlsLiveExt : _defaultLiveExt}";
 
   @override
   String buildMovieUrl(String streamId, String containerExtension) =>
