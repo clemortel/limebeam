@@ -31,6 +31,11 @@ flutter_ios_podfile_setup
 target 'Runner' do
   use_frameworks!
 
+  # On-device HLS reverse proxy for the AVPlayer AirPlay path: re-serves the
+  # provider's stream as clean HLS the Apple TV can fetch, adding the headers
+  # the IPTV server's anti-leech accepts (which it refuses from AVPlayer).
+  pod 'GCDWebServer', '~> 3.5'
+
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
   target 'RunnerTests' do
     inherit! :search_paths

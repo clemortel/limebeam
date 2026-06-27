@@ -9,9 +9,9 @@ import "package:flutter_riverpod/flutter_riverpod.dart"
 import "package:iptv_cast/iptv_cast.dart";
 import "package:iptv_core/iptv_core.dart";
 import "package:iptv_ui/iptv_ui.dart";
-import "package:media_kit_video/media_kit_video.dart";
 import "package:screen_brightness/screen_brightness.dart";
 
+import "../domain/media_track.dart";
 import "../domain/playback_queue.dart";
 import "../domain/playback_request.dart";
 import "../pip/pip_service.dart";
@@ -19,6 +19,15 @@ import "../riverpods/player_controller.dart";
 import "../riverpods/player_ui_state.dart";
 
 const double _kPlayButtonSize = 72;
+
+/// Step applied by the subtitle/audio sync stepper buttons (250 ms).
+const int _kSyncStepMs = 250;
+
+/// Milliseconds per second, for formatting sync offsets as seconds.
+const double _kMillisPerSecond = 1000;
+
+/// Fixed width for the sync offset readout so the steppers don't jump.
+const double _kSyncValueWidth = 64;
 const double _kSkipButtonSize = 40;
 const double _kLiveDotSize = 8;
 const double _kQueueThumbSize = 44;
@@ -76,8 +85,14 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
   @override
   void dispose() {
     _flashTimer?.cancel();
-    // Popped (minimized) → show the floating window, keep playing.
-    _controller.setExpanded(false);
+    // Popped (minimized) → show the floating window, keep playing. Deferred to
+    // the next frame: mutating the provider this widget watches *during*
+    // dispose would notify our own now-defunct element (markNeedsBuild on a
+    // defunct Element). Runs after this element is fully unmounted.
+    final PlaybackController controller = _controller;
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => controller.setExpanded(false),
+    );
     SystemChrome.setEnabledSystemUIMode(
       SystemUiMode.edgeToEdge,
       overlays: SystemUiOverlay.values,
@@ -147,12 +162,12 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
     final PlaybackController controller = _controller;
     final PlaybackQueue? queue = controller.queue;
     final PlaybackRequest? request = controller.currentRequest;
-    final VideoController? videoController = controller.videoController;
+    final Widget? videoView = controller.buildVideoView();
 
     if (!state.active ||
         queue == null ||
         request == null ||
-        videoController == null) {
+        videoView == null) {
       return const Scaffold(backgroundColor: _kPlayerBackground);
     }
 
@@ -206,13 +221,7 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
               children: <Widget>[
                 // Video fills the stack: a Texture has no intrinsic size and
                 // collapses to 0×0 under loose constraints (endless buffering).
-                Positioned.fill(
-                  child: Video(
-                    controller: videoController,
-                    controls: null,
-                    fit: BoxFit.contain,
-                  ),
-                ),
+                Positioned.fill(child: videoView),
 
                 // While casting the local surface is idle (black); explain why
                 // and name the receiver so the black screen isn't confusing.
@@ -309,10 +318,10 @@ class PlayerSurface extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(playbackControllerProvider); // rebuild when the engine swaps
-    final VideoController? vc =
-        ref.read(playbackControllerProvider.notifier).videoController;
-    if (vc == null) return const ColoredBox(color: _kPlayerBackground);
-    return Video(controller: vc, controls: null, fit: BoxFit.contain);
+    final Widget? view =
+        ref.read(playbackControllerProvider.notifier).buildVideoView();
+    if (view == null) return const ColoredBox(color: _kPlayerBackground);
+    return view;
   }
 }
 
@@ -589,6 +598,16 @@ class _BottomBar extends StatelessWidget {
                   ),
                 ),
               const Spacer(),
+              if (state.tracks.hasAny)
+                IconButton(
+                  icon: Icon(
+                    state.tracks.hasSubtitleOn
+                        ? Icons.closed_caption
+                        : Icons.closed_caption_outlined,
+                    color: t.colors.textPrimary,
+                  ),
+                  onPressed: () => _showTracks(context),
+                ),
               const _PipButton(),
               _CastButton(controller: controller),
               IconButton(
@@ -618,6 +637,176 @@ class _BottomBar extends StatelessWidget {
         },
       ),
     );
+  }
+
+  void _showTracks(BuildContext context) {
+    AppBottomSheet.show<void>(
+      context,
+      title: "Pistes",
+      child: _TracksSheet(controller: controller),
+    );
+  }
+}
+
+/// Audio + subtitle track picker and (where supported) sync offsets. Reads the
+/// live player state via [ref]; every row delegates to the controller.
+class _TracksSheet extends ConsumerWidget {
+  const _TracksSheet({required this.controller});
+
+  final PlaybackController controller;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final PlayerUiState state = ref.watch(playbackControllerProvider);
+    final PlayerTracks tracks = state.tracks;
+    return ListView(
+      shrinkWrap: true,
+      children: <Widget>[
+        if (tracks.audio.isNotEmpty) ...<Widget>[
+          const _TrackSectionHeader(label: "Audio"),
+          for (final MediaTrack track in tracks.audio)
+            _TrackTile(
+              label: _trackLabel(track),
+              selected: track.id == tracks.selectedAudioId,
+              onTap: () => controller.selectAudioTrack(track.id),
+            ),
+        ],
+        if (tracks.subtitle.isNotEmpty) ...<Widget>[
+          const _TrackSectionHeader(label: "Sous-titres"),
+          _TrackTile(
+            label: "Désactivés",
+            selected: !tracks.hasSubtitleOn,
+            onTap: () => controller.selectSubtitleTrack(MediaTrack.noneId),
+          ),
+          for (final MediaTrack track in tracks.subtitle)
+            _TrackTile(
+              label: _trackLabel(track),
+              selected: track.id == tracks.selectedSubtitleId,
+              onTap: () => controller.selectSubtitleTrack(track.id),
+            ),
+        ],
+        if (state.supportsSyncOffsets) ...<Widget>[
+          const _TrackSectionHeader(label: "Synchronisation"),
+          _SyncRow(
+            label: "Sous-titres",
+            valueMs: state.subtitleDelayMs,
+            onChanged: controller.setSubtitleDelay,
+          ),
+          _SyncRow(
+            label: "Audio",
+            valueMs: state.audioDelayMs,
+            onChanged: controller.setAudioDelay,
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// Human label for a track row, falling back to language then a generic id.
+  String _trackLabel(MediaTrack track) => track.label ?? "Piste ${track.id}";
+}
+
+class _TrackSectionHeader extends StatelessWidget {
+  const _TrackSectionHeader({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppTheme t = context.appTheme;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(t.space.x4, t.space.x3, t.space.x4, t.space.x1),
+      child: Text(
+        label,
+        style: t.typography.caption.copyWith(color: t.colors.textTertiary),
+      ),
+    );
+  }
+}
+
+class _TrackTile extends StatelessWidget {
+  const _TrackTile({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppTheme t = context.appTheme;
+    return ListTile(
+      title: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: t.typography.body.copyWith(
+          color: selected ? t.colors.accent : t.colors.textPrimary,
+        ),
+      ),
+      trailing: selected ? Icon(Icons.check, color: t.colors.accent) : null,
+      onTap: onTap,
+    );
+  }
+}
+
+/// A label + current offset + −/+ steppers for one sync axis. Pure UI: the
+/// clamp/business logic lives in the controller.
+class _SyncRow extends StatelessWidget {
+  const _SyncRow({
+    required this.label,
+    required this.valueMs,
+    required this.onChanged,
+  });
+
+  final String label;
+  final int valueMs;
+  final void Function(int milliseconds) onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppTheme t = context.appTheme;
+    return Padding(
+      padding:
+          EdgeInsets.symmetric(horizontal: t.space.x4, vertical: t.space.x1),
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: Text(
+              label,
+              style: t.typography.body.copyWith(color: t.colors.textPrimary),
+            ),
+          ),
+          IconButton(
+            icon: Icon(Icons.remove, color: t.colors.textPrimary),
+            onPressed: () => onChanged(valueMs - _kSyncStepMs),
+          ),
+          SizedBox(
+            width: _kSyncValueWidth,
+            child: Text(
+              _formatOffset(valueMs),
+              textAlign: TextAlign.center,
+              style: t.typography.bodyStrong.copyWith(color: t.colors.accent),
+            ),
+          ),
+          IconButton(
+            icon: Icon(Icons.add, color: t.colors.textPrimary),
+            onPressed: () => onChanged(valueMs + _kSyncStepMs),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Signed offset in seconds, e.g. "0 s", "+0.25 s", "-0.5 s".
+  String _formatOffset(int milliseconds) {
+    if (milliseconds == 0) return "0 s";
+    final String sign = milliseconds > 0 ? "+" : "-";
+    final double seconds = milliseconds.abs() / _kMillisPerSecond;
+    return "$sign$seconds s";
   }
 }
 

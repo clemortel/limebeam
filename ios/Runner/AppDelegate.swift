@@ -19,5 +19,14 @@ import UIKit
         AirPlayRoutePickerFactory(),
         withId: "limebeam/airplay_route_picker")
     }
+    // Native AVPlayer engine (iOS playback + AirPlay video).
+    if let registrar = registry.registrar(forPlugin: "AVPlayerEngine") {
+      AVPlayerEngineController.register(with: registrar)
+    }
+    // Output-route monitor: tells Dart when AirPlay is active so playback can
+    // swap to the AVPlayer engine (libmpv otherwise, for codec coverage).
+    if let registrar = registry.registrar(forPlugin: "AirPlayRouteMonitor") {
+      AirPlayRouteMonitor.register(with: registrar)
+    }
   }
 }

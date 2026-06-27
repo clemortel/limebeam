@@ -6,8 +6,10 @@
 /// [ensurePlayerInitialized] once at startup.
 library iptv_player;
 
+export "src/domain/media_track.dart";
 export "src/domain/playback_queue.dart";
 export "src/domain/playback_request.dart";
+export "src/domain/subtitle_style.dart";
 export "src/player_init.dart";
 export "src/riverpods/player_controller.dart";
 export "src/riverpods/player_ui_state.dart";

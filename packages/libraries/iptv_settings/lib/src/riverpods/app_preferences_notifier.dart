@@ -40,6 +40,26 @@ class AppPreferencesNotifier extends _$AppPreferencesNotifier {
   Future<void> setDonationReminders(bool value) =>
       _update(state.copyWith(donationReminders: value));
 
+  // --- Playback track preferences -----------------------------------------
+
+  Future<void> setPreferredAudioLanguage(String? language) =>
+      _update(state.copyWith(preferredAudioLanguage: language));
+
+  Future<void> setPreferredSubtitleLanguage(String? language) =>
+      _update(state.copyWith(preferredSubtitleLanguage: language));
+
+  Future<void> setSubtitlesEnabledByDefault(bool value) =>
+      _update(state.copyWith(subtitlesEnabledByDefault: value));
+
+  Future<void> setSubtitleFontScale(double scale) =>
+      _update(state.copyWith(subtitleFontScale: scale));
+
+  Future<void> setSubtitleTextColorArgb(int argb) =>
+      _update(state.copyWith(subtitleTextColorArgb: argb));
+
+  Future<void> setSubtitleBackgroundOpacity(double opacity) =>
+      _update(state.copyWith(subtitleBackgroundOpacity: opacity));
+
   /// Turns parental control on and stores [pin].
   Future<void> enableParental(String pin) async {
     await ref.read(preferencesRepositoryProvider).setPin(pin);

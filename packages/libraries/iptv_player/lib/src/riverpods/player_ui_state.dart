@@ -2,6 +2,8 @@ import "package:freezed_annotation/freezed_annotation.dart";
 import "package:iptv_cast/iptv_cast.dart";
 import "package:iptv_core/iptv_core.dart";
 
+import "../domain/media_track.dart";
+
 part "player_ui_state.freezed.dart";
 
 /// Immutable UI snapshot the player overlay renders from. Owned and mutated by
@@ -27,5 +29,13 @@ sealed class PlayerUiState with _$PlayerUiState {
     // the overlay then acts as a remote and `position`/`duration` track the
     // remote clock. Null = local playback.
     CastDevice? castDevice,
+    // Audio + subtitle tracks for the current item and the active selection.
+    @Default(PlayerTracks()) PlayerTracks tracks,
+    // Sync offsets in milliseconds (positive = the track plays later).
+    @Default(0) int subtitleDelayMs,
+    @Default(0) int audioDelayMs,
+    // Whether the active engine supports sync offsets (media_kit yes, AVPlayer
+    // no) — the overlay hides those controls when false.
+    @Default(false) bool supportsSyncOffsets,
   }) = _PlayerUiState;
 }
