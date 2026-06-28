@@ -1,4 +1,5 @@
 import "package:flutter/material.dart";
+import "package:iptv_l10n/iptv_l10n.dart";
 import "package:iptv_ui/iptv_ui.dart";
 
 const double _kEmblemSize = 96;
@@ -19,6 +20,7 @@ class TipThanksBottomSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
+    final AppLocalizations l = AppLocalizations.of(context);
     return Padding(
       padding: EdgeInsets.fromLTRB(
         t.space.x4,
@@ -75,14 +77,13 @@ class TipThanksBottomSheet extends StatelessWidget {
           ),
           SizedBox(height: t.space.x5),
           Text(
-            "Merci ❤️",
+            l.thanksTitle,
             textAlign: TextAlign.center,
             style: t.typography.h2.copyWith(color: t.colors.textPrimary),
           ),
           SizedBox(height: t.space.x3),
           Text(
-            "Ton soutien fait vraiment la différence. Grâce à toi, LimeBeam "
-            "continue d'avancer — gratuit, sans pub et sans tracking.",
+            l.thanksBody,
             textAlign: TextAlign.center,
             style: t.typography.body.copyWith(color: t.colors.textSecondary),
           ),
@@ -97,13 +98,13 @@ class TipThanksBottomSheet extends StatelessWidget {
               borderRadius: t.radius.fullAll,
             ),
             child: Text(
-              "✨ Supporter",
+              l.thanksBadge,
               style: t.typography.bodyStrong.copyWith(color: t.colors.accent),
             ),
           ),
           SizedBox(height: t.space.x6),
           PrimaryButton(
-            label: "Avec plaisir",
+            label: l.thanksCta,
             onPressed: () => Navigator.of(context).pop(),
           ),
           SizedBox(height: t.space.x2),

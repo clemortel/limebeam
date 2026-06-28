@@ -1,4 +1,5 @@
 import "package:flutter/material.dart";
+import "package:iptv_l10n/iptv_l10n.dart";
 import "package:iptv_ui/iptv_ui.dart";
 
 /// Contextual, non-blocking "support the dev" prompt (shown rarely). Pure UI:
@@ -12,7 +13,7 @@ class TipPromptBottomSheet extends StatelessWidget {
   static Future<bool> show(BuildContext context) async {
     final bool? result = await AppBottomSheet.show<bool>(
       context,
-      title: "Tu aimes LimeBeam ?",
+      title: AppLocalizations.of(context).tipPromptTitle,
       child: const TipPromptBottomSheet(),
     );
     return result ?? false;
@@ -21,6 +22,7 @@ class TipPromptBottomSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
+    final AppLocalizations l = AppLocalizations.of(context);
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: t.space.x4),
       child: Column(
@@ -28,20 +30,18 @@ class TipPromptBottomSheet extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           Text(
-            "LimeBeam est gratuit, sans pub et sans tracking. Si l'app te "
-            "simplifie la vie, tu peux m'offrir un café pour soutenir le "
-            "dev ☕.",
+            l.tipPromptBody,
             textAlign: TextAlign.center,
             style: t.typography.body.copyWith(color: t.colors.textSecondary),
           ),
           SizedBox(height: t.space.x5),
           PrimaryButton(
-            label: "Soutenir LimeBeam",
+            label: l.tipPromptSupport,
             onPressed: () => Navigator.of(context).pop(true),
           ),
           SizedBox(height: t.space.x2),
           TertiaryButton(
-            label: "Plus tard",
+            label: l.tipPromptLater,
             onPressed: () => Navigator.of(context).pop(false),
           ),
         ],

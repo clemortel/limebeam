@@ -349,6 +349,120 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'English'**
   String get languageEnglish;
+
+  /// No description provided for @commonRetry.
+  ///
+  /// In fr, this message translates to:
+  /// **'Réessayer'**
+  String get commonRetry;
+
+  /// No description provided for @donateIntroTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Soutenir LimeBeam'**
+  String get donateIntroTitle;
+
+  /// No description provided for @donateIntroBody.
+  ///
+  /// In fr, this message translates to:
+  /// **'LimeBeam est entièrement gratuit, sans pub ni tracking. Je développe l\'app sur mon temps libre pour un player IPTV propre, rapide et agréable.\n\nSi tu veux m\'aider à continuer, tu peux laisser un pourboire ci-dessous. Merci ❤️'**
+  String get donateIntroBody;
+
+  /// No description provided for @donateSoonTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Bientôt'**
+  String get donateSoonTitle;
+
+  /// No description provided for @donateSoonMessage.
+  ///
+  /// In fr, this message translates to:
+  /// **'Les pourboires seront disponibles très vite.'**
+  String get donateSoonMessage;
+
+  /// No description provided for @donateErrorTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Indisponible'**
+  String get donateErrorTitle;
+
+  /// No description provided for @donateErrorMessage.
+  ///
+  /// In fr, this message translates to:
+  /// **'Impossible de charger les options de soutien pour l\'instant.'**
+  String get donateErrorMessage;
+
+  /// No description provided for @donateCardCta.
+  ///
+  /// In fr, this message translates to:
+  /// **'Soutenir'**
+  String get donateCardCta;
+
+  /// No description provided for @donatePopular.
+  ///
+  /// In fr, this message translates to:
+  /// **'Populaire'**
+  String get donatePopular;
+
+  /// No description provided for @donateLegalFooter.
+  ///
+  /// In fr, this message translates to:
+  /// **'Les pourboires sont des achats intégrés. Ils ne débloquent aucun contenu : c\'est simplement un soutien au développement.'**
+  String get donateLegalFooter;
+
+  /// No description provided for @donatePurchaseError.
+  ///
+  /// In fr, this message translates to:
+  /// **'Achat impossible. Réessaie plus tard.'**
+  String get donatePurchaseError;
+
+  /// No description provided for @tipPromptTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Tu aimes LimeBeam ?'**
+  String get tipPromptTitle;
+
+  /// No description provided for @tipPromptBody.
+  ///
+  /// In fr, this message translates to:
+  /// **'LimeBeam est gratuit, sans pub et sans tracking. Si l\'app te simplifie la vie, tu peux m\'offrir un café pour soutenir le dev ☕.'**
+  String get tipPromptBody;
+
+  /// No description provided for @tipPromptSupport.
+  ///
+  /// In fr, this message translates to:
+  /// **'Soutenir LimeBeam'**
+  String get tipPromptSupport;
+
+  /// No description provided for @tipPromptLater.
+  ///
+  /// In fr, this message translates to:
+  /// **'Plus tard'**
+  String get tipPromptLater;
+
+  /// No description provided for @thanksTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Merci ❤️'**
+  String get thanksTitle;
+
+  /// No description provided for @thanksBody.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ton soutien fait vraiment la différence. Grâce à toi, LimeBeam continue d\'avancer — gratuit, sans pub et sans tracking.'**
+  String get thanksBody;
+
+  /// No description provided for @thanksBadge.
+  ///
+  /// In fr, this message translates to:
+  /// **'✨ Supporter'**
+  String get thanksBadge;
+
+  /// No description provided for @thanksCta.
+  ///
+  /// In fr, this message translates to:
+  /// **'Avec plaisir'**
+  String get thanksCta;
 }
 
 class _AppLocalizationsDelegate

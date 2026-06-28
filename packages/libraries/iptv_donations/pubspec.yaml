@@ -19,6 +19,8 @@ dependencies:
   in_app_purchase: ^3.2.0
   iptv_core:
     path: ../iptv_core
+  iptv_l10n:
+    path: ../iptv_l10n
   iptv_ui:
     path: ../iptv_ui
   riverpod_annotation: ^2.3.5

@@ -141,4 +141,67 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get languageEnglish => 'English';
+
+  @override
+  String get commonRetry => 'Réessayer';
+
+  @override
+  String get donateIntroTitle => 'Soutenir LimeBeam';
+
+  @override
+  String get donateIntroBody =>
+      'LimeBeam est entièrement gratuit, sans pub ni tracking. Je développe l\'app sur mon temps libre pour un player IPTV propre, rapide et agréable.\n\nSi tu veux m\'aider à continuer, tu peux laisser un pourboire ci-dessous. Merci ❤️';
+
+  @override
+  String get donateSoonTitle => 'Bientôt';
+
+  @override
+  String get donateSoonMessage =>
+      'Les pourboires seront disponibles très vite.';
+
+  @override
+  String get donateErrorTitle => 'Indisponible';
+
+  @override
+  String get donateErrorMessage =>
+      'Impossible de charger les options de soutien pour l\'instant.';
+
+  @override
+  String get donateCardCta => 'Soutenir';
+
+  @override
+  String get donatePopular => 'Populaire';
+
+  @override
+  String get donateLegalFooter =>
+      'Les pourboires sont des achats intégrés. Ils ne débloquent aucun contenu : c\'est simplement un soutien au développement.';
+
+  @override
+  String get donatePurchaseError => 'Achat impossible. Réessaie plus tard.';
+
+  @override
+  String get tipPromptTitle => 'Tu aimes LimeBeam ?';
+
+  @override
+  String get tipPromptBody =>
+      'LimeBeam est gratuit, sans pub et sans tracking. Si l\'app te simplifie la vie, tu peux m\'offrir un café pour soutenir le dev ☕.';
+
+  @override
+  String get tipPromptSupport => 'Soutenir LimeBeam';
+
+  @override
+  String get tipPromptLater => 'Plus tard';
+
+  @override
+  String get thanksTitle => 'Merci ❤️';
+
+  @override
+  String get thanksBody =>
+      'Ton soutien fait vraiment la différence. Grâce à toi, LimeBeam continue d\'avancer — gratuit, sans pub et sans tracking.';
+
+  @override
+  String get thanksBadge => '✨ Supporter';
+
+  @override
+  String get thanksCta => 'Avec plaisir';
 }

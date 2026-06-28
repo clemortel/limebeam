@@ -3,6 +3,7 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart"
     hide AsyncData, AsyncError, AsyncLoading, AsyncValue;
 import "package:iptv_core/iptv_core.dart";
+import "package:iptv_l10n/iptv_l10n.dart";
 import "package:iptv_ui/iptv_ui.dart";
 
 import "../models/donation_product.dart";
@@ -28,6 +29,7 @@ class SupportDeveloperView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final AppTheme t = context.appTheme;
+    final AppLocalizations l = AppLocalizations.of(context);
     final AsyncState<IList<DonationProduct>> products =
         ref.watch(donationProductsNotifierProvider);
     final bool busy =
@@ -37,7 +39,7 @@ class SupportDeveloperView extends ConsumerWidget {
       backgroundColor: t.colors.bgBase,
       appBar: AppBar(
         backgroundColor: t.colors.bgBase,
-        title: Text("Soutenir le développeur", style: t.typography.h3),
+        title: Text(l.settingsSupport, style: t.typography.h3),
       ),
       body: SafeArea(
         child: ListView(
@@ -57,10 +59,10 @@ class SupportDeveloperView extends ConsumerWidget {
                 :final IList<DonationProduct> data
               ) =>
                 data.isEmpty
-                    ? const EmptyState(
+                    ? EmptyState(
                         icon: Icons.volunteer_activism_outlined,
-                        title: "Bientôt",
-                        message: "Les pourboires seront disponibles très vite.",
+                        title: l.donateSoonTitle,
+                        message: l.donateSoonMessage,
                       )
                     : Column(
                         children: <Widget>[
@@ -100,7 +102,7 @@ class SupportDeveloperView extends ConsumerWidget {
     if (state is AsyncError<bool>) {
       AppToast.show(
         context,
-        message: "Achat impossible. Réessaie plus tard.",
+        message: AppLocalizations.of(context).donatePurchaseError,
         kind: ToastKind.error,
       );
     }
@@ -113,18 +115,16 @@ class _IntroBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
+    final AppLocalizations l = AppLocalizations.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Icon(Icons.favorite, size: _kHeaderIconSize, color: t.colors.accent),
         SizedBox(height: t.space.x4),
-        Text("Soutenir LimeBeam", style: t.typography.h2),
+        Text(l.donateIntroTitle, style: t.typography.h2),
         SizedBox(height: t.space.x2),
         Text(
-          "LimeBeam est entièrement gratuit, sans pub ni tracking. Je développe "
-          "l'app sur mon temps libre pour avoir un player IPTV propre, rapide et "
-          "agréable.\n\nSi tu veux m'aider à continuer (et à tester de nouvelles "
-          "idées), tu peux laisser un pourboire ci-dessous. Merci ❤️",
+          l.donateIntroBody,
           style: t.typography.body.copyWith(color: t.colors.textSecondary),
         ),
       ],
@@ -146,6 +146,7 @@ class _TipCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
+    final AppLocalizations l = AppLocalizations.of(context);
     final bool highlight = product.isRecommended;
     return PressableScale(
       enabled: enabled,
@@ -211,7 +212,7 @@ class _TipCard extends StatelessWidget {
                   ),
                   SizedBox(height: t.space.x1),
                   Text(
-                    "Soutenir",
+                    l.donateCardCta,
                     style:
                         t.typography.micro.copyWith(color: t.colors.accent),
                   ),
@@ -238,7 +239,7 @@ class _RecommendedBadge extends StatelessWidget {
         borderRadius: t.radius.smAll,
       ),
       child: Text(
-        "Populaire",
+        AppLocalizations.of(context).donatePopular,
         style: t.typography.micro.copyWith(color: t.colors.textOnAccent),
       ),
     );
@@ -252,8 +253,7 @@ class _LegalFooter extends StatelessWidget {
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
     return Text(
-      "Les pourboires sont traités comme des achats intégrés. Ils ne débloquent "
-      "aucun contenu : c'est simplement un soutien au développement.",
+      AppLocalizations.of(context).donateLegalFooter,
       style: t.typography.caption.copyWith(color: t.colors.textTertiary),
     );
   }
@@ -266,12 +266,13 @@ class _ErrorBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final AppLocalizations l = AppLocalizations.of(context);
     return EmptyState(
       icon: Icons.volunteer_activism_outlined,
-      title: "Indisponible",
-      message: "Impossible de charger les options de soutien pour l'instant.",
+      title: l.donateErrorTitle,
+      message: l.donateErrorMessage,
       action: PrimaryButton(
-        label: "Réessayer",
+        label: l.commonRetry,
         expand: false,
         onPressed: onRetry,
       ),
