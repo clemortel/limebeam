@@ -41,7 +41,7 @@ class SeriesGridView extends ConsumerWidget {
                 child: EmptyState(
                   icon: Icons.error_outline,
                   title: AppLocalizations.of(context).commonError,
-                  message: failure.computeErrorMessage(),
+                  message: failure.localized(AppLocalizations.of(context)),
                 ),
               ),
             AsyncSuccess<IList<Series>>(:final IList<Series> data) => _Grid(

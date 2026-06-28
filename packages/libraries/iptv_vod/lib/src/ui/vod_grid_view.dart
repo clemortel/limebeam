@@ -41,7 +41,7 @@ class VodGridView extends ConsumerWidget {
                 child: EmptyState(
                   icon: Icons.error_outline,
                   title: AppLocalizations.of(context).commonError,
-                  message: failure.computeErrorMessage(),
+                  message: failure.localized(AppLocalizations.of(context)),
                 ),
               ),
             AsyncSuccess<IList<Movie>>(:final IList<Movie> data) => _Grid(

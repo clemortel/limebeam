@@ -1003,6 +1003,66 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Épisode {n}'**
   String episodeLabel(int n);
+
+  /// No description provided for @errNetwork.
+  ///
+  /// In fr, this message translates to:
+  /// **'Pas de connexion Internet. Vérifiez votre réseau.'**
+  String get errNetwork;
+
+  /// No description provided for @errServer.
+  ///
+  /// In fr, this message translates to:
+  /// **'Erreur serveur ({code}). Réessayez plus tard.'**
+  String errServer(int code);
+
+  /// No description provided for @errNotFound.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le contenu demandé est introuvable.'**
+  String get errNotFound;
+
+  /// No description provided for @errUnexpected.
+  ///
+  /// In fr, this message translates to:
+  /// **'Une erreur est survenue. Veuillez réessayer.'**
+  String get errUnexpected;
+
+  /// No description provided for @errInvalidPlaylist.
+  ///
+  /// In fr, this message translates to:
+  /// **'Cette playlist n\'a pas pu être lue. Vérifiez la source.'**
+  String get errInvalidPlaylist;
+
+  /// No description provided for @errPortalAuth.
+  ///
+  /// In fr, this message translates to:
+  /// **'Connexion échouée. Vérifiez vos identifiants.'**
+  String get errPortalAuth;
+
+  /// No description provided for @errStreamUnavailable.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ce flux est actuellement indisponible.'**
+  String get errStreamUnavailable;
+
+  /// No description provided for @errEpgUnavailable.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le guide TV n\'a pas pu être chargé pour le moment.'**
+  String get errEpgUnavailable;
+
+  /// No description provided for @errCastUnavailable.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucun appareil de diffusion trouvé. Vérifiez votre Wi-Fi.'**
+  String get errCastUnavailable;
+
+  /// No description provided for @errCastConnection.
+  ///
+  /// In fr, this message translates to:
+  /// **'Connexion à l\'appareil impossible. Réessayez.'**
+  String get errCastConnection;
 }
 
 class _AppLocalizationsDelegate

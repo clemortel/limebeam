@@ -43,7 +43,7 @@ class SourcesSettingsView extends ConsumerWidget {
         AsyncLoading<IList<Source>>() => const _SourcesSkeleton(),
         AsyncError<IList<Source>>(:final Failures failure) => Center(
             child: Text(
-              failure.computeErrorMessage(),
+              failure.localized(AppLocalizations.of(context)),
               style: t.typography.body.copyWith(color: t.colors.textSecondary),
             ),
           ),

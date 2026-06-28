@@ -163,7 +163,7 @@ class _SeasonsSection extends StatelessWidget {
           borderRadius: t.radius.smAll,
         ),
       AsyncError<SeriesDetail>(:final Failures failure) => Text(
-          failure.computeErrorMessage(),
+          failure.localized(AppLocalizations.of(context)),
           style: t.typography.caption.copyWith(color: t.colors.textSecondary),
         ),
       AsyncSuccess<SeriesDetail>(:final SeriesDetail data) => _Seasons(

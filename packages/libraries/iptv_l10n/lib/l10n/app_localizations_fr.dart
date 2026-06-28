@@ -485,4 +485,40 @@ class AppLocalizationsFr extends AppLocalizations {
   String episodeLabel(int n) {
     return 'Épisode $n';
   }
+
+  @override
+  String get errNetwork => 'Pas de connexion Internet. Vérifiez votre réseau.';
+
+  @override
+  String errServer(int code) {
+    return 'Erreur serveur ($code). Réessayez plus tard.';
+  }
+
+  @override
+  String get errNotFound => 'Le contenu demandé est introuvable.';
+
+  @override
+  String get errUnexpected => 'Une erreur est survenue. Veuillez réessayer.';
+
+  @override
+  String get errInvalidPlaylist =>
+      'Cette playlist n\'a pas pu être lue. Vérifiez la source.';
+
+  @override
+  String get errPortalAuth => 'Connexion échouée. Vérifiez vos identifiants.';
+
+  @override
+  String get errStreamUnavailable => 'Ce flux est actuellement indisponible.';
+
+  @override
+  String get errEpgUnavailable =>
+      'Le guide TV n\'a pas pu être chargé pour le moment.';
+
+  @override
+  String get errCastUnavailable =>
+      'Aucun appareil de diffusion trouvé. Vérifiez votre Wi-Fi.';
+
+  @override
+  String get errCastConnection =>
+      'Connexion à l\'appareil impossible. Réessayez.';
 }

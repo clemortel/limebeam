@@ -177,5 +177,22 @@
         "type": "int"
       }
     }
-  }
+  },
+  "errNetwork": "Pas de connexion Internet. Vérifiez votre réseau.",
+  "errServer": "Erreur serveur ({code}). Réessayez plus tard.",
+  "@errServer": {
+    "placeholders": {
+      "code": {
+        "type": "int"
+      }
+    }
+  },
+  "errNotFound": "Le contenu demandé est introuvable.",
+  "errUnexpected": "Une erreur est survenue. Veuillez réessayer.",
+  "errInvalidPlaylist": "Cette playlist n'a pas pu être lue. Vérifiez la source.",
+  "errPortalAuth": "Connexion échouée. Vérifiez vos identifiants.",
+  "errStreamUnavailable": "Ce flux est actuellement indisponible.",
+  "errEpgUnavailable": "Le guide TV n'a pas pu être chargé pour le moment.",
+  "errCastUnavailable": "Aucun appareil de diffusion trouvé. Vérifiez votre Wi-Fi.",
+  "errCastConnection": "Connexion à l'appareil impossible. Réessayez."
 }

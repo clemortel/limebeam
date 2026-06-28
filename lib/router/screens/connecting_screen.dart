@@ -146,7 +146,7 @@ class _ErrorState extends StatelessWidget {
     return EmptyState(
       icon: Icons.error_outline,
       title: l.connectingErrorTitle,
-      message: failure.computeErrorMessage(),
+      message: failure.localized(AppLocalizations.of(context)),
       action: Column(
         children: <Widget>[
           PrimaryButton(label: l.commonRetry, expand: false, onPressed: onRetry),

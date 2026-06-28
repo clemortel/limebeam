@@ -150,5 +150,15 @@
   "seriesEmptyTitle": "No series",
   "seriesEmptyMessage": "No series in this source.",
   "seriesNoEpisodes": "No episodes available.",
-  "episodeLabel": "Episode {n}"
+  "episodeLabel": "Episode {n}",
+  "errNetwork": "No internet connection. Check your network.",
+  "errServer": "Server error ({code}). Try again later.",
+  "errNotFound": "The requested content was not found.",
+  "errUnexpected": "Something went wrong. Please try again.",
+  "errInvalidPlaylist": "This playlist could not be read. Check the source.",
+  "errPortalAuth": "Login failed. Check your portal credentials.",
+  "errStreamUnavailable": "This stream is currently unavailable.",
+  "errEpgUnavailable": "The TV guide could not be loaded right now.",
+  "errCastUnavailable": "No cast devices found. Check your Wi-Fi network.",
+  "errCastConnection": "Could not connect to the cast device. Try again."
 }

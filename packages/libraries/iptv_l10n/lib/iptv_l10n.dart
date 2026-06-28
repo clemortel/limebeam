@@ -3,3 +3,4 @@
 library iptv_l10n;
 
 export "l10n/app_localizations.dart";
+export "src/failure_l10n.dart";
