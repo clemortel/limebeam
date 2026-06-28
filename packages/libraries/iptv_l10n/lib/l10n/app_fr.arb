@@ -1,0 +1,37 @@
+{
+  "@@locale": "fr",
+  "tabHome": "Accueil",
+  "tabTv": "TV",
+  "tabBrowse": "Films & Séries",
+  "tabSearch": "Recherche",
+  "tabSettings": "Réglages",
+  "homeResume": "Reprendre",
+  "homeFavorites": "Favoris",
+  "homePopularMovies": "Films populaires",
+  "homePopularSeries": "Séries populaires",
+  "homeEmptyTitle": "Rien à afficher",
+  "homeEmptyMessage": "Vos chaînes et contenus apparaîtront ici après la synchronisation de votre source.",
+  "browseMovies": "Films",
+  "browseSeries": "Séries",
+  "searchTitle": "Recherche",
+  "searchPlaceholder": "Rechercher chaînes, films, séries…",
+  "searchPrompt": "Rechercher",
+  "searchEmptyTitle": "Aucun résultat",
+  "searchEmptyMessage": "Aucun contenu ne correspond à votre recherche.",
+  "settingsSources": "Sources",
+  "settingsSupport": "Soutenir le développeur",
+  "settingsAbout": "À propos",
+  "aboutTitle": "À propos",
+  "aboutNoContent": "LimeBeam ne fournit aucun contenu. L'application lit vos playlists ou identifiants IPTV existants.",
+  "aboutPrivacy": "Aucune donnée n'est collectée. Vos identifiants, favoris et historique restent sur votre appareil.",
+  "aboutLicenses": "Licences open-source",
+  "aboutVersion": "Version {version} ({build})",
+  "@aboutVersion": {
+    "placeholders": {
+      "version": {},
+      "build": {}
+    }
+  },
+  "aboutVersionLoading": "Version…",
+  "searchPromptMessage": "Trouvez une chaîne, un film ou une série dans vos sources."
+}

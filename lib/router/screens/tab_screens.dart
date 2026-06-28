@@ -5,6 +5,7 @@ import "package:flutter_riverpod/flutter_riverpod.dart"
 import "package:iptv_auth/iptv_auth.dart";
 import "package:iptv_donations/iptv_donations.dart";
 import "package:iptv_favorites/iptv_favorites.dart";
+import "package:iptv_l10n/iptv_l10n.dart";
 import "package:iptv_live/iptv_live.dart";
 import "package:iptv_series/iptv_series.dart";
 import "package:iptv_settings/iptv_settings.dart";
@@ -85,12 +86,13 @@ class _BrowseTabScreenState extends ConsumerState<BrowseTabScreen> {
   Widget build(BuildContext context) {
     perfLog("BrowseTabScreen.build");
     final AppTheme t = context.appTheme;
+    final AppLocalizations l = AppLocalizations.of(context);
     final bool hideAdult = ref.watch(adultHiddenProvider);
     return Scaffold(
       backgroundColor: t.colors.bgBase,
       appBar: AppBar(
         backgroundColor: t.colors.bgBase,
-        title: Text("Films & Séries", style: t.typography.h1),
+        title: Text(l.tabBrowse, style: t.typography.h1),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(48),
           child: Padding(
@@ -101,13 +103,13 @@ class _BrowseTabScreenState extends ConsumerState<BrowseTabScreen> {
             child: Row(
               children: <Widget>[
                 FilterChipX(
-                  label: "Films",
+                  label: l.browseMovies,
                   selected: _segment == 0,
                   onTap: () => setState(() => _segment = 0),
                 ),
                 SizedBox(width: t.space.x2),
                 FilterChipX(
-                  label: "Séries",
+                  label: l.browseSeries,
                   selected: _segment == 1,
                   onTap: () => setState(() => _segment = 1),
                 ),
@@ -157,11 +159,12 @@ class SettingsTabScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
+    final AppLocalizations l = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: t.colors.bgBase,
       appBar: AppBar(
         backgroundColor: t.colors.bgBase,
-        title: Text("Réglages", style: t.typography.h1),
+        title: Text(l.tabSettings, style: t.typography.h1),
       ),
       body: ListView(
         // Clear the floating glass nav bar (bottom inset set by the shell).
@@ -172,7 +175,7 @@ class SettingsTabScreen extends StatelessWidget {
         children: <Widget>[
           _SettingsNavTile(
             icon: Icons.cloud_outlined,
-            label: "Sources",
+            label: l.settingsSources,
             onTap: () => context.router.root.push(const SourcesRoute()),
           ),
           SizedBox(height: t.space.x4),
@@ -180,13 +183,13 @@ class SettingsTabScreen extends StatelessWidget {
           SizedBox(height: t.space.x4),
           _SettingsNavTile(
             icon: Icons.favorite_outline,
-            label: "Soutenir le développeur",
+            label: l.settingsSupport,
             onTap: () => context.router.root.push(const DonationsRoute()),
           ),
           SizedBox(height: t.space.x4),
           _SettingsNavTile(
             icon: Icons.info_outline,
-            label: "À propos",
+            label: l.settingsAbout,
             onTap: () => context.router.root.push(const AboutRoute()),
           ),
         ],

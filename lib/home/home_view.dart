@@ -4,6 +4,7 @@ import "package:flutter_riverpod/flutter_riverpod.dart"
     hide AsyncData, AsyncError, AsyncLoading, AsyncValue;
 import "package:iptv_core/iptv_core.dart";
 import "package:iptv_favorites/iptv_favorites.dart";
+import "package:iptv_l10n/iptv_l10n.dart";
 import "package:iptv_live/iptv_live.dart";
 import "package:iptv_series/iptv_series.dart";
 import "package:iptv_ui/iptv_ui.dart";
@@ -43,6 +44,7 @@ class HomeView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final AppTheme t = context.appTheme;
+    final AppLocalizations l = AppLocalizations.of(context);
     final AsyncState<IList<Channel>> liveState =
         ref.watch(liveChannelsNotifierProvider);
     final AsyncState<IList<Movie>> vodState = ref.watch(vodNotifierProvider);
@@ -65,18 +67,16 @@ class HomeView extends ConsumerWidget {
       backgroundColor: t.colors.bgBase,
       appBar: AppBar(
         backgroundColor: t.colors.bgBase,
-        title: Text("Accueil", style: t.typography.h1),
+        title: Text(l.tabHome, style: t.typography.h1),
       ),
       body: everythingEmpty && loading
           ? const _HomeSkeleton()
           : everythingEmpty
-              ? const Center(
+              ? Center(
                   child: EmptyState(
                     icon: Icons.live_tv_outlined,
-                    title: "Rien à afficher",
-                    message:
-                        "Vos chaînes et contenus apparaîtront ici après la "
-                        "synchronisation de votre source.",
+                    title: l.homeEmptyTitle,
+                    message: l.homeEmptyMessage,
                   ),
                 )
               : ListView(
@@ -112,7 +112,7 @@ class HomeView extends ConsumerWidget {
                     if (movies.isNotEmpty) ...<Widget>[
                       SizedBox(height: t.space.x6),
                       _PosterRail<Movie>(
-                        title: "Films populaires",
+                        title: l.homePopularMovies,
                         items: movies.take(_kRailLimit).toIList(),
                         titleOf: (Movie m) => m.name,
                         subtitleOf: (Movie m) => m.year ?? "",
@@ -123,7 +123,7 @@ class HomeView extends ConsumerWidget {
                     if (series.isNotEmpty) ...<Widget>[
                       SizedBox(height: t.space.x6),
                       _PosterRail<Series>(
-                        title: "Séries populaires",
+                        title: l.homePopularSeries,
                         items: series.take(_kRailLimit).toIList(),
                         titleOf: (Series s) => s.name,
                         subtitleOf: (Series s) => s.year ?? "",
@@ -200,7 +200,7 @@ class _ResumeRail extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return SectionCarousel(
-      title: "Reprendre",
+      title: AppLocalizations.of(context).homeResume,
       itemCount: sessions.length,
       itemExtent: _railDim(context, _kPosterWidth),
       height: _railDim(context, _kPosterRailHeight),
@@ -240,7 +240,7 @@ class _FavoritesRail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SectionCarousel(
-      title: "Favoris",
+      title: AppLocalizations.of(context).homeFavorites,
       itemCount: favorites.length,
       itemExtent: _railDim(context, _kPosterWidth),
       height: _railDim(context, _kPosterRailHeight),

@@ -1,6 +1,7 @@
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart"
     hide AsyncData, AsyncError, AsyncLoading, AsyncValue;
+import "package:iptv_l10n/iptv_l10n.dart";
 import "package:iptv_live/iptv_live.dart";
 import "package:iptv_series/iptv_series.dart";
 import "package:iptv_ui/iptv_ui.dart";
@@ -49,11 +50,12 @@ class _SearchViewState extends ConsumerState<SearchView> {
       (_) => perfLog("SearchView FRAME PAINTED"),
     );
 
+    final AppLocalizations l = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: t.colors.bgBase,
       appBar: AppBar(
         backgroundColor: t.colors.bgBase,
-        title: Text("Recherche", style: t.typography.h1),
+        title: Text(l.searchTitle, style: t.typography.h1),
       ),
       body: Column(
         children: <Widget>[
@@ -61,7 +63,7 @@ class _SearchViewState extends ConsumerState<SearchView> {
             padding: EdgeInsets.all(t.space.x4),
             child: AppInput(
               controller: _controller,
-              placeholder: "Rechercher chaînes, films, séries…",
+              placeholder: l.searchPlaceholder,
               keyboardType: TextInputType.text,
               onChanged: ref.read(searchQueryProvider.notifier).setQuery,
             ),
@@ -98,21 +100,22 @@ class _SearchBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final AppLocalizations l = AppLocalizations.of(context);
     if (query.isEmpty) {
-      return const Center(
+      return Center(
         child: EmptyState(
           icon: Icons.search,
-          title: "Rechercher",
-          message: "Trouvez une chaîne, un film ou une série dans vos sources.",
+          title: l.searchPrompt,
+          message: l.searchPromptMessage,
         ),
       );
     }
     if (results.isEmpty) {
-      return const Center(
+      return Center(
         child: EmptyState(
           icon: Icons.search_off,
-          title: "Aucun résultat",
-          message: "Aucun contenu ne correspond à votre recherche.",
+          title: l.searchEmptyTitle,
+          message: l.searchEmptyMessage,
         ),
       );
     }

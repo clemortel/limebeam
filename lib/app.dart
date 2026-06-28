@@ -1,6 +1,7 @@
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart"
     hide AsyncData, AsyncError, AsyncLoading, AsyncValue;
+import "package:iptv_l10n/iptv_l10n.dart";
 import "package:iptv_settings/iptv_settings.dart";
 import "package:iptv_ui/iptv_ui.dart";
 
@@ -42,6 +43,8 @@ class IptvApp extends ConsumerWidget {
         tokenScale: tokenScale,
       ),
       themeMode: themeMode,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       routerConfig: appRouter.config(),
       builder: (BuildContext context, Widget? child) {
         // TV is decided by the platform probe; phone vs tablet by viewport.

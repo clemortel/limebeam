@@ -1,4 +1,5 @@
 import "package:flutter/material.dart";
+import "package:iptv_l10n/iptv_l10n.dart";
 import "package:iptv_ui/iptv_ui.dart";
 import "package:package_info_plus/package_info_plus.dart";
 
@@ -12,11 +13,12 @@ class AboutView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
+    final AppLocalizations l = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: t.colors.bgBase,
       appBar: AppBar(
         backgroundColor: t.colors.bgBase,
-        title: Text("À propos", style: t.typography.h3),
+        title: Text(l.aboutTitle, style: t.typography.h3),
       ),
       body: ListView(
         padding: EdgeInsets.all(t.space.x4),
@@ -26,21 +28,13 @@ class AboutView extends StatelessWidget {
           SizedBox(height: t.space.x2),
           const Center(child: _Version()),
           SizedBox(height: t.space.x6),
-          const _Card(
-            icon: Icons.info_outline,
-            text: "LimeBeam ne fournit aucun contenu. L'application lit vos "
-                "playlists ou identifiants IPTV existants.",
-          ),
+          _Card(icon: Icons.info_outline, text: l.aboutNoContent),
           SizedBox(height: t.space.x3),
-          const _Card(
-            icon: Icons.lock_outline,
-            text: "Aucune donnée n'est collectée. Vos identifiants, favoris et "
-                "historique restent sur votre appareil.",
-          ),
+          _Card(icon: Icons.lock_outline, text: l.aboutPrivacy),
           SizedBox(height: t.space.x4),
           _NavRow(
             icon: Icons.workspaces_outline,
-            label: "Licences open-source",
+            label: l.aboutLicenses,
             onTap: () => _showLicenses(context),
           ),
         ],
@@ -65,13 +59,14 @@ class _Version extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
+    final AppLocalizations l = AppLocalizations.of(context);
     return FutureBuilder<PackageInfo>(
       future: PackageInfo.fromPlatform(),
       builder: (BuildContext context, AsyncSnapshot<PackageInfo> snapshot) {
         final PackageInfo? info = snapshot.data;
         final String label = info == null
-            ? "Version…"
-            : "Version ${info.version} (${info.buildNumber})";
+            ? l.aboutVersionLoading
+            : l.aboutVersion(info.version, info.buildNumber);
         return Text(
           label,
           style: t.typography.caption.copyWith(color: t.colors.textTertiary),

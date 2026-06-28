@@ -10,6 +10,7 @@ environment:
 # Dart pub workspace (Melos 7+). Every member declares `resolution: workspace`.
 workspace:
   - packages/libraries/iptv_core
+  - packages/libraries/iptv_l10n
   - packages/libraries/iptv_ui
   - packages/libraries/iptv_api
   - packages/libraries/iptv_auth
@@ -58,6 +59,8 @@ dependencies:
   # Workspace packages — libraries
   iptv_core:
     path: packages/libraries/iptv_core
+  iptv_l10n:
+    path: packages/libraries/iptv_l10n
   iptv_ui:
     path: packages/libraries/iptv_ui
   iptv_api:

@@ -1,8 +1,8 @@
 import "package:auto_route/auto_route.dart";
 import "package:flutter/material.dart";
+import "package:iptv_l10n/iptv_l10n.dart";
 import "package:iptv_ui/iptv_ui.dart";
 
-import "../../perf_log.dart";
 import "../router.gr.dart";
 
 const double _kTabBarHeight = 64;
@@ -105,13 +105,11 @@ class _SideRail extends StatelessWidget {
                   padding: EdgeInsets.only(bottom: t.space.x2),
                   child: _RailButton(
                     item: _kTabs[i],
+                    label: _tabLabel(context, i),
                     selected: tabsRouter.activeIndex == i,
                     // Anchor focus on the active tab when the rail appears.
                     autofocus: tabsRouter.activeIndex == i,
-                    onTap: () {
-                      perfLog("rail tapped: ${_kTabs[i].label}");
-                      tabsRouter.setActiveIndex(i);
-                    },
+                    onTap: () => tabsRouter.setActiveIndex(i),
                   ),
                 ),
             ],
@@ -125,12 +123,14 @@ class _SideRail extends StatelessWidget {
 class _RailButton extends StatelessWidget {
   const _RailButton({
     required this.item,
+    required this.label,
     required this.selected,
     required this.autofocus,
     required this.onTap,
   });
 
   final _TabItem item;
+  final String label;
   final bool selected;
   final bool autofocus;
   final VoidCallback onTap;
@@ -146,7 +146,7 @@ class _RailButton extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
-      label: item.label,
+      label: label,
       child: IptvFocusable(
         autofocus: autofocus,
         onTap: onTap,
@@ -170,7 +170,7 @@ class _RailButton extends StatelessWidget {
               SizedBox(width: t.space.x3),
               Expanded(
                 child: Text(
-                  item.label,
+                  label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: labelStyle,
@@ -185,19 +185,30 @@ class _RailButton extends StatelessWidget {
 }
 
 class _TabItem {
-  const _TabItem(this.icon, this.activeIcon, this.label);
+  const _TabItem(this.icon, this.activeIcon);
   final IconData icon;
   final IconData activeIcon;
-  final String label;
 }
 
 const List<_TabItem> _kTabs = <_TabItem>[
-  _TabItem(Icons.home_outlined, Icons.home, "Accueil"),
-  _TabItem(Icons.live_tv_outlined, Icons.live_tv, "TV"),
-  _TabItem(Icons.movie_outlined, Icons.movie, "Films & Séries"),
-  _TabItem(Icons.search_outlined, Icons.search, "Recherche"),
-  _TabItem(Icons.settings_outlined, Icons.settings, "Réglages"),
+  _TabItem(Icons.home_outlined, Icons.home),
+  _TabItem(Icons.live_tv_outlined, Icons.live_tv),
+  _TabItem(Icons.movie_outlined, Icons.movie),
+  _TabItem(Icons.search_outlined, Icons.search),
+  _TabItem(Icons.settings_outlined, Icons.settings),
 ];
+
+/// Localized label for tab [index] (order matches [_kTabs]).
+String _tabLabel(BuildContext context, int index) {
+  final AppLocalizations l = AppLocalizations.of(context);
+  return <String>[
+    l.tabHome,
+    l.tabTv,
+    l.tabBrowse,
+    l.tabSearch,
+    l.tabSettings,
+  ][index];
+}
 
 class _TabBar extends StatelessWidget {
   const _TabBar({required this.tabsRouter});
@@ -240,11 +251,9 @@ class _TabBar extends StatelessWidget {
                 Expanded(
                   child: _TabButton(
                     item: _kTabs[i],
+                    label: _tabLabel(context, i),
                     selected: tabsRouter.activeIndex == i,
-                    onTap: () {
-                      perfLog("tab tapped: ${_kTabs[i].label}");
-                      tabsRouter.setActiveIndex(i);
-                    },
+                    onTap: () => tabsRouter.setActiveIndex(i),
                   ),
                 ),
             ],
@@ -258,11 +267,13 @@ class _TabBar extends StatelessWidget {
 class _TabButton extends StatelessWidget {
   const _TabButton({
     required this.item,
+    required this.label,
     required this.selected,
     required this.onTap,
   });
 
   final _TabItem item;
+  final String label;
   final bool selected;
   final VoidCallback onTap;
 
@@ -279,7 +290,7 @@ class _TabButton extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
-      label: item.label,
+      label: label,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
@@ -298,7 +309,7 @@ class _TabButton extends StatelessWidget {
               padding: EdgeInsets.symmetric(horizontal: t.space.x1),
               child: FittedBox(
                 fit: BoxFit.scaleDown,
-                child: Text(item.label, maxLines: 1, style: labelStyle),
+                child: Text(label, maxLines: 1, style: labelStyle),
               ),
             ),
           ],
