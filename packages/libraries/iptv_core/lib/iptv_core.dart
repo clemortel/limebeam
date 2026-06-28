@@ -9,7 +9,6 @@ export "src/di.dart";
 export "src/env/env.dart";
 export "src/failures/catch_error.dart";
 export "src/failures/failures.dart";
-export "src/failures/failures_x.dart";
 export "src/http/http_service.dart";
 export "src/parental/adult_filter.dart";
 export "src/progress/playback_preferences.dart";

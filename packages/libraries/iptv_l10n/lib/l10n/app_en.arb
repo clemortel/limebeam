@@ -160,5 +160,20 @@
   "errStreamUnavailable": "This stream is currently unavailable.",
   "errEpgUnavailable": "The TV guide could not be loaded right now.",
   "errCastUnavailable": "No cast devices found. Check your Wi-Fi network.",
-  "errCastConnection": "Could not connect to the cast device. Try again."
+  "errCastConnection": "Could not connect to the cast device. Try again.",
+  "playerLive": "LIVE",
+  "playerChannels": "Channels",
+  "playerEpisodes": "Episodes",
+  "playerTracks": "Tracks",
+  "playerAudio": "Audio",
+  "playerSubtitles": "Subtitles",
+  "playerSubtitlesOff": "Off",
+  "playerSync": "Sync",
+  "playerTrackFallback": "Track {id}",
+  "playerError": "Playback failed",
+  "castTo": "Cast to",
+  "castingOn": "Casting to",
+  "castUnavailableTitle": "Casting unavailable",
+  "castDiscovering": "Searching for devices…",
+  "nextEpisodeIn": "Next episode in {seconds}s"
 }

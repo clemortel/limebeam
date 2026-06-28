@@ -1063,6 +1063,96 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Connexion à l\'appareil impossible. Réessayez.'**
   String get errCastConnection;
+
+  /// No description provided for @playerLive.
+  ///
+  /// In fr, this message translates to:
+  /// **'DIRECT'**
+  String get playerLive;
+
+  /// No description provided for @playerChannels.
+  ///
+  /// In fr, this message translates to:
+  /// **'Chaînes'**
+  String get playerChannels;
+
+  /// No description provided for @playerEpisodes.
+  ///
+  /// In fr, this message translates to:
+  /// **'Épisodes'**
+  String get playerEpisodes;
+
+  /// No description provided for @playerTracks.
+  ///
+  /// In fr, this message translates to:
+  /// **'Pistes'**
+  String get playerTracks;
+
+  /// No description provided for @playerAudio.
+  ///
+  /// In fr, this message translates to:
+  /// **'Audio'**
+  String get playerAudio;
+
+  /// No description provided for @playerSubtitles.
+  ///
+  /// In fr, this message translates to:
+  /// **'Sous-titres'**
+  String get playerSubtitles;
+
+  /// No description provided for @playerSubtitlesOff.
+  ///
+  /// In fr, this message translates to:
+  /// **'Désactivés'**
+  String get playerSubtitlesOff;
+
+  /// No description provided for @playerSync.
+  ///
+  /// In fr, this message translates to:
+  /// **'Synchronisation'**
+  String get playerSync;
+
+  /// No description provided for @playerTrackFallback.
+  ///
+  /// In fr, this message translates to:
+  /// **'Piste {id}'**
+  String playerTrackFallback(String id);
+
+  /// No description provided for @playerError.
+  ///
+  /// In fr, this message translates to:
+  /// **'Lecture impossible'**
+  String get playerError;
+
+  /// No description provided for @castTo.
+  ///
+  /// In fr, this message translates to:
+  /// **'Diffuser sur'**
+  String get castTo;
+
+  /// No description provided for @castingOn.
+  ///
+  /// In fr, this message translates to:
+  /// **'Diffusion sur'**
+  String get castingOn;
+
+  /// No description provided for @castUnavailableTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Diffusion indisponible'**
+  String get castUnavailableTitle;
+
+  /// No description provided for @castDiscovering.
+  ///
+  /// In fr, this message translates to:
+  /// **'Recherche d\'appareils…'**
+  String get castDiscovering;
+
+  /// No description provided for @nextEpisodeIn.
+  ///
+  /// In fr, this message translates to:
+  /// **'Épisode suivant dans {seconds}s'**
+  String nextEpisodeIn(int seconds);
 }
 
 class _AppLocalizationsDelegate

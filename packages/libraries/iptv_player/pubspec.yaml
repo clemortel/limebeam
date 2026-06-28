@@ -22,6 +22,8 @@ dependencies:
     path: ../iptv_cast
   iptv_core:
     path: ../iptv_core
+  iptv_l10n:
+    path: ../iptv_l10n
   iptv_ui:
     path: ../iptv_ui
   # Engine lives behind the package boundary; screens never import it directly.

@@ -194,5 +194,34 @@
   "errStreamUnavailable": "Ce flux est actuellement indisponible.",
   "errEpgUnavailable": "Le guide TV n'a pas pu être chargé pour le moment.",
   "errCastUnavailable": "Aucun appareil de diffusion trouvé. Vérifiez votre Wi-Fi.",
-  "errCastConnection": "Connexion à l'appareil impossible. Réessayez."
+  "errCastConnection": "Connexion à l'appareil impossible. Réessayez.",
+  "playerLive": "DIRECT",
+  "playerChannels": "Chaînes",
+  "playerEpisodes": "Épisodes",
+  "playerTracks": "Pistes",
+  "playerAudio": "Audio",
+  "playerSubtitles": "Sous-titres",
+  "playerSubtitlesOff": "Désactivés",
+  "playerSync": "Synchronisation",
+  "playerTrackFallback": "Piste {id}",
+  "@playerTrackFallback": {
+    "placeholders": {
+      "id": {
+        "type": "String"
+      }
+    }
+  },
+  "playerError": "Lecture impossible",
+  "castTo": "Diffuser sur",
+  "castingOn": "Diffusion sur",
+  "castUnavailableTitle": "Diffusion indisponible",
+  "castDiscovering": "Recherche d'appareils…",
+  "nextEpisodeIn": "Épisode suivant dans {seconds}s",
+  "@nextEpisodeIn": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  }
 }

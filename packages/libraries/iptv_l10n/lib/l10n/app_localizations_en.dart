@@ -515,4 +515,53 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get errCastConnection =>
       'Could not connect to the cast device. Try again.';
+
+  @override
+  String get playerLive => 'LIVE';
+
+  @override
+  String get playerChannels => 'Channels';
+
+  @override
+  String get playerEpisodes => 'Episodes';
+
+  @override
+  String get playerTracks => 'Tracks';
+
+  @override
+  String get playerAudio => 'Audio';
+
+  @override
+  String get playerSubtitles => 'Subtitles';
+
+  @override
+  String get playerSubtitlesOff => 'Off';
+
+  @override
+  String get playerSync => 'Sync';
+
+  @override
+  String playerTrackFallback(String id) {
+    return 'Track $id';
+  }
+
+  @override
+  String get playerError => 'Playback failed';
+
+  @override
+  String get castTo => 'Cast to';
+
+  @override
+  String get castingOn => 'Casting to';
+
+  @override
+  String get castUnavailableTitle => 'Casting unavailable';
+
+  @override
+  String get castDiscovering => 'Searching for devices…';
+
+  @override
+  String nextEpisodeIn(int seconds) {
+    return 'Next episode in ${seconds}s';
+  }
 }

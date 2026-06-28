@@ -8,6 +8,7 @@ import "package:flutter_riverpod/flutter_riverpod.dart"
     hide AsyncData, AsyncError, AsyncLoading, AsyncValue;
 import "package:iptv_cast/iptv_cast.dart";
 import "package:iptv_core/iptv_core.dart";
+import "package:iptv_l10n/iptv_l10n.dart";
 import "package:iptv_ui/iptv_ui.dart";
 import "package:screen_brightness/screen_brightness.dart";
 
@@ -566,7 +567,7 @@ class _LiveBadge extends StatelessWidget {
         ),
         SizedBox(width: t.space.x1),
         Text(
-          "DIRECT",
+          AppLocalizations.of(context).playerLive,
           style: t.typography.micro.copyWith(color: t.colors.textPrimary),
         ),
       ],
@@ -688,7 +689,7 @@ class _BottomBar extends StatelessWidget {
                   onPressed: () => _showQueue(context),
                   icon: Icon(Icons.playlist_play, color: t.colors.textPrimary),
                   label: Text(
-                    request.isLive ? "Chaînes" : "Épisodes",
+                    request.isLive ? AppLocalizations.of(context).playerChannels : AppLocalizations.of(context).playerEpisodes,
                     style: t.typography.bodyStrong
                         .copyWith(color: t.colors.textPrimary),
                   ),
@@ -726,7 +727,7 @@ class _BottomBar extends StatelessWidget {
   void _showQueue(BuildContext context) {
     AppBottomSheet.show<void>(
       context,
-      title: request.isLive ? "Chaînes" : "Épisodes",
+      title: request.isLive ? AppLocalizations.of(context).playerChannels : AppLocalizations.of(context).playerEpisodes,
       child: _QueueList(
         queue: queue,
         currentIndex: state.queueIndex,
@@ -741,7 +742,7 @@ class _BottomBar extends StatelessWidget {
   void _showTracks(BuildContext context) {
     AppBottomSheet.show<void>(
       context,
-      title: "Pistes",
+      title: AppLocalizations.of(context).playerTracks,
       child: _TracksSheet(controller: controller),
     );
   }
@@ -762,37 +763,39 @@ class _TracksSheet extends ConsumerWidget {
       shrinkWrap: true,
       children: <Widget>[
         if (tracks.audio.isNotEmpty) ...<Widget>[
-          const _TrackSectionHeader(label: "Audio"),
+          _TrackSectionHeader(label: AppLocalizations.of(context).playerAudio),
           for (final MediaTrack track in tracks.audio)
             _TrackTile(
-              label: _trackLabel(track),
+              label: _trackLabel(track, AppLocalizations.of(context)),
               selected: track.id == tracks.selectedAudioId,
               onTap: () => controller.selectAudioTrack(track.id),
             ),
         ],
         if (tracks.subtitle.isNotEmpty) ...<Widget>[
-          const _TrackSectionHeader(label: "Sous-titres"),
+          _TrackSectionHeader(
+            label: AppLocalizations.of(context).playerSubtitles,
+          ),
           _TrackTile(
-            label: "Désactivés",
+            label: AppLocalizations.of(context).playerSubtitlesOff,
             selected: !tracks.hasSubtitleOn,
             onTap: () => controller.selectSubtitleTrack(MediaTrack.noneId),
           ),
           for (final MediaTrack track in tracks.subtitle)
             _TrackTile(
-              label: _trackLabel(track),
+              label: _trackLabel(track, AppLocalizations.of(context)),
               selected: track.id == tracks.selectedSubtitleId,
               onTap: () => controller.selectSubtitleTrack(track.id),
             ),
         ],
         if (state.supportsSyncOffsets) ...<Widget>[
-          const _TrackSectionHeader(label: "Synchronisation"),
+          _TrackSectionHeader(label: AppLocalizations.of(context).playerSync),
           _SyncRow(
-            label: "Sous-titres",
+            label: AppLocalizations.of(context).playerSubtitles,
             valueMs: state.subtitleDelayMs,
             onChanged: controller.setSubtitleDelay,
           ),
           _SyncRow(
-            label: "Audio",
+            label: AppLocalizations.of(context).playerAudio,
             valueMs: state.audioDelayMs,
             onChanged: controller.setAudioDelay,
           ),
@@ -802,7 +805,8 @@ class _TracksSheet extends ConsumerWidget {
   }
 
   /// Human label for a track row, falling back to language then a generic id.
-  String _trackLabel(MediaTrack track) => track.label ?? "Piste ${track.id}";
+  String _trackLabel(MediaTrack track, AppLocalizations l) =>
+      track.label ?? l.playerTrackFallback(track.id);
 }
 
 class _TrackSectionHeader extends StatelessWidget {
@@ -1089,7 +1093,7 @@ class _CastButton extends ConsumerWidget {
   void _open(BuildContext context) {
     AppBottomSheet.show<void>(
       context,
-      title: "Diffuser sur",
+      title: AppLocalizations.of(context).castTo,
       child: _CastDeviceSheet(controller: controller),
     );
   }
@@ -1111,7 +1115,7 @@ class _CastingOverlay extends StatelessWidget {
           Icon(Icons.cast_connected, size: _kPlayButtonSize, color: t.colors.accent),
           SizedBox(height: t.space.x4),
           Text(
-            "Diffusion sur",
+            AppLocalizations.of(context).castingOn,
             style: t.typography.caption.copyWith(color: t.colors.textSecondary),
           ),
           SizedBox(height: t.space.x1),
@@ -1181,8 +1185,8 @@ class _CastDeviceSheetState extends ConsumerState<_CastDeviceSheet> {
                 : _CastDeviceList(devices: data, onSelect: _onSelect),
           AsyncError<IList<CastDevice>>(:final Failures failure) => EmptyState(
               icon: Icons.cast,
-              title: "Diffusion indisponible",
-              message: failure.computeErrorMessage(),
+              title: AppLocalizations.of(context).castUnavailableTitle,
+              message: failure.localized(AppLocalizations.of(context)),
             ),
         },
       ],
@@ -1212,7 +1216,7 @@ class _CastDiscovering extends StatelessWidget {
           ),
           SizedBox(width: t.space.x3),
           Text(
-            "Recherche d'appareils…",
+            AppLocalizations.of(context).castDiscovering,
             style: t.typography.body.copyWith(color: t.colors.textSecondary),
           ),
         ],
@@ -1330,7 +1334,7 @@ class _NextEpisodeCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.end,
           children: <Widget>[
             Text(
-              "Épisode suivant dans ${seconds}s",
+              AppLocalizations.of(context).nextEpisodeIn(seconds),
               style: t.typography.body.copyWith(color: t.colors.textPrimary),
             ),
             SizedBox(height: t.space.x3),
@@ -1340,14 +1344,14 @@ class _NextEpisodeCard extends StatelessWidget {
                 TextButton(
                   onPressed: onCancel,
                   child: Text(
-                    "Annuler",
+                    AppLocalizations.of(context).commonCancel,
                     style: t.typography.bodyStrong
                         .copyWith(color: t.colors.textSecondary),
                   ),
                 ),
                 SizedBox(width: t.space.x2),
                 PrimaryButton(
-                  label: "Lire",
+                  label: AppLocalizations.of(context).commonPlay,
                   expand: false,
                   onPressed: onPlayNow,
                 ),
@@ -1384,10 +1388,10 @@ class _ErrorOverlay extends StatelessWidget {
             Center(
               child: EmptyState(
                 icon: Icons.error_outline,
-                title: "Lecture impossible",
-                message: failure.computeErrorMessage(),
+                title: AppLocalizations.of(context).playerError,
+                message: failure.localized(AppLocalizations.of(context)),
                 action: PrimaryButton(
-                  label: "Réessayer",
+                  label: AppLocalizations.of(context).commonRetry,
                   expand: false,
                   onPressed: onRetry,
                 ),

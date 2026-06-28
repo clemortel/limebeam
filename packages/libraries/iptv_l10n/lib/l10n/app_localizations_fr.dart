@@ -521,4 +521,53 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get errCastConnection =>
       'Connexion à l\'appareil impossible. Réessayez.';
+
+  @override
+  String get playerLive => 'DIRECT';
+
+  @override
+  String get playerChannels => 'Chaînes';
+
+  @override
+  String get playerEpisodes => 'Épisodes';
+
+  @override
+  String get playerTracks => 'Pistes';
+
+  @override
+  String get playerAudio => 'Audio';
+
+  @override
+  String get playerSubtitles => 'Sous-titres';
+
+  @override
+  String get playerSubtitlesOff => 'Désactivés';
+
+  @override
+  String get playerSync => 'Synchronisation';
+
+  @override
+  String playerTrackFallback(String id) {
+    return 'Piste $id';
+  }
+
+  @override
+  String get playerError => 'Lecture impossible';
+
+  @override
+  String get castTo => 'Diffuser sur';
+
+  @override
+  String get castingOn => 'Diffusion sur';
+
+  @override
+  String get castUnavailableTitle => 'Diffusion indisponible';
+
+  @override
+  String get castDiscovering => 'Recherche d\'appareils…';
+
+  @override
+  String nextEpisodeIn(int seconds) {
+    return 'Épisode suivant dans ${seconds}s';
+  }
 }
