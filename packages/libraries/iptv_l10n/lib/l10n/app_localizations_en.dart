@@ -314,4 +314,120 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get successEpgUnavailable => 'EPG unavailable for this source.';
+
+  @override
+  String get commonCancel => 'Cancel';
+
+  @override
+  String get settingsPlayback => 'Playback';
+
+  @override
+  String get playbackAutoplayNext => 'Auto-play next episode';
+
+  @override
+  String get playbackVolumeGesture => 'Vertical swipe for volume';
+
+  @override
+  String get settingsSubtitlesAudio => 'Subtitles & audio';
+
+  @override
+  String get audioPreferredLanguage => 'Preferred audio language';
+
+  @override
+  String get subtitlePreferredLanguage => 'Preferred subtitle language';
+
+  @override
+  String get subtitlesEnableDefault => 'Enable subtitles by default';
+
+  @override
+  String get subtitleSize => 'Subtitle size';
+
+  @override
+  String get subtitleTextColor => 'Text color';
+
+  @override
+  String get subtitleBackground => 'Subtitle background';
+
+  @override
+  String get subtitlesHint => 'Preferences apply when the next stream opens.';
+
+  @override
+  String get langNone => 'None';
+
+  @override
+  String get subSizeSmall => 'Small';
+
+  @override
+  String get subSizeNormal => 'Normal';
+
+  @override
+  String get subSizeLarge => 'Large';
+
+  @override
+  String get subSizeXLarge => 'Extra large';
+
+  @override
+  String get colorWhite => 'White';
+
+  @override
+  String get colorYellow => 'Yellow';
+
+  @override
+  String get colorCyan => 'Cyan';
+
+  @override
+  String get colorGreen => 'Green';
+
+  @override
+  String get bgNone => 'None';
+
+  @override
+  String get bgMedium => 'Medium';
+
+  @override
+  String get bgOpaque => 'Opaque';
+
+  @override
+  String get settingsParental => 'Parental control';
+
+  @override
+  String get parentalHideAdult => 'Hide adult categories';
+
+  @override
+  String get parentalLock => 'Lock adult content';
+
+  @override
+  String get parentalUnlock => 'Unlock adult content';
+
+  @override
+  String get parentalChangePin => 'Change PIN';
+
+  @override
+  String parentalHint(int n) {
+    return 'Protected by a $n-digit PIN. Content re-locks on each launch.';
+  }
+
+  @override
+  String get parentalSetPin => 'Set a PIN';
+
+  @override
+  String get parentalEnterPin => 'Enter the PIN';
+
+  @override
+  String get parentalEnabledToast => 'Parental control enabled';
+
+  @override
+  String get parentalWrongPin => 'Wrong PIN';
+
+  @override
+  String get parentalUnlockedToast => 'Adult content unlocked';
+
+  @override
+  String get parentalCurrentPin => 'Current PIN';
+
+  @override
+  String get parentalNewPin => 'New PIN';
+
+  @override
+  String get parentalChangedToast => 'PIN changed';
 }

@@ -679,6 +679,234 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'EPG indisponible pour cette source.'**
   String get successEpgUnavailable;
+
+  /// No description provided for @commonCancel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Annuler'**
+  String get commonCancel;
+
+  /// No description provided for @settingsPlayback.
+  ///
+  /// In fr, this message translates to:
+  /// **'Lecture'**
+  String get settingsPlayback;
+
+  /// No description provided for @playbackAutoplayNext.
+  ///
+  /// In fr, this message translates to:
+  /// **'Lecture auto de l\'épisode suivant'**
+  String get playbackAutoplayNext;
+
+  /// No description provided for @playbackVolumeGesture.
+  ///
+  /// In fr, this message translates to:
+  /// **'Geste vertical pour le volume'**
+  String get playbackVolumeGesture;
+
+  /// No description provided for @settingsSubtitlesAudio.
+  ///
+  /// In fr, this message translates to:
+  /// **'Sous-titres & audio'**
+  String get settingsSubtitlesAudio;
+
+  /// No description provided for @audioPreferredLanguage.
+  ///
+  /// In fr, this message translates to:
+  /// **'Langue audio préférée'**
+  String get audioPreferredLanguage;
+
+  /// No description provided for @subtitlePreferredLanguage.
+  ///
+  /// In fr, this message translates to:
+  /// **'Langue des sous-titres préférée'**
+  String get subtitlePreferredLanguage;
+
+  /// No description provided for @subtitlesEnableDefault.
+  ///
+  /// In fr, this message translates to:
+  /// **'Activer les sous-titres par défaut'**
+  String get subtitlesEnableDefault;
+
+  /// No description provided for @subtitleSize.
+  ///
+  /// In fr, this message translates to:
+  /// **'Taille des sous-titres'**
+  String get subtitleSize;
+
+  /// No description provided for @subtitleTextColor.
+  ///
+  /// In fr, this message translates to:
+  /// **'Couleur du texte'**
+  String get subtitleTextColor;
+
+  /// No description provided for @subtitleBackground.
+  ///
+  /// In fr, this message translates to:
+  /// **'Fond des sous-titres'**
+  String get subtitleBackground;
+
+  /// No description provided for @subtitlesHint.
+  ///
+  /// In fr, this message translates to:
+  /// **'Les préférences s\'appliquent à l\'ouverture du flux suivant.'**
+  String get subtitlesHint;
+
+  /// No description provided for @langNone.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucune'**
+  String get langNone;
+
+  /// No description provided for @subSizeSmall.
+  ///
+  /// In fr, this message translates to:
+  /// **'Petit'**
+  String get subSizeSmall;
+
+  /// No description provided for @subSizeNormal.
+  ///
+  /// In fr, this message translates to:
+  /// **'Normal'**
+  String get subSizeNormal;
+
+  /// No description provided for @subSizeLarge.
+  ///
+  /// In fr, this message translates to:
+  /// **'Grand'**
+  String get subSizeLarge;
+
+  /// No description provided for @subSizeXLarge.
+  ///
+  /// In fr, this message translates to:
+  /// **'Très grand'**
+  String get subSizeXLarge;
+
+  /// No description provided for @colorWhite.
+  ///
+  /// In fr, this message translates to:
+  /// **'Blanc'**
+  String get colorWhite;
+
+  /// No description provided for @colorYellow.
+  ///
+  /// In fr, this message translates to:
+  /// **'Jaune'**
+  String get colorYellow;
+
+  /// No description provided for @colorCyan.
+  ///
+  /// In fr, this message translates to:
+  /// **'Cyan'**
+  String get colorCyan;
+
+  /// No description provided for @colorGreen.
+  ///
+  /// In fr, this message translates to:
+  /// **'Vert'**
+  String get colorGreen;
+
+  /// No description provided for @bgNone.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucun'**
+  String get bgNone;
+
+  /// No description provided for @bgMedium.
+  ///
+  /// In fr, this message translates to:
+  /// **'Moyen'**
+  String get bgMedium;
+
+  /// No description provided for @bgOpaque.
+  ///
+  /// In fr, this message translates to:
+  /// **'Opaque'**
+  String get bgOpaque;
+
+  /// No description provided for @settingsParental.
+  ///
+  /// In fr, this message translates to:
+  /// **'Contrôle parental'**
+  String get settingsParental;
+
+  /// No description provided for @parentalHideAdult.
+  ///
+  /// In fr, this message translates to:
+  /// **'Masquer les catégories adultes'**
+  String get parentalHideAdult;
+
+  /// No description provided for @parentalLock.
+  ///
+  /// In fr, this message translates to:
+  /// **'Verrouiller le contenu adulte'**
+  String get parentalLock;
+
+  /// No description provided for @parentalUnlock.
+  ///
+  /// In fr, this message translates to:
+  /// **'Déverrouiller le contenu adulte'**
+  String get parentalUnlock;
+
+  /// No description provided for @parentalChangePin.
+  ///
+  /// In fr, this message translates to:
+  /// **'Modifier le code'**
+  String get parentalChangePin;
+
+  /// No description provided for @parentalHint.
+  ///
+  /// In fr, this message translates to:
+  /// **'Protégé par un code à {n} chiffres. Le contenu se reverrouille à chaque démarrage.'**
+  String parentalHint(int n);
+
+  /// No description provided for @parentalSetPin.
+  ///
+  /// In fr, this message translates to:
+  /// **'Définir un code'**
+  String get parentalSetPin;
+
+  /// No description provided for @parentalEnterPin.
+  ///
+  /// In fr, this message translates to:
+  /// **'Entrez le code'**
+  String get parentalEnterPin;
+
+  /// No description provided for @parentalEnabledToast.
+  ///
+  /// In fr, this message translates to:
+  /// **'Contrôle parental activé'**
+  String get parentalEnabledToast;
+
+  /// No description provided for @parentalWrongPin.
+  ///
+  /// In fr, this message translates to:
+  /// **'Code incorrect'**
+  String get parentalWrongPin;
+
+  /// No description provided for @parentalUnlockedToast.
+  ///
+  /// In fr, this message translates to:
+  /// **'Contenu adulte déverrouillé'**
+  String get parentalUnlockedToast;
+
+  /// No description provided for @parentalCurrentPin.
+  ///
+  /// In fr, this message translates to:
+  /// **'Code actuel'**
+  String get parentalCurrentPin;
+
+  /// No description provided for @parentalNewPin.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nouveau code'**
+  String get parentalNewPin;
+
+  /// No description provided for @parentalChangedToast.
+  ///
+  /// In fr, this message translates to:
+  /// **'Code modifié'**
+  String get parentalChangedToast;
 }
 
 class _AppLocalizationsDelegate

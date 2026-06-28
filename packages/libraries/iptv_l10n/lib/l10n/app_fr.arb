@@ -109,5 +109,50 @@
       "series": {}
     }
   },
-  "successEpgUnavailable": "EPG indisponible pour cette source."
+  "successEpgUnavailable": "EPG indisponible pour cette source.",
+  "commonCancel": "Annuler",
+  "settingsPlayback": "Lecture",
+  "playbackAutoplayNext": "Lecture auto de l'épisode suivant",
+  "playbackVolumeGesture": "Geste vertical pour le volume",
+  "settingsSubtitlesAudio": "Sous-titres & audio",
+  "audioPreferredLanguage": "Langue audio préférée",
+  "subtitlePreferredLanguage": "Langue des sous-titres préférée",
+  "subtitlesEnableDefault": "Activer les sous-titres par défaut",
+  "subtitleSize": "Taille des sous-titres",
+  "subtitleTextColor": "Couleur du texte",
+  "subtitleBackground": "Fond des sous-titres",
+  "subtitlesHint": "Les préférences s'appliquent à l'ouverture du flux suivant.",
+  "langNone": "Aucune",
+  "subSizeSmall": "Petit",
+  "subSizeNormal": "Normal",
+  "subSizeLarge": "Grand",
+  "subSizeXLarge": "Très grand",
+  "colorWhite": "Blanc",
+  "colorYellow": "Jaune",
+  "colorCyan": "Cyan",
+  "colorGreen": "Vert",
+  "bgNone": "Aucun",
+  "bgMedium": "Moyen",
+  "bgOpaque": "Opaque",
+  "settingsParental": "Contrôle parental",
+  "parentalHideAdult": "Masquer les catégories adultes",
+  "parentalLock": "Verrouiller le contenu adulte",
+  "parentalUnlock": "Déverrouiller le contenu adulte",
+  "parentalChangePin": "Modifier le code",
+  "parentalHint": "Protégé par un code à {n} chiffres. Le contenu se reverrouille à chaque démarrage.",
+  "@parentalHint": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "parentalSetPin": "Définir un code",
+  "parentalEnterPin": "Entrez le code",
+  "parentalEnabledToast": "Contrôle parental activé",
+  "parentalWrongPin": "Code incorrect",
+  "parentalUnlockedToast": "Contenu adulte déverrouillé",
+  "parentalCurrentPin": "Code actuel",
+  "parentalNewPin": "Nouveau code",
+  "parentalChangedToast": "Code modifié"
 }

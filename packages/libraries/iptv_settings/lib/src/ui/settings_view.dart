@@ -12,42 +12,6 @@ import "../riverpods/parental_session.dart";
 const int _kPinLength = 4;
 const double _kActionIconSize = 20;
 
-/// Common track languages offered for the preferred-language pickers. `null`
-/// means "no preference" / "none". Codes are the 3-letter forms streams expose.
-const List<(String?, String)> _kLanguageOptions = <(String?, String)>[
-  (null, "Aucune"),
-  ("fra", "Français"),
-  ("eng", "English"),
-  ("spa", "Español"),
-  ("deu", "Deutsch"),
-  ("ita", "Italiano"),
-  ("ara", "العربية"),
-  ("por", "Português"),
-];
-
-/// Subtitle size multipliers offered in settings.
-const List<(double, String)> _kSubtitleScaleOptions = <(double, String)>[
-  (0.75, "Petit"),
-  (1.0, "Normal"),
-  (1.25, "Grand"),
-  (1.5, "Très grand"),
-];
-
-/// Subtitle text color choices (0xAARRGGBB).
-const List<(int, String)> _kSubtitleColorOptions = <(int, String)>[
-  (0xFFFFFFFF, "Blanc"),
-  (0xFFFFEB3B, "Jaune"),
-  (0xFF00E5FF, "Cyan"),
-  (0xFF00E676, "Vert"),
-];
-
-/// Subtitle background-box opacity choices.
-const List<(double, String)> _kSubtitleBackgroundOptions = <(double, String)>[
-  (0.0, "Aucun"),
-  (0.5, "Moyen"),
-  (1.0, "Opaque"),
-];
-
 /// Réglages sections (§4.6): Interface, Lecture, Contrôle parental. Embeddable
 /// (no Scaffold) so the app shell can host it alongside the Sources section.
 class SettingsView extends StatelessWidget {
@@ -147,16 +111,19 @@ class _InterfaceSection extends ConsumerWidget {
           ],
           onSelected: notifier.setFontScale,
         ),
-        SizedBox(height: t.space.x2),
-        _SwitchRow(
-          label: l.settingsReduceTransparency,
-          value: prefs.reduceTransparency,
-          onChanged: notifier.setReduceTransparency,
-        ),
-        Text(
-          l.settingsReduceTransparencyHint,
-          style: t.typography.caption.copyWith(color: t.colors.textTertiary),
-        ),
+        // Glass is already force-disabled on TV, so the toggle is a no-op there.
+        if (!FormFactorScope.isTv(context)) ...<Widget>[
+          SizedBox(height: t.space.x2),
+          _SwitchRow(
+            label: l.settingsReduceTransparency,
+            value: prefs.reduceTransparency,
+            onChanged: notifier.setReduceTransparency,
+          ),
+          Text(
+            l.settingsReduceTransparencyHint,
+            style: t.typography.caption.copyWith(color: t.colors.textTertiary),
+          ),
+        ],
       ],
     );
   }
@@ -167,22 +134,26 @@ class _LectureSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final AppLocalizations l = AppLocalizations.of(context);
     final AppPreferences prefs = ref.watch(appPreferencesNotifierProvider);
     final AppPreferencesNotifier notifier =
         ref.read(appPreferencesNotifierProvider.notifier);
     return _SectionCard(
-      title: "Lecture",
+      title: l.settingsPlayback,
       children: <Widget>[
         _SwitchRow(
-          label: "Lecture auto de l'épisode suivant",
+          label: l.playbackAutoplayNext,
           value: prefs.autoplayNext,
           onChanged: notifier.setAutoplayNext,
         ),
-        _SwitchRow(
-          label: "Geste vertical pour le volume",
-          value: prefs.playerGestures,
-          onChanged: notifier.setPlayerGestures,
-        ),
+        // Touch gestures are disabled on TV (the remote drives the player), so
+        // the gesture toggle is meaningless there.
+        if (!FormFactorScope.isTv(context))
+          _SwitchRow(
+            label: l.playbackVolumeGesture,
+            value: prefs.playerGestures,
+            onChanged: notifier.setPlayerGestures,
+          ),
       ],
     );
   }
@@ -194,55 +165,84 @@ class _SubtitlesSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final AppTheme t = context.appTheme;
+    final AppLocalizations l = AppLocalizations.of(context);
     final AppPreferences prefs = ref.watch(appPreferencesNotifierProvider);
     final AppPreferencesNotifier notifier =
         ref.read(appPreferencesNotifierProvider.notifier);
+    // Language names stay as endonyms (universal); only "none" is localized.
+    final List<(String?, String)> languages = <(String?, String)>[
+      (null, l.langNone),
+      ("fra", "Français"),
+      ("eng", "English"),
+      ("spa", "Español"),
+      ("deu", "Deutsch"),
+      ("ita", "Italiano"),
+      ("ara", "العربية"),
+      ("por", "Português"),
+    ];
+    final List<(double, String)> scales = <(double, String)>[
+      (0.75, l.subSizeSmall),
+      (1.0, l.subSizeNormal),
+      (1.25, l.subSizeLarge),
+      (1.5, l.subSizeXLarge),
+    ];
+    final List<(int, String)> colors = <(int, String)>[
+      (0xFFFFFFFF, l.colorWhite),
+      (0xFFFFEB3B, l.colorYellow),
+      (0xFF00E5FF, l.colorCyan),
+      (0xFF00E676, l.colorGreen),
+    ];
+    final List<(double, String)> backgrounds = <(double, String)>[
+      (0.0, l.bgNone),
+      (0.5, l.bgMedium),
+      (1.0, l.bgOpaque),
+    ];
     return _SectionCard(
-      title: "Sous-titres & audio",
+      title: l.settingsSubtitlesAudio,
       children: <Widget>[
         _ChoiceRow<String?>(
-          label: "Langue audio préférée",
+          label: l.audioPreferredLanguage,
           value: prefs.preferredAudioLanguage,
-          options: _kLanguageOptions,
+          options: languages,
           onSelected: notifier.setPreferredAudioLanguage,
         ),
         SizedBox(height: t.space.x3),
         _ChoiceRow<String?>(
-          label: "Langue des sous-titres préférée",
+          label: l.subtitlePreferredLanguage,
           value: prefs.preferredSubtitleLanguage,
-          options: _kLanguageOptions,
+          options: languages,
           onSelected: notifier.setPreferredSubtitleLanguage,
         ),
         SizedBox(height: t.space.x2),
         _SwitchRow(
-          label: "Activer les sous-titres par défaut",
+          label: l.subtitlesEnableDefault,
           value: prefs.subtitlesEnabledByDefault,
           onChanged: notifier.setSubtitlesEnabledByDefault,
         ),
         SizedBox(height: t.space.x3),
         _ChoiceRow<double>(
-          label: "Taille des sous-titres",
+          label: l.subtitleSize,
           value: prefs.subtitleFontScale,
-          options: _kSubtitleScaleOptions,
+          options: scales,
           onSelected: notifier.setSubtitleFontScale,
         ),
         SizedBox(height: t.space.x3),
         _ChoiceRow<int>(
-          label: "Couleur du texte",
+          label: l.subtitleTextColor,
           value: prefs.subtitleTextColorArgb,
-          options: _kSubtitleColorOptions,
+          options: colors,
           onSelected: notifier.setSubtitleTextColorArgb,
         ),
         SizedBox(height: t.space.x3),
         _ChoiceRow<double>(
-          label: "Fond des sous-titres",
+          label: l.subtitleBackground,
           value: prefs.subtitleBackgroundOpacity,
-          options: _kSubtitleBackgroundOptions,
+          options: backgrounds,
           onSelected: notifier.setSubtitleBackgroundOpacity,
         ),
         SizedBox(height: t.space.x2),
         Text(
-          "Les préférences s'appliquent à l'ouverture du flux suivant.",
+          l.subtitlesHint,
           style: t.typography.caption.copyWith(color: t.colors.textTertiary),
         ),
       ],
@@ -256,35 +256,33 @@ class _ParentalSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final AppTheme t = context.appTheme;
+    final AppLocalizations l = AppLocalizations.of(context);
     final AppPreferences prefs = ref.watch(appPreferencesNotifierProvider);
     final bool unlocked = ref.watch(parentalSessionProvider);
     return _SectionCard(
-      title: "Contrôle parental",
+      title: l.settingsParental,
       children: <Widget>[
         _SwitchRow(
-          label: "Masquer les catégories adultes",
+          label: l.parentalHideAdult,
           value: prefs.parentalEnabled,
           onChanged: (bool value) => _onToggle(context, ref, value),
         ),
         if (prefs.parentalEnabled) ...<Widget>[
           SizedBox(height: t.space.x2),
           _ActionRow(
-            label: unlocked
-                ? "Verrouiller le contenu adulte"
-                : "Déverrouiller le contenu adulte",
+            label: unlocked ? l.parentalLock : l.parentalUnlock,
             icon: unlocked ? Icons.lock_outline : Icons.lock_open_outlined,
             onTap: () => _toggleLock(context, ref, unlocked),
           ),
           _ActionRow(
-            label: "Modifier le code",
+            label: l.parentalChangePin,
             icon: Icons.password_outlined,
             onTap: () => _changePin(context, ref),
           ),
         ],
         SizedBox(height: t.space.x2),
         Text(
-          "Protégé par un code à $_kPinLength chiffres. Le contenu se "
-          "reverrouille à chaque démarrage.",
+          l.parentalHint(_kPinLength),
           style: t.typography.caption.copyWith(color: t.colors.textTertiary),
         ),
       ],
@@ -296,17 +294,18 @@ class _ParentalSection extends ConsumerWidget {
     WidgetRef ref,
     bool enable,
   ) async {
+    final AppLocalizations l = AppLocalizations.of(context);
     final AppPreferencesNotifier notifier =
         ref.read(appPreferencesNotifierProvider.notifier);
     final String? pin = await _PinDialog.show(
       context,
-      title: enable ? "Définir un code" : "Entrez le code",
+      title: enable ? l.parentalSetPin : l.parentalEnterPin,
     );
     if (pin == null) return;
     if (enable) {
       await notifier.enableParental(pin);
       if (context.mounted) {
-        AppToast.show(context, message: "Contrôle parental activé");
+        AppToast.show(context, message: l.parentalEnabledToast);
       }
       return;
     }
@@ -315,7 +314,7 @@ class _ParentalSection extends ConsumerWidget {
     if (ok) {
       ref.read(parentalSessionProvider.notifier).lock();
     } else {
-      AppToast.show(context, message: "Code incorrect", kind: ToastKind.error);
+      AppToast.show(context, message: l.parentalWrongPin, kind: ToastKind.error);
     }
   }
 
@@ -324,43 +323,46 @@ class _ParentalSection extends ConsumerWidget {
     WidgetRef ref,
     bool unlocked,
   ) async {
+    final AppLocalizations l = AppLocalizations.of(context);
     if (unlocked) {
       ref.read(parentalSessionProvider.notifier).lock();
       return;
     }
-    final String? pin = await _PinDialog.show(context, title: "Entrez le code");
+    final String? pin =
+        await _PinDialog.show(context, title: l.parentalEnterPin);
     if (pin == null) return;
     final bool ok =
         await ref.read(appPreferencesNotifierProvider.notifier).verifyPin(pin);
     if (!context.mounted) return;
     if (ok) {
       ref.read(parentalSessionProvider.notifier).unlock();
-      AppToast.show(context, message: "Contenu adulte déverrouillé");
+      AppToast.show(context, message: l.parentalUnlockedToast);
     } else {
-      AppToast.show(context, message: "Code incorrect", kind: ToastKind.error);
+      AppToast.show(context, message: l.parentalWrongPin, kind: ToastKind.error);
     }
   }
 
   Future<void> _changePin(BuildContext context, WidgetRef ref) async {
+    final AppLocalizations l = AppLocalizations.of(context);
     final AppPreferencesNotifier notifier =
         ref.read(appPreferencesNotifierProvider.notifier);
     final String? current = await _PinDialog.show(
       context,
-      title: "Code actuel",
+      title: l.parentalCurrentPin,
     );
     if (current == null) return;
     if (!await notifier.verifyPin(current)) {
       if (context.mounted) {
-        AppToast.show(context, message: "Code incorrect", kind: ToastKind.error);
+        AppToast.show(context, message: l.parentalWrongPin, kind: ToastKind.error);
       }
       return;
     }
     if (!context.mounted) return;
-    final String? next = await _PinDialog.show(context, title: "Nouveau code");
+    final String? next = await _PinDialog.show(context, title: l.parentalNewPin);
     if (next == null) return;
     await notifier.enableParental(next);
     if (context.mounted) {
-      AppToast.show(context, message: "Code modifié");
+      AppToast.show(context, message: l.parentalChangedToast);
     }
   }
 }
@@ -504,6 +506,7 @@ class _PinDialogState extends State<_PinDialog> {
   @override
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
+    final AppLocalizations l = AppLocalizations.of(context);
     // Glass dialog, but the PIN field stays on a solid fill so the digits keep
     // AA contrast regardless of what's blurred behind the dialog.
     return Dialog(
@@ -550,7 +553,7 @@ class _PinDialogState extends State<_PinDialog> {
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
                   child: Text(
-                    "Annuler",
+                    l.commonCancel,
                     style: t.typography.bodyStrong
                         .copyWith(color: t.colors.textSecondary),
                   ),
@@ -563,7 +566,7 @@ class _PinDialogState extends State<_PinDialog> {
                     }
                   },
                   child: Text(
-                    "Valider",
+                    l.commonValidate,
                     style: t.typography.bodyStrong
                         .copyWith(color: t.colors.accentTextOnDark),
                   ),

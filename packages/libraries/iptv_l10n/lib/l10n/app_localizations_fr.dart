@@ -318,4 +318,121 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get successEpgUnavailable => 'EPG indisponible pour cette source.';
+
+  @override
+  String get commonCancel => 'Annuler';
+
+  @override
+  String get settingsPlayback => 'Lecture';
+
+  @override
+  String get playbackAutoplayNext => 'Lecture auto de l\'épisode suivant';
+
+  @override
+  String get playbackVolumeGesture => 'Geste vertical pour le volume';
+
+  @override
+  String get settingsSubtitlesAudio => 'Sous-titres & audio';
+
+  @override
+  String get audioPreferredLanguage => 'Langue audio préférée';
+
+  @override
+  String get subtitlePreferredLanguage => 'Langue des sous-titres préférée';
+
+  @override
+  String get subtitlesEnableDefault => 'Activer les sous-titres par défaut';
+
+  @override
+  String get subtitleSize => 'Taille des sous-titres';
+
+  @override
+  String get subtitleTextColor => 'Couleur du texte';
+
+  @override
+  String get subtitleBackground => 'Fond des sous-titres';
+
+  @override
+  String get subtitlesHint =>
+      'Les préférences s\'appliquent à l\'ouverture du flux suivant.';
+
+  @override
+  String get langNone => 'Aucune';
+
+  @override
+  String get subSizeSmall => 'Petit';
+
+  @override
+  String get subSizeNormal => 'Normal';
+
+  @override
+  String get subSizeLarge => 'Grand';
+
+  @override
+  String get subSizeXLarge => 'Très grand';
+
+  @override
+  String get colorWhite => 'Blanc';
+
+  @override
+  String get colorYellow => 'Jaune';
+
+  @override
+  String get colorCyan => 'Cyan';
+
+  @override
+  String get colorGreen => 'Vert';
+
+  @override
+  String get bgNone => 'Aucun';
+
+  @override
+  String get bgMedium => 'Moyen';
+
+  @override
+  String get bgOpaque => 'Opaque';
+
+  @override
+  String get settingsParental => 'Contrôle parental';
+
+  @override
+  String get parentalHideAdult => 'Masquer les catégories adultes';
+
+  @override
+  String get parentalLock => 'Verrouiller le contenu adulte';
+
+  @override
+  String get parentalUnlock => 'Déverrouiller le contenu adulte';
+
+  @override
+  String get parentalChangePin => 'Modifier le code';
+
+  @override
+  String parentalHint(int n) {
+    return 'Protégé par un code à $n chiffres. Le contenu se reverrouille à chaque démarrage.';
+  }
+
+  @override
+  String get parentalSetPin => 'Définir un code';
+
+  @override
+  String get parentalEnterPin => 'Entrez le code';
+
+  @override
+  String get parentalEnabledToast => 'Contrôle parental activé';
+
+  @override
+  String get parentalWrongPin => 'Code incorrect';
+
+  @override
+  String get parentalUnlockedToast => 'Contenu adulte déverrouillé';
+
+  @override
+  String get parentalCurrentPin => 'Code actuel';
+
+  @override
+  String get parentalNewPin => 'Nouveau code';
+
+  @override
+  String get parentalChangedToast => 'Code modifié';
 }
