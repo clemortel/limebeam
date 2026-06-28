@@ -134,6 +134,16 @@ class _InterfaceSection extends ConsumerWidget {
           ],
           onSelected: notifier.setFontScale,
         ),
+        SizedBox(height: t.space.x2),
+        _SwitchRow(
+          label: "Réduire la transparence",
+          value: prefs.reduceTransparency,
+          onChanged: notifier.setReduceTransparency,
+        ),
+        Text(
+          "Désactive les effets de verre pour des surfaces plus lisibles.",
+          style: t.typography.caption.copyWith(color: t.colors.textTertiary),
+        ),
       ],
     );
   }
@@ -481,46 +491,75 @@ class _PinDialogState extends State<_PinDialog> {
   @override
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
-    return AlertDialog(
-      backgroundColor: t.colors.bgElevated,
-      title: Text(
-        widget.title,
-        style: t.typography.h3.copyWith(color: t.colors.textPrimary),
-      ),
-      content: TextField(
-        controller: _controller,
-        autofocus: true,
-        obscureText: true,
-        keyboardType: TextInputType.number,
-        maxLength: _kPinLength,
-        inputFormatters: <TextInputFormatter>[
-          FilteringTextInputFormatter.digitsOnly,
-        ],
-        style: t.typography.h2.copyWith(color: t.colors.textPrimary),
-        decoration: const InputDecoration(counterText: ""),
-      ),
-      actions: <Widget>[
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(
-            "Annuler",
-            style: t.typography.bodyStrong
-                .copyWith(color: t.colors.textSecondary),
-          ),
+    // Glass dialog, but the PIN field stays on a solid fill so the digits keep
+    // AA contrast regardless of what's blurred behind the dialog.
+    return Dialog(
+      backgroundColor: const Color(0x00000000),
+      elevation: 0,
+      insetPadding: EdgeInsets.all(t.space.x6),
+      child: GlassSurface(
+        kind: GlassKind.dialog,
+        radius: t.radius.lgAll,
+        padding: EdgeInsets.all(t.space.x5),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Text(
+              widget.title,
+              style: t.typography.h3.copyWith(color: t.colors.textPrimary),
+            ),
+            SizedBox(height: t.space.x4),
+            TextField(
+              controller: _controller,
+              autofocus: true,
+              obscureText: true,
+              keyboardType: TextInputType.number,
+              maxLength: _kPinLength,
+              inputFormatters: <TextInputFormatter>[
+                FilteringTextInputFormatter.digitsOnly,
+              ],
+              style: t.typography.h2.copyWith(color: t.colors.textPrimary),
+              decoration: InputDecoration(
+                counterText: "",
+                filled: true,
+                fillColor: t.colors.bgInput,
+                border: OutlineInputBorder(
+                  borderRadius: t.radius.smAll,
+                  borderSide: BorderSide(color: t.colors.borderDefault),
+                ),
+              ),
+            ),
+            SizedBox(height: t.space.x4),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(
+                    "Annuler",
+                    style: t.typography.bodyStrong
+                        .copyWith(color: t.colors.textSecondary),
+                  ),
+                ),
+                SizedBox(width: t.space.x2),
+                TextButton(
+                  onPressed: () {
+                    if (_controller.text.length == _kPinLength) {
+                      Navigator.of(context).pop(_controller.text);
+                    }
+                  },
+                  child: Text(
+                    "Valider",
+                    style: t.typography.bodyStrong
+                        .copyWith(color: t.colors.accentTextOnDark),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-        TextButton(
-          onPressed: () {
-            if (_controller.text.length == _kPinLength) {
-              Navigator.of(context).pop(_controller.text);
-            }
-          },
-          child: Text(
-            "Valider",
-            style: t.typography.bodyStrong
-                .copyWith(color: t.colors.accentTextOnDark),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }

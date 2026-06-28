@@ -1,6 +1,7 @@
 import "package:flutter/material.dart";
 
 import "app_colors.dart";
+import "app_glass.dart";
 import "app_motion.dart";
 import "app_radius.dart";
 import "app_space.dart";
@@ -16,6 +17,7 @@ class AppTheme extends ThemeExtension<AppTheme> {
     required this.space,
     required this.radius,
     required this.motion,
+    required this.glass,
   });
 
   final AppColors colors;
@@ -23,6 +25,7 @@ class AppTheme extends ThemeExtension<AppTheme> {
   final AppSpace space;
   final AppRadius radius;
   final AppMotion motion;
+  final AppGlass glass;
 
   /// Dark scheme (default).
   static const AppTheme dark = AppTheme(
@@ -31,6 +34,7 @@ class AppTheme extends ThemeExtension<AppTheme> {
     space: AppSpace(),
     radius: AppRadius(),
     motion: AppMotion(),
+    glass: AppGlass(),
   );
 
   /// Light scheme — same tokens, inverted surfaces/text.
@@ -40,13 +44,37 @@ class AppTheme extends ThemeExtension<AppTheme> {
     space: AppSpace(),
     radius: AppRadius(),
     motion: AppMotion(),
+    glass: AppGlass.lightScheme(),
   );
+
+  /// Token magnification for the 10-foot (TV) layout. Bumps spacing, type, and
+  /// radii so the UI reads from across a room. Tuned to grow comfortably on
+  /// 1080p without overflowing dense screens.
+  static const double tvTokenScale = 1.3;
+
+  /// Builds a token set for [brightness], scaling spacing/type/radii by
+  /// [tokenScale] (1.0 = phone/tablet, [tvTokenScale] = TV).
+  static AppTheme scheme(Brightness brightness, {double tokenScale = 1.0}) {
+    final bool isLight = brightness == Brightness.light;
+    return AppTheme(
+      colors: isLight ? const AppColors.lightScheme() : const AppColors(),
+      typography: AppType(scale: tokenScale),
+      space: AppSpace(scale: tokenScale),
+      radius: AppRadius(scale: tokenScale),
+      motion: const AppMotion(),
+      glass: isLight ? const AppGlass.lightScheme() : const AppGlass(),
+    );
+  }
 
   /// Builds the Material [ThemeData] for [brightness], carrying the matching
   /// token set as an extension. Screens still read tokens via [appTheme].
-  static ThemeData themeData({Brightness brightness = Brightness.dark}) {
-    final AppTheme t = brightness == Brightness.light ? light : dark;
-    final ColorScheme scheme = ColorScheme.fromSeed(
+  /// [tokenScale] magnifies the design tokens for the TV layout.
+  static ThemeData themeData({
+    Brightness brightness = Brightness.dark,
+    double tokenScale = 1.0,
+  }) {
+    final AppTheme t = scheme(brightness, tokenScale: tokenScale);
+    final ColorScheme scheme0 = ColorScheme.fromSeed(
       seedColor: t.colors.accent,
       brightness: brightness,
       surface: t.colors.bgSurface,
@@ -55,7 +83,7 @@ class AppTheme extends ThemeExtension<AppTheme> {
       useMaterial3: true,
       brightness: brightness,
       scaffoldBackgroundColor: t.colors.bgBase,
-      colorScheme: scheme.copyWith(
+      colorScheme: scheme0.copyWith(
         primary: t.colors.accent,
         onPrimary: t.colors.textOnAccent,
         error: t.colors.error,
@@ -72,6 +100,7 @@ class AppTheme extends ThemeExtension<AppTheme> {
     AppSpace? space,
     AppRadius? radius,
     AppMotion? motion,
+    AppGlass? glass,
   }) {
     return AppTheme(
       colors: colors ?? this.colors,
@@ -79,6 +108,7 @@ class AppTheme extends ThemeExtension<AppTheme> {
       space: space ?? this.space,
       radius: radius ?? this.radius,
       motion: motion ?? this.motion,
+      glass: glass ?? this.glass,
     );
   }
 

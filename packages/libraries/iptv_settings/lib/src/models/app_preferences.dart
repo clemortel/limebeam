@@ -27,6 +27,9 @@ sealed class AppPreferences with _$AppPreferences {
   const factory AppPreferences({
     @Default(AppThemeMode.dark) AppThemeMode themeMode,
     @Default(FontScaleOption.normal) FontScaleOption fontScale,
+    // Accessibility: disables the liquid-glass effects on chrome (tab bar,
+    // player controls, sheets) in favor of solid, maximally-legible surfaces.
+    @Default(false) bool reduceTransparency,
     @Default(true) bool autoplayNext,
     @Default(true) bool playerGestures,
     @Default(false) bool parentalEnabled,

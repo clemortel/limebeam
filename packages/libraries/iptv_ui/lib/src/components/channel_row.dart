@@ -40,66 +40,68 @@ class ChannelRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
-    return PressableScale(
-      onTap: onTap,
-      child: Container(
-        color: t.colors.bgSurface,
-        padding: EdgeInsets.symmetric(
-          horizontal: t.space.x4,
-          vertical: t.space.x3,
-        ),
-        child: Row(
-          children: <Widget>[
-            _Logo(url: logoUrl),
-            SizedBox(width: t.space.x3),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Text(
-                    name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: t.typography.h3.copyWith(color: t.colors.textPrimary),
-                  ),
-                  SizedBox(height: t.space.x1),
-                  Text(
-                    nowPlaying ?? "Programme indisponible",
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: t.typography.caption.copyWith(
-                      color: nowPlaying == null
-                          ? t.colors.textTertiary
-                          : t.colors.textSecondary,
+    // RepaintBoundary isolates each row's layer for smoother list scrolling.
+    return RepaintBoundary(
+      child: PressableScale(
+        onTap: onTap,
+        child: Container(
+          color: t.colors.bgSurface,
+          padding: EdgeInsets.symmetric(
+            horizontal: t.space.x4,
+            vertical: t.space.x3,
+          ),
+          child: Row(
+            children: <Widget>[
+              _Logo(url: logoUrl),
+              SizedBox(width: t.space.x3),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style:
+                          t.typography.h3.copyWith(color: t.colors.textPrimary),
                     ),
-                  ),
-                  if (progress != null) ...<Widget>[
                     SizedBox(height: t.space.x1),
-                    _ProgressLine(fraction: progress!),
+                    Text(
+                      nowPlaying ?? "Programme indisponible",
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: t.typography.caption.copyWith(
+                        color: nowPlaying == null
+                            ? t.colors.textTertiary
+                            : t.colors.textSecondary,
+                      ),
+                    ),
+                    if (progress != null) ...<Widget>[
+                      SizedBox(height: t.space.x1),
+                      _ProgressLine(fraction: progress!),
+                    ],
                   ],
-                ],
-              ),
-            ),
-            SizedBox(width: t.space.x3),
-            if (onToggleFavorite != null)
-              PressableScale(
-                onTap: onToggleFavorite,
-                child: Icon(
-                  isFavorite ? Icons.star : Icons.star_border,
-                  size: 22,
-                  color: isFavorite
-                      ? t.colors.accent
-                      : t.colors.textTertiary,
                 ),
               ),
-            if (isLive) ...<Widget>[
+              SizedBox(width: t.space.x3),
+              if (onToggleFavorite != null)
+                PressableScale(
+                  onTap: onToggleFavorite,
+                  child: Icon(
+                    isFavorite ? Icons.star : Icons.star_border,
+                    size: 22,
+                    color: isFavorite ? t.colors.accent : t.colors.textTertiary,
+                  ),
+                ),
+              if (isLive) ...<Widget>[
+                SizedBox(width: t.space.x2),
+                const LiveDot(),
+              ],
               SizedBox(width: t.space.x2),
-              const LiveDot(),
+              Icon(Icons.chevron_right, color: t.colors.textTertiary, size: 20),
             ],
-            SizedBox(width: t.space.x2),
-            Icon(Icons.chevron_right, color: t.colors.textTertiary, size: 20),
-          ],
+          ),
         ),
       ),
     );
@@ -127,8 +129,8 @@ class _Logo extends StatelessWidget {
           : CachedNetworkImage(
               imageUrl: url!,
               fit: BoxFit.contain,
-              memCacheWidth: (_kLogoSize * MediaQuery.devicePixelRatioOf(context))
-                  .round(),
+              memCacheWidth:
+                  (_kLogoSize * MediaQuery.devicePixelRatioOf(context)).round(),
               errorWidget: (BuildContext c, String _, Object __) =>
                   Icon(Icons.tv, color: t.colors.textTertiary, size: 22),
             ),

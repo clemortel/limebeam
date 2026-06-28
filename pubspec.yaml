@@ -1,7 +1,7 @@
 name: green_iptv
 description: IPTV client (live, VOD, series) built on a Melos monorepo.
 publish_to: none
-version: 1.0.0+1
+version: 1.0.1+2
 
 environment:
   sdk: ">=3.6.0 <4.0.0"
@@ -42,6 +42,9 @@ dependencies:
 
   # App metadata (version on the About screen)
   package_info_plus: ^9.0.0
+
+  # Device class detection (Android TV / Fire TV leanback feature)
+  device_info_plus: ^10.1.0
 
   # Functional / models
   dartz: ^0.10.1

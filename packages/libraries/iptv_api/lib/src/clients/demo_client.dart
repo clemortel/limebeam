@@ -236,7 +236,7 @@ final List<_DemoLive> _kLive = <_DemoLive>[
 ];
 
 final List<_DemoMovie> _kMovies = <_DemoMovie>[
-  _DemoMovie(
+  const _DemoMovie(
     id: "demo-movie-bunny",
     name: "Big Buck Bunny",
     poster: _bunnyPoster,
@@ -343,14 +343,14 @@ final List<_DemoSeries> _kSeries = <_DemoSeries>[
     year: "2024",
     rating: "8.0",
     episodes: <_DemoEpisode>[
-      _DemoEpisode("demo-ep-o1", "Pilote", "Le tout premier épisode.", "10",
-          _sBunny),
-      _DemoEpisode("demo-ep-o2", "La découverte", "L'aventure continue.", "12",
-          _sTos),
-      _DemoEpisode("demo-ep-o3", "Le tournant", "Tout bascule.", "11",
-          _sSintel),
-      _DemoEpisode("demo-ep-o4", "Le final", "Dénouement de la saison.", "13",
-          _sElephants),
+      const _DemoEpisode("demo-ep-o1", "Pilote", "Le tout premier épisode.", "10",
+          _sBunny,),
+      const _DemoEpisode("demo-ep-o2", "La découverte", "L'aventure continue.", "12",
+          _sTos,),
+      const _DemoEpisode("demo-ep-o3", "Le tournant", "Tout bascule.", "11",
+          _sSintel,),
+      const _DemoEpisode("demo-ep-o4", "Le final", "Dénouement de la saison.", "13",
+          _sElephants,),
     ],
   ),
   _DemoSeries(
@@ -361,10 +361,10 @@ final List<_DemoSeries> _kSeries = <_DemoSeries>[
     year: "2023",
     rating: "7.5",
     episodes: <_DemoEpisode>[
-      _DemoEpisode("demo-ep-c1", "Chapitre 1", "Mise en place.", "9", _sBipbop),
-      _DemoEpisode("demo-ep-c2", "Chapitre 2", "Montée en tension.", "10",
-          _sSkate),
-      _DemoEpisode("demo-ep-c3", "Chapitre 3", "Conclusion.", "11", _sBunny),
+      const _DemoEpisode("demo-ep-c1", "Chapitre 1", "Mise en place.", "9", _sBipbop),
+      const _DemoEpisode("demo-ep-c2", "Chapitre 2", "Montée en tension.", "10",
+          _sSkate,),
+      const _DemoEpisode("demo-ep-c3", "Chapitre 3", "Conclusion.", "11", _sBunny),
     ],
   ),
 ];

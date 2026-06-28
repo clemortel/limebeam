@@ -188,6 +188,8 @@ class _ChannelList extends ConsumerWidget {
     }
 
     return ListView.builder(
+      // Clear the floating glass nav bar (bottom inset set by the shell).
+      padding: EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
       itemCount: channels.length,
       itemBuilder: (BuildContext context, int index) {
         final Channel channel = channels[index];

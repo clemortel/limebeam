@@ -11,8 +11,8 @@ const double _kFloatMargin = 12;
 const double _kFloatAspect = 16 / 9;
 const double _kFloatElevation = 8;
 const double _kFloatIconSize = 18;
+const double _kMiniTapTarget = 44;
 const Color _kFloatVideoBg = Color(0xFF000000);
-const Color _kFloatIconBg = Color(0x99000000);
 
 /// In-app floating player (YouTube-style PiP): a small video window you can
 /// drag anywhere and pinch to resize while browsing. Tap to expand back to the
@@ -37,6 +37,8 @@ class _FloatingPlayerState extends ConsumerState<FloatingPlayer> {
   Widget build(BuildContext context) {
     final PlayerUiState state = ref.watch(playbackControllerProvider);
     if (!state.active || state.expanded) return const SizedBox.shrink();
+    // No drag/pinch on TV — playback is full-screen only there.
+    if (FormFactorScope.isTv(context)) return const SizedBox.shrink();
 
     final AppTheme t = context.appTheme;
     final PlaybackController controller =
@@ -115,16 +117,29 @@ class _MiniIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: EdgeInsets.all(t.space.x1),
-        padding: EdgeInsets.all(t.space.x1),
-        decoration: const BoxDecoration(
-          color: _kFloatIconBg,
-          shape: BoxShape.circle,
+    // ≥44dp tap target (was ~26dp): the visible glass circle stays compact but
+    // the hit area fills the full target, opaque so taps don't fall through to
+    // the expand gesture beneath.
+    return Semantics(
+      button: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: SizedBox(
+          width: _kMiniTapTarget,
+          height: _kMiniTapTarget,
+          child: Center(
+            child: GlassSurface(
+              kind: GlassKind.pill,
+              padding: EdgeInsets.all(t.space.x2),
+              child: Icon(
+                icon,
+                size: _kFloatIconSize,
+                color: t.colors.textPrimary,
+              ),
+            ),
+          ),
         ),
-        child: Icon(icon, size: _kFloatIconSize, color: t.colors.textPrimary),
       ),
     );
   }

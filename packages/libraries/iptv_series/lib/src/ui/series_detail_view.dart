@@ -14,6 +14,11 @@ import "../riverpods/providers.dart";
 
 const double _kBackdropAspect = 16 / 9;
 const int _kSynopsisCollapsedLines = 3;
+
+/// On TV the hero is capped to this fraction of the viewport height so the
+/// synopsis + episodes stay above the fold (a full-width 16:9 image would
+/// otherwise fill the whole landscape screen).
+const double _kTvHeroHeightFraction = 0.4;
 const double _kSeasonSkeletonHeight = 120;
 const double _kSeasonChipsHeight = 34;
 const double _kEpisodePlayIconSize = 28;
@@ -207,10 +212,13 @@ class _SeasonsState extends State<_Seasons> {
           ),
         ),
         SizedBox(height: t.space.x3),
-        for (final Episode episode in season.episodes)
+        for (int i = 0; i < season.episodes.length; i++)
           _EpisodeRow(
-            episode: episode,
-            onPlay: () => widget.onPlayEpisode?.call(season, episode),
+            episode: season.episodes[i],
+            // Anchor the TV remote on the first episode so play is one click.
+            autofocus: i == 0 && FormFactorScope.isTv(context),
+            onPlay: () =>
+                widget.onPlayEpisode?.call(season, season.episodes[i]),
           ),
       ],
     );
@@ -225,26 +233,38 @@ class _Hero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
-    return AspectRatio(
-      aspectRatio: _kBackdropAspect,
-      child: coverUrl == null || coverUrl!.isEmpty
-          ? ColoredBox(color: t.colors.bgElevated)
-          : CachedNetworkImage(
-              imageUrl: coverUrl!,
-              fit: BoxFit.cover,
-              placeholder: (BuildContext c, String _) => const SkeletonBox(),
-              errorWidget: (BuildContext c, String _, Object __) =>
-                  ColoredBox(color: t.colors.bgElevated),
-            ),
-    );
+    final Widget image = coverUrl == null || coverUrl!.isEmpty
+        ? ColoredBox(color: t.colors.bgElevated)
+        : CachedNetworkImage(
+            imageUrl: coverUrl!,
+            fit: BoxFit.cover,
+            placeholder: (BuildContext c, String _) => const SkeletonBox(),
+            errorWidget: (BuildContext c, String _, Object __) =>
+                ColoredBox(color: t.colors.bgElevated),
+          );
+    // TV: cap the height so episodes stay above the fold. Touch: full-width
+    // 16:9 (only ~⅓ of a portrait phone screen).
+    if (FormFactorScope.isTv(context)) {
+      return SizedBox(
+        width: double.infinity,
+        height: MediaQuery.sizeOf(context).height * _kTvHeroHeightFraction,
+        child: image,
+      );
+    }
+    return AspectRatio(aspectRatio: _kBackdropAspect, child: image);
   }
 }
 
 class _EpisodeRow extends StatelessWidget {
-  const _EpisodeRow({required this.episode, required this.onPlay});
+  const _EpisodeRow({
+    required this.episode,
+    required this.onPlay,
+    this.autofocus = false,
+  });
 
   final Episode episode;
   final VoidCallback onPlay;
+  final bool autofocus;
 
   @override
   Widget build(BuildContext context) {
@@ -254,6 +274,7 @@ class _EpisodeRow extends StatelessWidget {
         : episode.duration;
     return PressableScale(
       onTap: onPlay,
+      autofocus: autofocus,
       child: Padding(
         padding: EdgeInsets.symmetric(vertical: t.space.x2),
         child: Row(

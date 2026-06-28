@@ -1,6 +1,7 @@
 import "package:flutter/material.dart";
 
 import "../theme/app_theme.dart";
+import "glass_surface.dart";
 
 const double _kHandleWidth = 36;
 const double _kHandleHeight = 4;
@@ -16,11 +17,12 @@ class AppBottomSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
-    return Container(
-      decoration: BoxDecoration(
-        color: t.colors.bgElevated,
-        borderRadius: t.radius.sheetTop,
-      ),
+    // Frosted sheet with top-only rounding; the grab handle reads as the lens
+    // accent. Falls back to a solid elevated surface under "Reduce
+    // transparency" / high contrast (see GlassSurface).
+    return GlassSurface(
+      kind: GlassKind.dialog,
+      radius: t.radius.sheetTop,
       padding: EdgeInsets.only(bottom: t.space.x4),
       child: SafeArea(
         top: false,

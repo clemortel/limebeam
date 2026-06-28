@@ -3,7 +3,11 @@ import "package:flutter/widgets.dart";
 /// Typography scale per design spec §1.2. One family; weight + size carry the
 /// hierarchy. SF Pro on iOS via the system fallback; bundled Inter elsewhere.
 class AppType {
-  const AppType();
+  const AppType({this.scale = 1.0});
+
+  /// Magnifies every size for 10-foot (TV) layouts. Defaults to 1.0; the
+  /// line-height *ratio* is unaffected so leading stays proportional.
+  final double scale;
 
   static const String fontFamily = "Inter";
   static const List<String> fontFamilyFallback = <String>[".SF Pro Text"];
@@ -21,7 +25,7 @@ class AppType {
     return TextStyle(
       fontFamily: fontFamily,
       fontFamilyFallback: fontFamilyFallback,
-      fontSize: size,
+      fontSize: size * scale,
       height: lineHeight / size,
       fontWeight: weight,
     );

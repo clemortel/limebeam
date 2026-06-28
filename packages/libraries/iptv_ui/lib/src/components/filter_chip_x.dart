@@ -29,6 +29,7 @@ class FilterChipX extends StatelessWidget {
     final String text = count != null ? "$label · $count" : label;
     return PressableScale(
       onTap: onTap,
+      focusBorderRadius: t.radius.fullAll,
       child: Container(
         height: _kChipHeight,
         alignment: Alignment.center,

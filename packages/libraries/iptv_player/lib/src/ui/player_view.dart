@@ -66,6 +66,10 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
   String? _seekFlash;
   Timer? _flashTimer;
 
+  // Owns key input on TV: reclaims focus whenever the overlay auto-hides so the
+  // remote keeps driving transport (play/pause/seek) with no visible controls.
+  final FocusNode _tvFocusNode = FocusNode(debugLabel: "player-tv");
+
   // Captured in [initState] so [dispose] never touches `ref` (which is invalid
   // once the element is defunct). The controller is an app-scoped keepAlive
   // singleton, so the reference stays valid after this route is popped.
@@ -85,6 +89,7 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
   @override
   void dispose() {
     _flashTimer?.cancel();
+    _tvFocusNode.dispose();
     // Popped (minimized) → show the floating window, keep playing. Deferred to
     // the next frame: mutating the provider this widget watches *during*
     // dispose would notify our own now-defunct element (markNeedsBuild on a
@@ -149,6 +154,72 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
     }
   }
 
+  /// Maps remote/D-pad keys to playback on TV. When the overlay is visible the
+  /// directional keys are left to the focus system (so the on-screen buttons
+  /// are reachable); when it is hidden the remote drives transport directly.
+  KeyEventResult _handleTvKey(
+    KeyEvent event,
+    PlayerUiState state,
+    PlaybackController controller,
+    bool canScrub,
+  ) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    final LogicalKeyboardKey key = event.logicalKey;
+
+    // Transport media keys work regardless of overlay visibility / focus.
+    if (key == LogicalKeyboardKey.mediaPlayPause ||
+        key == LogicalKeyboardKey.mediaPlay ||
+        key == LogicalKeyboardKey.mediaPause) {
+      controller.playOrPause();
+      return KeyEventResult.handled;
+    }
+    if (canScrub && key == LogicalKeyboardKey.mediaFastForward) {
+      controller.seekForward();
+      return KeyEventResult.handled;
+    }
+    if (canScrub && key == LogicalKeyboardKey.mediaTrackPrevious) {
+      controller.playPrevious();
+      return KeyEventResult.handled;
+    }
+    if (canScrub && key == LogicalKeyboardKey.mediaTrackNext) {
+      controller.playNext();
+      return KeyEventResult.handled;
+    }
+    if (canScrub && key == LogicalKeyboardKey.mediaRewind) {
+      controller.seekBackward();
+      return KeyEventResult.handled;
+    }
+
+    // Controls visible → defer arrows/select to focus traversal + buttons.
+    if (state.overlayVisible) return KeyEventResult.ignored;
+
+    // Controls hidden → the remote drives the player directly.
+    if (key == LogicalKeyboardKey.arrowLeft) {
+      canScrub ? controller.seekBackward() : controller.revealOverlay();
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.arrowRight) {
+      canScrub ? controller.seekForward() : controller.revealOverlay();
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.select ||
+        key == LogicalKeyboardKey.enter ||
+        key == LogicalKeyboardKey.numpadEnter ||
+        key == LogicalKeyboardKey.gameButtonA ||
+        key == LogicalKeyboardKey.space) {
+      controller.playOrPause();
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.arrowUp ||
+        key == LogicalKeyboardKey.arrowDown) {
+      controller.revealOverlay();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
   void _scrubUpdate(double delta, double width, Duration duration) {
     final double total = duration.inMilliseconds.toDouble();
     final double base = _scrubMs ?? 0;
@@ -172,7 +243,23 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
     }
 
     final bool canScrub = !state.isLive && state.duration > Duration.zero;
-    final bool gestures = queue.gesturesEnabled;
+    final bool isTv = FormFactorScope.isTv(context);
+    // Touch gestures (drag scrub, swipe volume/brightness, double-tap seek)
+    // make no sense with a remote — TV drives the player from [_handleTvKey].
+    final bool gestures = queue.gesturesEnabled && !isTv;
+    final bool scrubGesture = canScrub && !isTv;
+
+    // When the controls auto-hide on TV, pull key focus back to the player so
+    // the remote keeps working without any focused on-screen button.
+    if (isTv) {
+      ref.listen<bool>(
+        playbackControllerProvider
+            .select((PlayerUiState s) => s.overlayVisible),
+        (bool? previous, bool next) {
+          if (!next) _tvFocusNode.requestFocus();
+        },
+      );
+    }
 
     return Scaffold(
       backgroundColor: _kPlayerBackground,
@@ -181,24 +268,24 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
           final double width = c.maxWidth;
           // Ancestor of the whole player: descendant buttons win their own
           // taps; every empty tap / double-tap / drag falls through to here.
-          return GestureDetector(
+          final Widget gestureLayer = GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTapUp: (_) => controller.toggleOverlay(),
             onDoubleTapDown: (TapDownDetails d) =>
                 _doubleTapDx = d.localPosition.dx,
-            onDoubleTap: state.isLive
+            onDoubleTap: state.isLive || isTv
                 ? null
                 : () => _doubleSeek(_doubleTapDx < width / 2),
-            onHorizontalDragStart: canScrub
+            onHorizontalDragStart: scrubGesture
                 ? (_) => setState(
                       () => _scrubMs = state.position.inMilliseconds.toDouble(),
                     )
                 : null,
-            onHorizontalDragUpdate: canScrub
+            onHorizontalDragUpdate: scrubGesture
                 ? (DragUpdateDetails d) =>
                     _scrubUpdate(d.primaryDelta ?? 0, width, state.duration)
                 : null,
-            onHorizontalDragEnd: canScrub
+            onHorizontalDragEnd: scrubGesture
                 ? (_) {
                     final double? ms = _scrubMs;
                     if (ms != null) {
@@ -303,6 +390,15 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
                   ),
               ],
             ),
+          );
+          // On TV the player owns key input; on touch it is returned as-is.
+          if (!isTv) return gestureLayer;
+          return Focus(
+            focusNode: _tvFocusNode,
+            autofocus: true,
+            onKeyEvent: (FocusNode node, KeyEvent event) =>
+                _handleTvKey(event, state, controller, canScrub),
+            child: gestureLayer,
           );
         },
       ),
@@ -1153,13 +1249,10 @@ class _Pill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
-    return Container(
+    return GlassSurface(
+      kind: GlassKind.pill,
       padding:
           EdgeInsets.symmetric(horizontal: t.space.x4, vertical: t.space.x2),
-      decoration: BoxDecoration(
-        color: _kPillBg,
-        borderRadius: t.radius.fullAll,
-      ),
       child: Text(
         text,
         style: t.typography.bodyStrong.copyWith(color: t.colors.textPrimary),
@@ -1177,13 +1270,11 @@ class _HudIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
-    return Container(
+    return GlassSurface(
+      kind: GlassKind.pill,
+      radius: t.radius.lgAll,
       padding:
           EdgeInsets.symmetric(horizontal: t.space.x4, vertical: t.space.x3),
-      decoration: BoxDecoration(
-        color: _kPillBg,
-        borderRadius: t.radius.lgAll,
-      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
@@ -1222,13 +1313,9 @@ class _NextEpisodeCard extends StatelessWidget {
     return Positioned(
       right: t.space.x4,
       bottom: t.space.x10,
-      child: Container(
+      child: GlassSurface(
+        kind: GlassKind.panel,
         padding: EdgeInsets.all(t.space.x4),
-        decoration: BoxDecoration(
-          color: t.colors.bgElevated,
-          borderRadius: t.radius.lgAll,
-          border: Border.all(color: t.colors.borderSubtle),
-        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.end,

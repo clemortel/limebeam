@@ -14,6 +14,11 @@ const double _kLiveTileWidth = 260;
 const double _kLiveRailHeight = 150;
 const double _kPosterWidth = 120;
 const double _kPosterRailHeight = 235;
+
+/// Magnifies a fixed carousel dimension on TV so rail items grow with the
+/// scaled-up typography/density (no effect on phone/tablet).
+double _railDim(BuildContext context, double value) =>
+    FormFactorScope.isTv(context) ? value * AppTheme.tvTokenScale : value;
 const int _kSkeletonRails = 3;
 const int _kSkeletonRailItems = 4;
 const double _kSkeletonTitleWidth = 160;
@@ -75,7 +80,12 @@ class HomeView extends ConsumerWidget {
                   ),
                 )
               : ListView(
-                  padding: EdgeInsets.symmetric(vertical: t.space.x4),
+                  padding: EdgeInsets.only(
+                    top: t.space.x4,
+                    // Clear the floating glass nav bar (folded into the bottom
+                    // inset by the shell's extendBody).
+                    bottom: t.space.x4 + MediaQuery.paddingOf(context).bottom,
+                  ),
                   children: <Widget>[
                     if (sessions.isNotEmpty) ...<Widget>[
                       _ResumeRail(
@@ -158,7 +168,7 @@ class _HomeSkeleton extends StatelessWidget {
           ),
           SizedBox(height: t.space.x3),
           SizedBox(
-            height: _kPosterRailHeight,
+            height: _railDim(context, _kPosterRailHeight),
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               physics: const NeverScrollableScrollPhysics(),
@@ -167,7 +177,7 @@ class _HomeSkeleton extends StatelessWidget {
               separatorBuilder: (BuildContext c, int i) =>
                   SizedBox(width: t.space.x3),
               itemBuilder: (BuildContext c, int i) => SizedBox(
-                width: _kPosterWidth,
+                width: _railDim(context, _kPosterWidth),
                 child: SkeletonBox(borderRadius: t.radius.lgAll),
               ),
             ),
@@ -192,8 +202,8 @@ class _ResumeRail extends ConsumerWidget {
     return SectionCarousel(
       title: "Reprendre",
       itemCount: sessions.length,
-      itemExtent: _kPosterWidth,
-      height: _kPosterRailHeight,
+      itemExtent: _railDim(context, _kPosterWidth),
+      height: _railDim(context, _kPosterRailHeight),
       itemBuilder: (BuildContext context, int index) {
         final WatchSession session = sessions[index];
         return MediaPosterCard(
@@ -232,8 +242,8 @@ class _FavoritesRail extends StatelessWidget {
     return SectionCarousel(
       title: "Favoris",
       itemCount: favorites.length,
-      itemExtent: _kPosterWidth,
-      height: _kPosterRailHeight,
+      itemExtent: _railDim(context, _kPosterWidth),
+      height: _railDim(context, _kPosterRailHeight),
       itemBuilder: (BuildContext context, int index) {
         final Favorite favorite = favorites[index];
         return MediaPosterCard(
@@ -276,8 +286,8 @@ class _LiveRail extends StatelessWidget {
     return SectionCarousel(
       title: "Live maintenant",
       itemCount: channels.length,
-      itemExtent: _kLiveTileWidth,
-      height: _kLiveRailHeight,
+      itemExtent: _railDim(context, _kLiveTileWidth),
+      height: _railDim(context, _kLiveRailHeight),
       itemBuilder: (BuildContext context, int index) {
         final Channel channel = channels[index];
         return LiveTile(
@@ -312,8 +322,8 @@ class _PosterRail<T> extends StatelessWidget {
     return SectionCarousel(
       title: title,
       itemCount: items.length,
-      itemExtent: _kPosterWidth,
-      height: _kPosterRailHeight,
+      itemExtent: _railDim(context, _kPosterWidth),
+      height: _railDim(context, _kPosterRailHeight),
       itemBuilder: (BuildContext context, int index) {
         final T item = items[index];
         return MediaPosterCard(

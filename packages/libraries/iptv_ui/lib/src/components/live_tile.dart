@@ -27,46 +27,50 @@ class LiveTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
-    return PressableScale(
-      onTap: onTap,
-      child: SizedBox(
-        width: width,
-        child: AspectRatio(
-          aspectRatio: _kTileAspect,
-          child: ClipRRect(
-            borderRadius: t.radius.mdAll,
-            child: Stack(
-              fit: StackFit.expand,
-              children: <Widget>[
-                if (thumbnailUrl != null && thumbnailUrl!.isNotEmpty)
-                  CachedNetworkImage(
-                    imageUrl: thumbnailUrl!,
-                    fit: BoxFit.cover,
-                    memCacheWidth:
-                        (width * MediaQuery.devicePixelRatioOf(context)).round(),
-                  )
-                else
-                  ColoredBox(color: t.colors.bgElevated),
-                const _BottomScrim(),
-                Positioned(
-                  top: t.space.x2,
-                  left: t.space.x2,
-                  child: const AppBadge.live(),
-                ),
-                Positioned(
-                  left: t.space.x3,
-                  right: t.space.x3,
-                  bottom: t.space.x2,
-                  child: Text(
-                    channelName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: t.typography.bodyStrong.copyWith(
-                      color: t.colors.textPrimary,
+    // RepaintBoundary isolates each tile's layer for smoother rail scrolling.
+    return RepaintBoundary(
+      child: PressableScale(
+        onTap: onTap,
+        child: SizedBox(
+          width: width,
+          child: AspectRatio(
+            aspectRatio: _kTileAspect,
+            child: ClipRRect(
+              borderRadius: t.radius.mdAll,
+              child: Stack(
+                fit: StackFit.expand,
+                children: <Widget>[
+                  if (thumbnailUrl != null && thumbnailUrl!.isNotEmpty)
+                    CachedNetworkImage(
+                      imageUrl: thumbnailUrl!,
+                      fit: BoxFit.cover,
+                      memCacheWidth:
+                          (width * MediaQuery.devicePixelRatioOf(context))
+                              .round(),
+                    )
+                  else
+                    ColoredBox(color: t.colors.bgElevated),
+                  const _BottomScrim(),
+                  Positioned(
+                    top: t.space.x2,
+                    left: t.space.x2,
+                    child: const AppBadge.live(),
+                  ),
+                  Positioned(
+                    left: t.space.x3,
+                    right: t.space.x3,
+                    bottom: t.space.x2,
+                    child: Text(
+                      channelName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: t.typography.bodyStrong.copyWith(
+                        color: t.colors.textPrimary,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

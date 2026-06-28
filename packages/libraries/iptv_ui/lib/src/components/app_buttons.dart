@@ -14,12 +14,17 @@ class PrimaryButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.expand = true,
+    this.autofocus = false,
     super.key,
   });
 
   final String label;
   final VoidCallback? onPressed;
   final bool expand;
+
+  /// Requests focus on first build — used to anchor the TV remote on the
+  /// primary action (e.g. "Lire" on a detail page).
+  final bool autofocus;
 
   @override
   Widget build(BuildContext context) {
@@ -29,6 +34,7 @@ class PrimaryButton extends StatelessWidget {
       opacity: enabled ? 1 : _kDisabledOpacity,
       child: PressableScale(
         enabled: enabled,
+        autofocus: autofocus,
         onTap: onPressed,
         child: Container(
           height: _kButtonHeight,

@@ -131,14 +131,19 @@ class _NavRow extends StatelessWidget {
         borderRadius: t.radius.lgAll,
         border: Border.all(color: t.colors.borderSubtle),
       ),
-      child: ListTile(
-        leading: Icon(icon, color: t.colors.textSecondary),
-        title: Text(
-          label,
-          style: t.typography.body.copyWith(color: t.colors.textPrimary),
+      // Transparent Material so the ListTile's tap ripple stays visible over
+      // the colored container.
+      child: Material(
+        type: MaterialType.transparency,
+        child: ListTile(
+          leading: Icon(icon, color: t.colors.textSecondary),
+          title: Text(
+            label,
+            style: t.typography.body.copyWith(color: t.colors.textPrimary),
+          ),
+          trailing: Icon(Icons.chevron_right, color: t.colors.textTertiary),
+          onTap: onTap,
         ),
-        trailing: Icon(Icons.chevron_right, color: t.colors.textTertiary),
-        onTap: onTap,
       ),
     );
   }

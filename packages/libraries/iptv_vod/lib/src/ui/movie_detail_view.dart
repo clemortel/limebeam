@@ -12,6 +12,11 @@ import "../riverpods/providers.dart";
 const double _kBackdropAspect = 16 / 9;
 const int _kSynopsisCollapsedLines = 3;
 
+/// On TV the hero is capped to this fraction of the viewport height so the
+/// title + "Lire" stay above the fold (a full-width 16:9 image would otherwise
+/// fill the whole landscape screen and push the action off-screen).
+const double _kTvHeroHeightFraction = 0.4;
+
 /// Movie detail (§4.4.1): hero, meta line, synopsis (clamped + "Plus"), Lire.
 class MovieDetailView extends ConsumerWidget {
   const MovieDetailView({
@@ -52,7 +57,11 @@ class MovieDetailView extends ConsumerWidget {
                 SizedBox(height: t.space.x2),
                 _MetaLine(movie: movie, info: info),
                 SizedBox(height: t.space.x4),
-                PrimaryButton(label: "Lire", onPressed: onPlay),
+                PrimaryButton(
+                  label: "Lire",
+                  onPressed: onPlay,
+                  autofocus: FormFactorScope.isTv(context),
+                ),
                 SizedBox(height: t.space.x6),
                 _Synopsis(info: info),
               ],
@@ -81,18 +90,25 @@ class _Hero extends StatelessWidget {
     final String? url = (backdropUrl != null && backdropUrl!.isNotEmpty)
         ? backdropUrl
         : posterUrl;
-    return AspectRatio(
-      aspectRatio: _kBackdropAspect,
-      child: url == null || url.isEmpty
-          ? ColoredBox(color: t.colors.bgElevated)
-          : CachedNetworkImage(
-              imageUrl: url,
-              fit: BoxFit.cover,
-              placeholder: (BuildContext c, String _) => const SkeletonBox(),
-              errorWidget: (BuildContext c, String _, Object __) =>
-                  ColoredBox(color: t.colors.bgElevated),
-            ),
-    );
+    final Widget image = url == null || url.isEmpty
+        ? ColoredBox(color: t.colors.bgElevated)
+        : CachedNetworkImage(
+            imageUrl: url,
+            fit: BoxFit.cover,
+            placeholder: (BuildContext c, String _) => const SkeletonBox(),
+            errorWidget: (BuildContext c, String _, Object __) =>
+                ColoredBox(color: t.colors.bgElevated),
+          );
+    // TV: cap the height so the action stays above the fold. Touch: full-width
+    // 16:9 (only ~⅓ of a portrait phone screen).
+    if (FormFactorScope.isTv(context)) {
+      return SizedBox(
+        width: double.infinity,
+        height: MediaQuery.sizeOf(context).height * _kTvHeroHeightFraction,
+        child: image,
+      );
+    }
+    return AspectRatio(aspectRatio: _kBackdropAspect, child: image);
   }
 }
 

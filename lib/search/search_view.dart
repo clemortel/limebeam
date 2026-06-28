@@ -6,6 +6,7 @@ import "package:iptv_series/iptv_series.dart";
 import "package:iptv_ui/iptv_ui.dart";
 import "package:iptv_vod/iptv_vod.dart";
 
+import "../perf_log.dart";
 import "search_notifier.dart";
 
 const double _kPosterWidth = 120;
@@ -39,9 +40,14 @@ class _SearchViewState extends ConsumerState<SearchView> {
 
   @override
   Widget build(BuildContext context) {
+    perfLog("SearchView.build START");
     final AppTheme t = context.appTheme;
     final String query = ref.watch(searchQueryProvider);
     final SearchResults results = ref.watch(searchResultsProvider);
+    perfLog("SearchView.build providers read (query='$query')");
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => perfLog("SearchView FRAME PAINTED"),
+    );
 
     return Scaffold(
       backgroundColor: t.colors.bgBase,
@@ -112,49 +118,71 @@ class _SearchBody extends StatelessWidget {
     }
 
     final AppTheme t = context.appTheme;
-    return ListView(
-      padding: EdgeInsets.only(bottom: t.space.x6),
-      children: <Widget>[
+    // Slivers keep the (up-to-50) channel rows lazy so a broad query doesn't
+    // build them all in one frame; the poster rails are already lazy.
+    return CustomScrollView(
+      slivers: <Widget>[
         if (results.channels.isNotEmpty) ...<Widget>[
-          _GroupHeader(label: "Chaînes (${results.channels.length})"),
-          for (final Channel channel in results.channels)
-            ChannelRow(
-              name: channel.name,
-              logoUrl: channel.logoUrl,
-              isLive: true,
-              onTap: () => onOpenChannel?.call(channel),
-            ),
-        ],
-        if (results.movies.isNotEmpty) ...<Widget>[
-          _GroupHeader(label: "Films (${results.movies.length})"),
-          _PosterRow(
-            count: results.movies.length,
-            builder: (int i) {
-              final Movie m = results.movies[i];
-              return MediaPosterCard(
-                title: m.name,
-                subtitle: m.year ?? "",
-                posterUrl: m.posterUrl,
-                onTap: () => onOpenMovie?.call(m),
+          SliverToBoxAdapter(
+            child: _GroupHeader(label: "Chaînes (${results.channels.length})"),
+          ),
+          SliverList.builder(
+            itemCount: results.channels.length,
+            itemBuilder: (BuildContext c, int i) {
+              final Channel channel = results.channels[i];
+              return ChannelRow(
+                name: channel.name,
+                logoUrl: channel.logoUrl,
+                isLive: true,
+                onTap: () => onOpenChannel?.call(channel),
               );
             },
+          ),
+        ],
+        if (results.movies.isNotEmpty) ...<Widget>[
+          SliverToBoxAdapter(
+            child: _GroupHeader(label: "Films (${results.movies.length})"),
+          ),
+          SliverToBoxAdapter(
+            child: _PosterRow(
+              count: results.movies.length,
+              builder: (int i) {
+                final Movie m = results.movies[i];
+                return MediaPosterCard(
+                  title: m.name,
+                  subtitle: m.year ?? "",
+                  posterUrl: m.posterUrl,
+                  onTap: () => onOpenMovie?.call(m),
+                );
+              },
+            ),
           ),
         ],
         if (results.series.isNotEmpty) ...<Widget>[
-          _GroupHeader(label: "Séries (${results.series.length})"),
-          _PosterRow(
-            count: results.series.length,
-            builder: (int i) {
-              final Series s = results.series[i];
-              return MediaPosterCard(
-                title: s.name,
-                subtitle: s.year ?? "",
-                posterUrl: s.coverUrl,
-                onTap: () => onOpenSeries?.call(s),
-              );
-            },
+          SliverToBoxAdapter(
+            child: _GroupHeader(label: "Séries (${results.series.length})"),
+          ),
+          SliverToBoxAdapter(
+            child: _PosterRow(
+              count: results.series.length,
+              builder: (int i) {
+                final Series s = results.series[i];
+                return MediaPosterCard(
+                  title: s.name,
+                  subtitle: s.year ?? "",
+                  posterUrl: s.coverUrl,
+                  onTap: () => onOpenSeries?.call(s),
+                );
+              },
+            ),
           ),
         ],
+        // Clear the floating glass nav bar (bottom inset set by the shell).
+        SliverToBoxAdapter(
+          child: SizedBox(
+            height: t.space.x6 + MediaQuery.paddingOf(context).bottom,
+          ),
+        ),
       ],
     );
   }

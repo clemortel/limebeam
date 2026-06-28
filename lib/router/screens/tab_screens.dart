@@ -13,11 +13,13 @@ import "package:iptv_vod/iptv_vod.dart";
 
 import "../../donations/tip_prompt.dart";
 import "../../home/home_view.dart";
+import "../../perf_log.dart";
 import "../../player_launch.dart";
 import "../../search/search_view.dart";
 import "../../settings/about_view.dart";
 import "../router.gr.dart";
 
+// TEMP: marks which tab is building so a SLOW FRAME can be attributed.
 /// Accueil — dashboard (§4.2).
 @RoutePage()
 class HomeTabScreen extends ConsumerStatefulWidget {
@@ -40,6 +42,7 @@ class _HomeTabScreenState extends ConsumerState<HomeTabScreen> {
 
   @override
   Widget build(BuildContext context) {
+    perfLog("HomeTabScreen.build");
     return HomeView(
       onOpenChannel: (Channel c) => ref.openChannel(context, c),
       onOpenMovie: (Movie m) =>
@@ -58,6 +61,7 @@ class LiveTabScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    perfLog("LiveTabScreen.build");
     return LiveChannelsView(
       onOpenChannel: (Channel channel) => ref.openChannel(context, channel),
       hideAdult: ref.watch(adultHiddenProvider),
@@ -79,6 +83,7 @@ class _BrowseTabScreenState extends ConsumerState<BrowseTabScreen> {
 
   @override
   Widget build(BuildContext context) {
+    perfLog("BrowseTabScreen.build");
     final AppTheme t = context.appTheme;
     final bool hideAdult = ref.watch(adultHiddenProvider);
     return Scaffold(
@@ -133,6 +138,7 @@ class SearchTabScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    perfLog("SearchTabScreen.build");
     return SearchView(
       onOpenChannel: (Channel c) => ref.openChannel(context, c),
       onOpenMovie: (Movie m) =>
@@ -158,7 +164,11 @@ class SettingsTabScreen extends StatelessWidget {
         title: Text("Réglages", style: t.typography.h1),
       ),
       body: ListView(
-        padding: EdgeInsets.symmetric(vertical: t.space.x4),
+        // Clear the floating glass nav bar (bottom inset set by the shell).
+        padding: EdgeInsets.only(
+          top: t.space.x4,
+          bottom: t.space.x4 + MediaQuery.paddingOf(context).bottom,
+        ),
         children: <Widget>[
           _SettingsNavTile(
             icon: Icons.cloud_outlined,
@@ -206,14 +216,19 @@ class _SettingsNavTile extends StatelessWidget {
         borderRadius: t.radius.lgAll,
         border: Border.all(color: t.colors.borderSubtle),
       ),
-      child: ListTile(
-        leading: Icon(icon, color: t.colors.textSecondary),
-        title: Text(
-          label,
-          style: t.typography.body.copyWith(color: t.colors.textPrimary),
+      // Transparent Material so the ListTile's tap ripple stays visible over
+      // the colored container.
+      child: Material(
+        type: MaterialType.transparency,
+        child: ListTile(
+          leading: Icon(icon, color: t.colors.textSecondary),
+          title: Text(
+            label,
+            style: t.typography.body.copyWith(color: t.colors.textPrimary),
+          ),
+          trailing: Icon(Icons.chevron_right, color: t.colors.textTertiary),
+          onTap: onTap,
         ),
-        trailing: Icon(Icons.chevron_right, color: t.colors.textTertiary),
-        onTap: onTap,
       ),
     );
   }

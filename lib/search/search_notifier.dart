@@ -8,6 +8,8 @@ import "package:iptv_settings/iptv_settings.dart";
 import "package:iptv_vod/iptv_vod.dart";
 import "package:riverpod_annotation/riverpod_annotation.dart";
 
+import "../perf_log.dart";
+
 part "search_notifier.g.dart";
 
 const int _kPerGroupLimit = 50;
@@ -55,13 +57,21 @@ class SearchQuery extends _$SearchQuery {
 /// Filters the cached content by the debounced query into [SearchResults].
 @riverpod
 SearchResults searchResults(SearchResultsRef ref) {
+  perfLog("searchResults compute START");
   final String q = ref.watch(searchQueryProvider).toLowerCase();
-  if (q.isEmpty) return SearchResults.empty;
+  if (q.isEmpty) {
+    perfLog("searchResults: empty query, early return");
+    return SearchResults.empty;
+  }
 
   final IList<Channel> channels =
       _data(ref.watch(liveChannelsNotifierProvider));
   final IList<Movie> movies = _data(ref.watch(vodNotifierProvider));
   final IList<Series> series = _data(ref.watch(seriesNotifierProvider));
+  perfLog(
+    "searchResults: catalog read ch=${channels.length} "
+    "mv=${movies.length} sr=${series.length}",
+  );
 
   // Parental masking: adult categories must not surface in search (charte §7.4).
   final bool hideAdult = ref.watch(adultHiddenProvider);

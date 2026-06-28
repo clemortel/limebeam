@@ -15,10 +15,6 @@ dependencies:
   cached_network_image: ^3.4.1
   flutter:
     sdk: flutter
-  # Liquid-glass / frosted-refraction engine. Pure UI (depends only on flutter
-  # + meta), so it does not violate the business-logic-free rule. Imported in
-  # exactly one place: src/components/glass_surface.dart.
-  liquid_glass_easy: ^3.2.0
 
 dev_dependencies:
   flutter_lints: ^4.0.0

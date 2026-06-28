@@ -9,7 +9,6 @@ import "../models/series.dart";
 import "../models/series_category.dart";
 import "../riverpods/providers.dart";
 
-const int _kColumns = 2;
 const double _kPosterRatio = 0.56;
 
 /// Séries grid (§4.4) — embeddable body (no Scaffold) for the Films & Séries
@@ -137,6 +136,7 @@ class _Grid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
+    final int columns = posterGridColumns(FormFactorScope.of(context));
     if (series.isEmpty) {
       return const Center(
         child: EmptyState(
@@ -147,9 +147,15 @@ class _Grid extends StatelessWidget {
       );
     }
     return GridView.builder(
-      padding: EdgeInsets.all(t.space.x4),
+      // Clear the floating glass nav bar (bottom inset set by the shell).
+      padding: EdgeInsets.fromLTRB(
+        t.space.x4,
+        t.space.x4,
+        t.space.x4,
+        t.space.x4 + MediaQuery.paddingOf(context).bottom,
+      ),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: _kColumns,
+        crossAxisCount: columns,
         crossAxisSpacing: t.space.x3,
         mainAxisSpacing: t.space.x5,
         childAspectRatio: _kPosterRatio,
@@ -174,10 +180,11 @@ class _GridSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
+    final int columns = posterGridColumns(FormFactorScope.of(context));
     return GridView.builder(
       padding: EdgeInsets.all(t.space.x4),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: _kColumns,
+        crossAxisCount: columns,
         crossAxisSpacing: t.space.x3,
         mainAxisSpacing: t.space.x5,
         childAspectRatio: _kPosterRatio,
