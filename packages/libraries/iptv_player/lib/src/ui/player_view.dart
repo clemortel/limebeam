@@ -706,13 +706,16 @@ class _BottomBar extends StatelessWidget {
                 ),
               const _PipButton(),
               _CastButton(controller: controller),
-              IconButton(
-                icon: Icon(
-                  isLandscape ? Icons.fullscreen_exit : Icons.fullscreen,
-                  color: t.colors.textPrimary,
+              // No orientation toggle on TV — it is already full-screen
+              // landscape and has no portrait mode.
+              if (!FormFactorScope.isTv(context))
+                IconButton(
+                  icon: Icon(
+                    isLandscape ? Icons.fullscreen_exit : Icons.fullscreen,
+                    color: t.colors.textPrimary,
+                  ),
+                  onPressed: onToggleFullscreen,
                 ),
-                onPressed: onToggleFullscreen,
-              ),
             ],
           ),
         ],
@@ -1036,7 +1039,9 @@ class _PipButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (defaultTargetPlatform != TargetPlatform.android) {
+    // Android-only, and never on TV (full-screen only — no floating window).
+    if (defaultTargetPlatform != TargetPlatform.android ||
+        FormFactorScope.isTv(context)) {
       return const SizedBox.shrink();
     }
     final AppTheme t = context.appTheme;
@@ -1061,7 +1066,11 @@ class _CastButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (!controller.canCast) return const SizedBox.shrink();
+    // No casting from a TV — it is already the cast target. Also hidden when
+    // casting is unavailable on this build.
+    if (!controller.canCast || FormFactorScope.isTv(context)) {
+      return const SizedBox.shrink();
+    }
     final AppTheme t = context.appTheme;
     final bool casting = ref.watch(
       playbackControllerProvider.select(
