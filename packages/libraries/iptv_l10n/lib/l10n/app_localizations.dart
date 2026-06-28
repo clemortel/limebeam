@@ -265,6 +265,90 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Trouvez une chaîne, un film ou une série dans vos sources.'**
   String get searchPromptMessage;
+
+  /// No description provided for @settingsInterface.
+  ///
+  /// In fr, this message translates to:
+  /// **'Interface'**
+  String get settingsInterface;
+
+  /// No description provided for @settingsTheme.
+  ///
+  /// In fr, this message translates to:
+  /// **'Thème'**
+  String get settingsTheme;
+
+  /// No description provided for @themeSystem.
+  ///
+  /// In fr, this message translates to:
+  /// **'Système'**
+  String get themeSystem;
+
+  /// No description provided for @themeLight.
+  ///
+  /// In fr, this message translates to:
+  /// **'Clair'**
+  String get themeLight;
+
+  /// No description provided for @themeDark.
+  ///
+  /// In fr, this message translates to:
+  /// **'Sombre'**
+  String get themeDark;
+
+  /// No description provided for @settingsFontSize.
+  ///
+  /// In fr, this message translates to:
+  /// **'Taille du texte'**
+  String get settingsFontSize;
+
+  /// No description provided for @fontNormal.
+  ///
+  /// In fr, this message translates to:
+  /// **'Normal'**
+  String get fontNormal;
+
+  /// No description provided for @fontLarge.
+  ///
+  /// In fr, this message translates to:
+  /// **'Grande'**
+  String get fontLarge;
+
+  /// No description provided for @settingsReduceTransparency.
+  ///
+  /// In fr, this message translates to:
+  /// **'Réduire la transparence'**
+  String get settingsReduceTransparency;
+
+  /// No description provided for @settingsReduceTransparencyHint.
+  ///
+  /// In fr, this message translates to:
+  /// **'Désactive les effets de verre pour des surfaces plus lisibles.'**
+  String get settingsReduceTransparencyHint;
+
+  /// No description provided for @settingsLanguage.
+  ///
+  /// In fr, this message translates to:
+  /// **'Langue'**
+  String get settingsLanguage;
+
+  /// No description provided for @languageSystem.
+  ///
+  /// In fr, this message translates to:
+  /// **'Système'**
+  String get languageSystem;
+
+  /// No description provided for @languageFrench.
+  ///
+  /// In fr, this message translates to:
+  /// **'Français'**
+  String get languageFrench;
+
+  /// No description provided for @languageEnglish.
+  ///
+  /// In fr, this message translates to:
+  /// **'English'**
+  String get languageEnglish;
 }
 
 class _AppLocalizationsDelegate

@@ -98,4 +98,47 @@ class AppLocalizationsFr extends AppLocalizations {
   @override
   String get searchPromptMessage =>
       'Trouvez une chaîne, un film ou une série dans vos sources.';
+
+  @override
+  String get settingsInterface => 'Interface';
+
+  @override
+  String get settingsTheme => 'Thème';
+
+  @override
+  String get themeSystem => 'Système';
+
+  @override
+  String get themeLight => 'Clair';
+
+  @override
+  String get themeDark => 'Sombre';
+
+  @override
+  String get settingsFontSize => 'Taille du texte';
+
+  @override
+  String get fontNormal => 'Normal';
+
+  @override
+  String get fontLarge => 'Grande';
+
+  @override
+  String get settingsReduceTransparency => 'Réduire la transparence';
+
+  @override
+  String get settingsReduceTransparencyHint =>
+      'Désactive les effets de verre pour des surfaces plus lisibles.';
+
+  @override
+  String get settingsLanguage => 'Langue';
+
+  @override
+  String get languageSystem => 'Système';
+
+  @override
+  String get languageFrench => 'Français';
+
+  @override
+  String get languageEnglish => 'English';
 }

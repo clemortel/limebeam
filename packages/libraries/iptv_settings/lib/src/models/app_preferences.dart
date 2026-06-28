@@ -9,6 +9,10 @@ enum AppThemeMode { system, light, dark }
 /// Text size preset. The multiplier is applied app-wide via `textScaler`.
 enum FontScaleOption { normal, large }
 
+/// App display language. [system] follows the device locale; otherwise the app
+/// is forced to French / English regardless of the device.
+enum AppLanguage { system, fr, en }
+
 extension FontScaleOptionX on FontScaleOption {
   double get multiplier => switch (this) {
         FontScaleOption.normal => 1,
@@ -27,6 +31,7 @@ sealed class AppPreferences with _$AppPreferences {
   const factory AppPreferences({
     @Default(AppThemeMode.dark) AppThemeMode themeMode,
     @Default(FontScaleOption.normal) FontScaleOption fontScale,
+    @Default(AppLanguage.system) AppLanguage language,
     // Accessibility: disables the liquid-glass effects on chrome (tab bar,
     // player controls, sheets) in favor of solid, maximally-legible surfaces.
     @Default(false) bool reduceTransparency,

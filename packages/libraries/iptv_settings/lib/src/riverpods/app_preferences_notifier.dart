@@ -24,6 +24,9 @@ class AppPreferencesNotifier extends _$AppPreferencesNotifier {
   Future<void> setFontScale(FontScaleOption scale) =>
       _update(state.copyWith(fontScale: scale));
 
+  Future<void> setLanguage(AppLanguage language) =>
+      _update(state.copyWith(language: language));
+
   Future<void> setReduceTransparency(bool value) =>
       _update(state.copyWith(reduceTransparency: value));
 

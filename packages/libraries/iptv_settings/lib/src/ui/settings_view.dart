@@ -2,6 +2,7 @@ import "package:flutter/material.dart";
 import "package:flutter/services.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart"
     hide AsyncData, AsyncError, AsyncLoading, AsyncValue;
+import "package:iptv_l10n/iptv_l10n.dart";
 import "package:iptv_ui/iptv_ui.dart";
 
 import "../models/app_preferences.dart";
@@ -108,40 +109,52 @@ class _InterfaceSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final AppTheme t = context.appTheme;
+    final AppLocalizations l = AppLocalizations.of(context);
     final AppPreferences prefs = ref.watch(appPreferencesNotifierProvider);
     final AppPreferencesNotifier notifier =
         ref.read(appPreferencesNotifierProvider.notifier);
     return _SectionCard(
-      title: "Interface",
+      title: l.settingsInterface,
       children: <Widget>[
+        _ChoiceRow<AppLanguage>(
+          label: l.settingsLanguage,
+          value: prefs.language,
+          options: <(AppLanguage, String)>[
+            (AppLanguage.system, l.languageSystem),
+            (AppLanguage.fr, l.languageFrench),
+            (AppLanguage.en, l.languageEnglish),
+          ],
+          onSelected: notifier.setLanguage,
+        ),
+        SizedBox(height: t.space.x3),
         _ChoiceRow<AppThemeMode>(
-          label: "Thème",
+          label: l.settingsTheme,
           value: prefs.themeMode,
-          options: const <(AppThemeMode, String)>[
-            (AppThemeMode.system, "Système"),
-            (AppThemeMode.light, "Clair"),
-            (AppThemeMode.dark, "Sombre"),
+          options: <(AppThemeMode, String)>[
+            (AppThemeMode.system, l.themeSystem),
+            (AppThemeMode.light, l.themeLight),
+            (AppThemeMode.dark, l.themeDark),
           ],
           onSelected: notifier.setThemeMode,
         ),
         SizedBox(height: t.space.x3),
         _ChoiceRow<FontScaleOption>(
-          label: "Taille du texte",
+          label: l.settingsFontSize,
           value: prefs.fontScale,
-          options: const <(FontScaleOption, String)>[
-            (FontScaleOption.normal, "Normal"),
-            (FontScaleOption.large, "Grande"),
+          options: <(FontScaleOption, String)>[
+            (FontScaleOption.normal, l.fontNormal),
+            (FontScaleOption.large, l.fontLarge),
           ],
           onSelected: notifier.setFontScale,
         ),
         SizedBox(height: t.space.x2),
         _SwitchRow(
-          label: "Réduire la transparence",
+          label: l.settingsReduceTransparency,
           value: prefs.reduceTransparency,
           onChanged: notifier.setReduceTransparency,
         ),
         Text(
-          "Désactive les effets de verre pour des surfaces plus lisibles.",
+          l.settingsReduceTransparencyHint,
           style: t.typography.caption.copyWith(color: t.colors.textTertiary),
         ),
       ],

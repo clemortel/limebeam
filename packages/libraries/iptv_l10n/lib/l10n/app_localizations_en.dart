@@ -97,4 +97,47 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get searchPromptMessage =>
       'Find a channel, movie or series in your sources.';
+
+  @override
+  String get settingsInterface => 'Interface';
+
+  @override
+  String get settingsTheme => 'Theme';
+
+  @override
+  String get themeSystem => 'System';
+
+  @override
+  String get themeLight => 'Light';
+
+  @override
+  String get themeDark => 'Dark';
+
+  @override
+  String get settingsFontSize => 'Text size';
+
+  @override
+  String get fontNormal => 'Normal';
+
+  @override
+  String get fontLarge => 'Large';
+
+  @override
+  String get settingsReduceTransparency => 'Reduce transparency';
+
+  @override
+  String get settingsReduceTransparencyHint =>
+      'Disables glass effects for more legible surfaces.';
+
+  @override
+  String get settingsLanguage => 'Language';
+
+  @override
+  String get languageSystem => 'System';
+
+  @override
+  String get languageFrench => 'French';
+
+  @override
+  String get languageEnglish => 'English';
 }

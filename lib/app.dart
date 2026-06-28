@@ -27,6 +27,12 @@ class IptvApp extends ConsumerWidget {
     };
     final TextScaler textScaler =
         TextScaler.linear(prefs.fontScale.multiplier);
+    // null = follow the device locale; otherwise force FR/EN app-wide.
+    final Locale? locale = switch (prefs.language) {
+      AppLanguage.system => null,
+      AppLanguage.fr => const Locale("fr"),
+      AppLanguage.en => const Locale("en"),
+    };
     final bool isTelevision = ref.watch(televisionDetectedProvider);
     // Magnify design tokens for the 10-foot TV layout (no effect otherwise).
     final double tokenScale = isTelevision ? AppTheme.tvTokenScale : 1.0;
@@ -45,6 +51,7 @@ class IptvApp extends ConsumerWidget {
       themeMode: themeMode,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
+      locale: locale,
       routerConfig: appRouter.config(),
       builder: (BuildContext context, Widget? child) {
         // TV is decided by the platform probe; phone vs tablet by viewport.

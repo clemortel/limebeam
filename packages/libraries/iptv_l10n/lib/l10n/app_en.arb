@@ -27,5 +27,19 @@
   "aboutLicenses": "Open-source licenses",
   "aboutVersion": "Version {version} ({build})",
   "aboutVersionLoading": "Version…",
-  "searchPromptMessage": "Find a channel, movie or series in your sources."
+  "searchPromptMessage": "Find a channel, movie or series in your sources.",
+  "settingsInterface": "Interface",
+  "settingsTheme": "Theme",
+  "themeSystem": "System",
+  "themeLight": "Light",
+  "themeDark": "Dark",
+  "settingsFontSize": "Text size",
+  "fontNormal": "Normal",
+  "fontLarge": "Large",
+  "settingsReduceTransparency": "Reduce transparency",
+  "settingsReduceTransparencyHint": "Disables glass effects for more legible surfaces.",
+  "settingsLanguage": "Language",
+  "languageSystem": "System",
+  "languageFrench": "French",
+  "languageEnglish": "English"
 }
