@@ -4,6 +4,7 @@ import "package:flutter_riverpod/flutter_riverpod.dart"
     hide AsyncData, AsyncError, AsyncLoading, AsyncValue;
 import "package:iptv_auth/iptv_auth.dart";
 import "package:iptv_core/iptv_core.dart";
+import "package:iptv_l10n/iptv_l10n.dart";
 import "package:iptv_playlist/iptv_playlist.dart";
 import "package:iptv_ui/iptv_ui.dart";
 
@@ -111,8 +112,9 @@ class _ProgressState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
-    final String label =
-        authLoading ? "Connexion à la source…" : progress.statusLabel;
+    final String label = authLoading
+        ? AppLocalizations.of(context).connectingLabel
+        : progress.statusLabel;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
@@ -140,16 +142,17 @@ class _ErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final AppLocalizations l = AppLocalizations.of(context);
     return EmptyState(
       icon: Icons.error_outline,
-      title: "Connexion impossible",
+      title: l.connectingErrorTitle,
       message: failure.computeErrorMessage(),
       action: Column(
         children: <Widget>[
-          PrimaryButton(label: "Réessayer", expand: false, onPressed: onRetry),
+          PrimaryButton(label: l.commonRetry, expand: false, onPressed: onRetry),
           SizedBox(height: context.appTheme.space.x2),
           SecondaryButton(
-            label: "Modifier",
+            label: l.commonEdit,
             expand: false,
             onPressed: () =>
                 context.router.popUntilRouteWithName(formRouteName),

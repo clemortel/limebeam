@@ -463,6 +463,222 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Avec plaisir'**
   String get thanksCta;
+
+  /// No description provided for @commonContinue.
+  ///
+  /// In fr, this message translates to:
+  /// **'Continuer'**
+  String get commonContinue;
+
+  /// No description provided for @commonValidate.
+  ///
+  /// In fr, this message translates to:
+  /// **'Valider'**
+  String get commonValidate;
+
+  /// No description provided for @commonEdit.
+  ///
+  /// In fr, this message translates to:
+  /// **'Modifier'**
+  String get commonEdit;
+
+  /// No description provided for @authAddSource.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ajouter une source'**
+  String get authAddSource;
+
+  /// No description provided for @welcomeTagline.
+  ///
+  /// In fr, this message translates to:
+  /// **'Votre lecteur IPTV, en clair.'**
+  String get welcomeTagline;
+
+  /// No description provided for @welcomeTryDemo.
+  ///
+  /// In fr, this message translates to:
+  /// **'Essayer la démo'**
+  String get welcomeTryDemo;
+
+  /// No description provided for @welcomeHaveSource.
+  ///
+  /// In fr, this message translates to:
+  /// **'J\'ai déjà une source configurée'**
+  String get welcomeHaveSource;
+
+  /// No description provided for @welcomeLegal.
+  ///
+  /// In fr, this message translates to:
+  /// **'Cette application ne fournit aucun contenu. Elle lit vos playlists ou identifiants IPTV existants.'**
+  String get welcomeLegal;
+
+  /// No description provided for @sourceTypeXtream.
+  ///
+  /// In fr, this message translates to:
+  /// **'Xtream / Portail'**
+  String get sourceTypeXtream;
+
+  /// No description provided for @sourceTypeXtreamSub.
+  ///
+  /// In fr, this message translates to:
+  /// **'Host + identifiants'**
+  String get sourceTypeXtreamSub;
+
+  /// No description provided for @sourceTypeM3u.
+  ///
+  /// In fr, this message translates to:
+  /// **'Playlist M3U'**
+  String get sourceTypeM3u;
+
+  /// No description provided for @sourceTypeM3uSub.
+  ///
+  /// In fr, this message translates to:
+  /// **'URL de playlist (chaînes en direct)'**
+  String get sourceTypeM3uSub;
+
+  /// No description provided for @formSourceName.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nom de la source'**
+  String get formSourceName;
+
+  /// No description provided for @xtreamNameHint.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mon abonnement'**
+  String get xtreamNameHint;
+
+  /// No description provided for @xtreamHost.
+  ///
+  /// In fr, this message translates to:
+  /// **'URL / Host'**
+  String get xtreamHost;
+
+  /// No description provided for @xtreamUsername.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nom d\'utilisateur'**
+  String get xtreamUsername;
+
+  /// No description provided for @xtreamUsernameHint.
+  ///
+  /// In fr, this message translates to:
+  /// **'utilisateur'**
+  String get xtreamUsernameHint;
+
+  /// No description provided for @commonPassword.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mot de passe'**
+  String get commonPassword;
+
+  /// No description provided for @xtreamHint.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ces informations sont fournies par votre opérateur IPTV.'**
+  String get xtreamHint;
+
+  /// No description provided for @m3uNameHint.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ma playlist'**
+  String get m3uNameHint;
+
+  /// No description provided for @m3uUrl.
+  ///
+  /// In fr, this message translates to:
+  /// **'URL M3U'**
+  String get m3uUrl;
+
+  /// No description provided for @m3uUrlHint.
+  ///
+  /// In fr, this message translates to:
+  /// **'Lien direct vers votre fichier .m3u / .m3u8'**
+  String get m3uUrlHint;
+
+  /// No description provided for @m3uEpgUrl.
+  ///
+  /// In fr, this message translates to:
+  /// **'URL EPG (optionnel)'**
+  String get m3uEpgUrl;
+
+  /// No description provided for @m3uHint.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le M3U fournit les chaînes en direct. Les films et séries nécessitent un portail Xtream.'**
+  String get m3uHint;
+
+  /// No description provided for @summaryTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Résumé'**
+  String get summaryTitle;
+
+  /// No description provided for @summaryName.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nom'**
+  String get summaryName;
+
+  /// No description provided for @summaryHost.
+  ///
+  /// In fr, this message translates to:
+  /// **'Host'**
+  String get summaryHost;
+
+  /// No description provided for @summaryUser.
+  ///
+  /// In fr, this message translates to:
+  /// **'Utilisateur'**
+  String get summaryUser;
+
+  /// No description provided for @sourcesEmptyTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucune source'**
+  String get sourcesEmptyTitle;
+
+  /// No description provided for @sourcesEmptyMessage.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ajoutez une source IPTV pour commencer à regarder.'**
+  String get sourcesEmptyMessage;
+
+  /// No description provided for @connectingLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Connexion à la source…'**
+  String get connectingLabel;
+
+  /// No description provided for @connectingErrorTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Connexion impossible'**
+  String get connectingErrorTitle;
+
+  /// No description provided for @successTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Source connectée'**
+  String get successTitle;
+
+  /// No description provided for @successDiscover.
+  ///
+  /// In fr, this message translates to:
+  /// **'Découvrir'**
+  String get successDiscover;
+
+  /// No description provided for @successCounts.
+  ///
+  /// In fr, this message translates to:
+  /// **'{channels} chaînes · {movies} films · {series} séries'**
+  String successCounts(Object channels, Object movies, Object series);
+
+  /// No description provided for @successEpgUnavailable.
+  ///
+  /// In fr, this message translates to:
+  /// **'EPG indisponible pour cette source.'**
+  String get successEpgUnavailable;
 }
 
 class _AppLocalizationsDelegate

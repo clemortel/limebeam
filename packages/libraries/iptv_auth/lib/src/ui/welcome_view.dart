@@ -1,4 +1,5 @@
 import "package:flutter/material.dart";
+import "package:iptv_l10n/iptv_l10n.dart";
 import "package:iptv_ui/iptv_ui.dart";
 
 /// Bienvenue (§4.1.1). Logo, primary CTA, persistent legal note, secondary
@@ -20,6 +21,7 @@ class WelcomeView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
+    final AppLocalizations l = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: t.colors.bgBase,
       body: SafeArea(
@@ -38,7 +40,7 @@ class WelcomeView extends StatelessWidget {
                       BrandWordmark(style: t.typography.display),
                       SizedBox(height: t.space.x2),
                       Text(
-                        "Votre lecteur IPTV, en clair.",
+                        l.welcomeTagline,
                         style: t.typography.body
                             .copyWith(color: t.colors.textSecondary),
                       ),
@@ -46,17 +48,17 @@ class WelcomeView extends StatelessWidget {
                       const _LegalNote(),
                       const Spacer(),
                       PrimaryButton(
-                        label: "Ajouter une source",
+                        label: l.authAddSource,
                         onPressed: onAddSource,
                       ),
                       SizedBox(height: t.space.x2),
                       SecondaryButton(
-                        label: "Essayer la démo",
+                        label: l.welcomeTryDemo,
                         onPressed: onTryDemo,
                       ),
                       SizedBox(height: t.space.x2),
                       TertiaryButton(
-                        label: "J'ai déjà une source configurée",
+                        label: l.welcomeHaveSource,
                         onPressed: onHaveSource,
                       ),
                       SizedBox(height: t.space.x4),
@@ -91,8 +93,7 @@ class _LegalNote extends StatelessWidget {
           SizedBox(width: t.space.x3),
           Expanded(
             child: Text(
-              "Cette application ne fournit aucun contenu. Elle lit vos "
-              "playlists ou identifiants IPTV existants.",
+              AppLocalizations.of(context).welcomeLegal,
               style: t.typography.caption.copyWith(color: t.colors.textSecondary),
             ),
           ),

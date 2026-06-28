@@ -202,4 +202,116 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get thanksCta => 'My pleasure';
+
+  @override
+  String get commonContinue => 'Continue';
+
+  @override
+  String get commonValidate => 'Confirm';
+
+  @override
+  String get commonEdit => 'Edit';
+
+  @override
+  String get authAddSource => 'Add a source';
+
+  @override
+  String get welcomeTagline => 'Your IPTV player, in the clear.';
+
+  @override
+  String get welcomeTryDemo => 'Try the demo';
+
+  @override
+  String get welcomeHaveSource => 'I already have a source';
+
+  @override
+  String get welcomeLegal =>
+      'This app provides no content. It reads your existing IPTV playlists or credentials.';
+
+  @override
+  String get sourceTypeXtream => 'Xtream / Portal';
+
+  @override
+  String get sourceTypeXtreamSub => 'Host + credentials';
+
+  @override
+  String get sourceTypeM3u => 'M3U playlist';
+
+  @override
+  String get sourceTypeM3uSub => 'Playlist URL (live channels)';
+
+  @override
+  String get formSourceName => 'Source name';
+
+  @override
+  String get xtreamNameHint => 'My subscription';
+
+  @override
+  String get xtreamHost => 'URL / Host';
+
+  @override
+  String get xtreamUsername => 'Username';
+
+  @override
+  String get xtreamUsernameHint => 'username';
+
+  @override
+  String get commonPassword => 'Password';
+
+  @override
+  String get xtreamHint => 'Your IPTV provider gives you these details.';
+
+  @override
+  String get m3uNameHint => 'My playlist';
+
+  @override
+  String get m3uUrl => 'M3U URL';
+
+  @override
+  String get m3uUrlHint => 'Direct link to your .m3u / .m3u8 file';
+
+  @override
+  String get m3uEpgUrl => 'EPG URL (optional)';
+
+  @override
+  String get m3uHint =>
+      'M3U provides live channels. Movies and series require an Xtream portal.';
+
+  @override
+  String get summaryTitle => 'Summary';
+
+  @override
+  String get summaryName => 'Name';
+
+  @override
+  String get summaryHost => 'Host';
+
+  @override
+  String get summaryUser => 'User';
+
+  @override
+  String get sourcesEmptyTitle => 'No source';
+
+  @override
+  String get sourcesEmptyMessage => 'Add an IPTV source to start watching.';
+
+  @override
+  String get connectingLabel => 'Connecting to the source…';
+
+  @override
+  String get connectingErrorTitle => 'Connection failed';
+
+  @override
+  String get successTitle => 'Source connected';
+
+  @override
+  String get successDiscover => 'Explore';
+
+  @override
+  String successCounts(Object channels, Object movies, Object series) {
+    return '$channels channels · $movies movies · $series series';
+  }
+
+  @override
+  String get successEpgUnavailable => 'EPG unavailable for this source.';
 }

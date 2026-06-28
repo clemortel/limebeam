@@ -2,6 +2,7 @@ import "package:auto_route/auto_route.dart";
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart"
     hide AsyncData, AsyncError, AsyncLoading, AsyncValue;
+import "package:iptv_l10n/iptv_l10n.dart";
 import "package:iptv_playlist/iptv_playlist.dart";
 import "package:iptv_ui/iptv_ui.dart";
 
@@ -15,9 +16,9 @@ class SourceSuccessScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final AppTheme t = context.appTheme;
+    final AppLocalizations l = AppLocalizations.of(context);
     final SyncProgress p = ref.watch(sourceSyncNotifierProvider);
-    final String summary =
-        "${p.channels} chaînes · ${p.movies} films · ${p.series} séries";
+    final String summary = l.successCounts(p.channels, p.movies, p.series);
 
     return Scaffold(
       backgroundColor: t.colors.bgBase,
@@ -39,7 +40,7 @@ class SourceSuccessScreen extends ConsumerWidget {
                       ),
                       SizedBox(height: t.space.x6),
                       Text(
-                        "Source connectée",
+                        l.successTitle,
                         style: t.typography.h1
                             .copyWith(color: t.colors.textPrimary),
                       ),
@@ -53,14 +54,14 @@ class SourceSuccessScreen extends ConsumerWidget {
                       if (!p.epgLoaded) ...<Widget>[
                         SizedBox(height: t.space.x2),
                         Text(
-                          "EPG indisponible pour cette source.",
+                          l.successEpgUnavailable,
                           style: t.typography.caption
                               .copyWith(color: t.colors.warning),
                         ),
                       ],
                       const Spacer(),
                       PrimaryButton(
-                        label: "Découvrir",
+                        label: l.successDiscover,
                         onPressed: () =>
                             context.router.replaceAll(<PageRouteInfo<dynamic>>[
                           const MainShellRoute(),

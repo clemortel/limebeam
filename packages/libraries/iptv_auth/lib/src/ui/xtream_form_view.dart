@@ -1,6 +1,7 @@
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart"
     hide AsyncData, AsyncError, AsyncLoading, AsyncValue;
+import "package:iptv_l10n/iptv_l10n.dart";
 import "package:iptv_ui/iptv_ui.dart";
 
 import "../riverpods/add_xtream_source_notifier.dart";
@@ -46,6 +47,7 @@ class _XtreamFormViewState extends ConsumerState<XtreamFormView> {
   @override
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
+    final AppLocalizations l = AppLocalizations.of(context);
     final XtreamFormState state = ref.watch(addXtreamSourceNotifierProvider);
     final AddXtreamSourceNotifier notifier =
         ref.read(addXtreamSourceNotifierProvider.notifier);
@@ -54,7 +56,7 @@ class _XtreamFormViewState extends ConsumerState<XtreamFormView> {
       backgroundColor: t.colors.bgBase,
       appBar: AppBar(
         backgroundColor: t.colors.bgBase,
-        title: Text("Xtream / Portail", style: t.typography.h3),
+        title: Text(l.sourceTypeXtream, style: t.typography.h3),
       ),
       body: SafeArea(
         child: ListView(
@@ -62,17 +64,16 @@ class _XtreamFormViewState extends ConsumerState<XtreamFormView> {
           children: <Widget>[
             AppInput(
               controller: _name,
-              label: "Nom de la source",
-              placeholder: "Mon abonnement",
+              label: l.formSourceName,
+              placeholder: l.xtreamNameHint,
               errorText: state.nameError,
               onChanged: notifier.setName,
             ),
             SizedBox(height: t.space.x4),
             AppInput(
               controller: _host,
-              label: "URL / Host",
+              label: l.xtreamHost,
               placeholder: "http://monportail.tv:8080",
-              helperText: "ex. : http://monportail.tv:8080",
               keyboardType: TextInputType.url,
               errorText: state.hostError,
               onChanged: notifier.setHost,
@@ -80,15 +81,15 @@ class _XtreamFormViewState extends ConsumerState<XtreamFormView> {
             SizedBox(height: t.space.x4),
             AppInput(
               controller: _user,
-              label: "Nom d'utilisateur",
-              placeholder: "utilisateur",
+              label: l.xtreamUsername,
+              placeholder: l.xtreamUsernameHint,
               errorText: state.usernameError,
               onChanged: notifier.setUsername,
             ),
             SizedBox(height: t.space.x4),
             AppInput(
               controller: _pass,
-              label: "Mot de passe",
+              label: l.commonPassword,
               placeholder: "••••••••",
               obscure: true,
               errorText: state.passwordError,
@@ -96,12 +97,12 @@ class _XtreamFormViewState extends ConsumerState<XtreamFormView> {
             ),
             SizedBox(height: t.space.x3),
             Text(
-              "Ces informations sont fournies par votre opérateur IPTV.",
+              l.xtreamHint,
               style: t.typography.caption.copyWith(color: t.colors.textTertiary),
             ),
             SizedBox(height: t.space.x6),
             PrimaryButton(
-              label: "Continuer",
+              label: l.commonContinue,
               onPressed: state.canSubmit ? widget.onContinue : null,
             ),
           ],

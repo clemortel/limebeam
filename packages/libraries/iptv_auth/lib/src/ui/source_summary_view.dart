@@ -1,6 +1,7 @@
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart"
     hide AsyncData, AsyncError, AsyncLoading, AsyncValue;
+import "package:iptv_l10n/iptv_l10n.dart";
 import "package:iptv_ui/iptv_ui.dart";
 
 import "../riverpods/add_xtream_source_notifier.dart";
@@ -21,13 +22,14 @@ class SourceSummaryView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final AppTheme t = context.appTheme;
+    final AppLocalizations l = AppLocalizations.of(context);
     final XtreamFormState s = ref.watch(addXtreamSourceNotifierProvider);
 
     return Scaffold(
       backgroundColor: t.colors.bgBase,
       appBar: AppBar(
         backgroundColor: t.colors.bgBase,
-        title: Text("Résumé", style: t.typography.h3),
+        title: Text(l.summaryTitle, style: t.typography.h3),
       ),
       body: SafeArea(
         child: LayoutBuilder(
@@ -47,20 +49,20 @@ class SourceSummaryView extends ConsumerWidget {
                         ),
                         child: Column(
                           children: <Widget>[
-                            _Row(label: "Nom", value: s.name),
-                            _Row(label: "Host", value: s.host),
-                            _Row(label: "Utilisateur", value: s.username),
+                            _Row(label: l.summaryName, value: s.name),
+                            _Row(label: l.summaryHost, value: s.host),
+                            _Row(label: l.summaryUser, value: s.username),
                             _Row(
-                              label: "Mot de passe",
+                              label: l.commonPassword,
                               value: "•" * s.password.length,
                             ),
                           ],
                         ),
                       ),
                       const Spacer(),
-                      PrimaryButton(label: "Valider", onPressed: onValidate),
+                      PrimaryButton(label: l.commonValidate, onPressed: onValidate),
                       SizedBox(height: t.space.x2),
-                      SecondaryButton(label: "Modifier", onPressed: onEdit),
+                      SecondaryButton(label: l.commonEdit, onPressed: onEdit),
                     ],
                   ),
                 ),

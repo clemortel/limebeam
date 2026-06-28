@@ -1,4 +1,5 @@
 import "package:flutter/material.dart";
+import "package:iptv_l10n/iptv_l10n.dart";
 import "package:iptv_ui/iptv_ui.dart";
 
 const double _kTypeCardIconSize = 28;
@@ -17,11 +18,12 @@ class SourceTypeView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
+    final AppLocalizations l = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: t.colors.bgBase,
       appBar: AppBar(
         backgroundColor: t.colors.bgBase,
-        title: Text("Ajouter une source", style: t.typography.h3),
+        title: Text(l.authAddSource, style: t.typography.h3),
       ),
       body: SafeArea(
         child: Padding(
@@ -30,15 +32,15 @@ class SourceTypeView extends StatelessWidget {
             children: <Widget>[
               _TypeCard(
                 icon: Icons.vpn_key,
-                title: "Xtream / Portail",
-                subtitle: "Host + identifiants",
+                title: l.sourceTypeXtream,
+                subtitle: l.sourceTypeXtreamSub,
                 onTap: onXtream,
               ),
               SizedBox(height: t.space.x4),
               _TypeCard(
                 icon: Icons.playlist_play,
-                title: "Playlist M3U",
-                subtitle: "URL de playlist (chaînes en direct)",
+                title: l.sourceTypeM3u,
+                subtitle: l.sourceTypeM3uSub,
                 onTap: onM3u,
               ),
             ],

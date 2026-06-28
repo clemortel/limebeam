@@ -3,6 +3,7 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart"
     hide AsyncData, AsyncError, AsyncLoading, AsyncValue;
 import "package:iptv_core/iptv_core.dart";
+import "package:iptv_l10n/iptv_l10n.dart";
 import "package:iptv_ui/iptv_ui.dart";
 
 import "../models/connection_status.dart";
@@ -22,13 +23,14 @@ class SourcesSettingsView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final AppTheme t = context.appTheme;
+    final AppLocalizations l = AppLocalizations.of(context);
     final AsyncState<IList<Source>> state = ref.watch(sourcesNotifierProvider);
 
     return Scaffold(
       backgroundColor: t.colors.bgBase,
       appBar: AppBar(
         backgroundColor: t.colors.bgBase,
-        title: Text("Sources", style: t.typography.h3),
+        title: Text(l.settingsSources, style: t.typography.h3),
         actions: <Widget>[
           IconButton(
             icon: Icon(Icons.add, color: t.colors.accent),
@@ -49,10 +51,10 @@ class SourcesSettingsView extends ConsumerWidget {
             ? Center(
                 child: EmptyState(
                   icon: Icons.cloud_off,
-                  title: "Aucune source",
-                  message: "Ajoutez une source IPTV pour commencer à regarder.",
+                  title: l.sourcesEmptyTitle,
+                  message: l.sourcesEmptyMessage,
                   action: PrimaryButton(
-                    label: "Ajouter une source",
+                    label: l.authAddSource,
                     expand: false,
                     onPressed: onAddSource,
                   ),

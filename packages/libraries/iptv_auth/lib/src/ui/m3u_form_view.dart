@@ -1,6 +1,7 @@
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart"
     hide AsyncData, AsyncError, AsyncLoading, AsyncValue;
+import "package:iptv_l10n/iptv_l10n.dart";
 import "package:iptv_ui/iptv_ui.dart";
 
 import "../riverpods/add_m3u_source_notifier.dart";
@@ -42,6 +43,7 @@ class _M3uFormViewState extends ConsumerState<M3uFormView> {
   @override
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
+    final AppLocalizations l = AppLocalizations.of(context);
     final M3uFormState state = ref.watch(addM3uSourceNotifierProvider);
     final AddM3uSourceNotifier notifier =
         ref.read(addM3uSourceNotifierProvider.notifier);
@@ -50,7 +52,7 @@ class _M3uFormViewState extends ConsumerState<M3uFormView> {
       backgroundColor: t.colors.bgBase,
       appBar: AppBar(
         backgroundColor: t.colors.bgBase,
-        title: Text("Playlist M3U", style: t.typography.h3),
+        title: Text(l.sourceTypeM3u, style: t.typography.h3),
       ),
       body: SafeArea(
         child: ListView(
@@ -58,17 +60,17 @@ class _M3uFormViewState extends ConsumerState<M3uFormView> {
           children: <Widget>[
             AppInput(
               controller: _name,
-              label: "Nom de la source",
-              placeholder: "Ma playlist",
+              label: l.formSourceName,
+              placeholder: l.m3uNameHint,
               errorText: state.nameError,
               onChanged: notifier.setName,
             ),
             SizedBox(height: t.space.x4),
             AppInput(
               controller: _url,
-              label: "URL M3U",
+              label: l.m3uUrl,
               placeholder: "http://exemple.com/playlist.m3u",
-              helperText: "Lien direct vers votre fichier .m3u / .m3u8",
+              helperText: l.m3uUrlHint,
               keyboardType: TextInputType.url,
               errorText: state.urlError,
               onChanged: notifier.setUrl,
@@ -76,20 +78,19 @@ class _M3uFormViewState extends ConsumerState<M3uFormView> {
             SizedBox(height: t.space.x4),
             AppInput(
               controller: _epg,
-              label: "URL EPG (optionnel)",
+              label: l.m3uEpgUrl,
               placeholder: "http://exemple.com/epg.xml",
               keyboardType: TextInputType.url,
               onChanged: notifier.setEpgUrl,
             ),
             SizedBox(height: t.space.x3),
             Text(
-              "Le M3U fournit les chaînes en direct. Les films et séries "
-              "nécessitent un portail Xtream.",
+              l.m3uHint,
               style: t.typography.caption.copyWith(color: t.colors.textTertiary),
             ),
             SizedBox(height: t.space.x6),
             PrimaryButton(
-              label: "Continuer",
+              label: l.commonContinue,
               onPressed: state.canSubmit ? widget.onContinue : null,
             ),
           ],
