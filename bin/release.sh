@@ -2,10 +2,10 @@
 #
 # LimeBeam release helper — one command to ship a build to the stores.
 #
-#   bin/release.sh            # iOS (TestFlight) + Android (Play internal)
+#   bin/release.sh            # iOS (TestFlight) + Play (AAB) + Fire TV (APK)
 #   bin/release.sh ios        # iOS only
 #   bin/release.sh android    # Android only — Play AAB (phone + Android TV)
-#   bin/release.sh amazon     # Fire TV / Amazon Appstore — release APK
+#   bin/release.sh amazon     # Fire TV / Amazon Appstore — release APK only
 #   bin/release.sh --no-deploy   # codegen + analyze only (dry run)
 #
 # Pipeline: build_runner (every package that needs it) → dart analyze →
@@ -89,7 +89,7 @@ if [[ "$TARGET" == "all" || "$TARGET" == "android" ]]; then
   (cd android && bundle exec fastlane android beta)
 fi
 
-if [[ "$TARGET" == "amazon" ]]; then
+if [[ "$TARGET" == "all" || "$TARGET" == "amazon" ]]; then
   echo "▶ Fire TV / Amazon Appstore → release APK…"
   # Amazon takes an APK (not an AAB). Universal APK so the single artifact runs
   # on every Fire TV ABI. Signed with the release keystore via build.gradle.kts.
