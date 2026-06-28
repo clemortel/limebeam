@@ -3,6 +3,7 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart"
     hide AsyncData, AsyncError, AsyncLoading, AsyncValue;
 import "package:iptv_core/iptv_core.dart";
+import "package:iptv_l10n/iptv_l10n.dart";
 import "package:iptv_ui/iptv_ui.dart";
 
 import "../models/movie.dart";
@@ -13,11 +14,11 @@ const double _kBackdropAspect = 16 / 9;
 const int _kSynopsisCollapsedLines = 3;
 
 /// On TV the hero is capped to this fraction of the viewport height so the
-/// title + "Lire" stay above the fold (a full-width 16:9 image would otherwise
+/// title + AppLocalizations.of(context).commonPlay stay above the fold (a full-width 16:9 image would otherwise
 /// fill the whole landscape screen and push the action off-screen).
 const double _kTvHeroHeightFraction = 0.4;
 
-/// Movie detail (§4.4.1): hero, meta line, synopsis (clamped + "Plus"), Lire.
+/// Movie detail (§4.4.1): hero, meta line, synopsis (clamped + AppLocalizations.of(context).commonMore), Lire.
 class MovieDetailView extends ConsumerWidget {
   const MovieDetailView({
     required this.movie,
@@ -58,7 +59,7 @@ class MovieDetailView extends ConsumerWidget {
                 _MetaLine(movie: movie, info: info),
                 SizedBox(height: t.space.x4),
                 PrimaryButton(
-                  label: "Lire",
+                  label: AppLocalizations.of(context).commonPlay,
                   onPressed: onPlay,
                   autofocus: FormFactorScope.isTv(context),
                 ),
@@ -182,7 +183,7 @@ class _SynopsisState extends State<_Synopsis> {
                       child: Padding(
                         padding: EdgeInsets.symmetric(vertical: t.space.x1),
                         child: Text(
-                          _expanded ? "Moins" : "Plus",
+                          _expanded ? AppLocalizations.of(context).commonLess : AppLocalizations.of(context).commonMore,
                           style: t.typography.bodyStrong
                               .copyWith(color: t.colors.accentTextOnDark),
                         ),

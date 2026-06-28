@@ -21,6 +21,8 @@ dependencies:
     path: ../iptv_api
   iptv_core:
     path: ../iptv_core
+  iptv_l10n:
+    path: ../iptv_l10n
   iptv_epg:
     path: ../iptv_epg
   iptv_ui:

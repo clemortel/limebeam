@@ -435,4 +435,54 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get parentalChangedToast => 'Code modifié';
+
+  @override
+  String get commonAll => 'Tous';
+
+  @override
+  String get commonError => 'Erreur';
+
+  @override
+  String get commonMore => 'Plus';
+
+  @override
+  String get commonLess => 'Moins';
+
+  @override
+  String get commonWatch => 'Regarder';
+
+  @override
+  String get commonPlay => 'Lire';
+
+  @override
+  String get liveEmptyTitle => 'Aucune chaîne';
+
+  @override
+  String get liveEmptyMessage => 'Cette catégorie ne contient aucune chaîne.';
+
+  @override
+  String get guideUnavailableTitle => 'Guide indisponible';
+
+  @override
+  String get guideUnavailableMessage => 'Aucune donnée EPG pour cette source.';
+
+  @override
+  String get vodEmptyTitle => 'Aucun film';
+
+  @override
+  String get vodEmptyMessage => 'Aucun film dans cette source.';
+
+  @override
+  String get seriesEmptyTitle => 'Aucune série';
+
+  @override
+  String get seriesEmptyMessage => 'Aucune série dans cette source.';
+
+  @override
+  String get seriesNoEpisodes => 'Aucun épisode disponible.';
+
+  @override
+  String episodeLabel(int n) {
+    return 'Épisode $n';
+  }
 }

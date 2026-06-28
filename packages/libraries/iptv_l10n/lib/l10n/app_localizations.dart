@@ -907,6 +907,102 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Code modifié'**
   String get parentalChangedToast;
+
+  /// No description provided for @commonAll.
+  ///
+  /// In fr, this message translates to:
+  /// **'Tous'**
+  String get commonAll;
+
+  /// No description provided for @commonError.
+  ///
+  /// In fr, this message translates to:
+  /// **'Erreur'**
+  String get commonError;
+
+  /// No description provided for @commonMore.
+  ///
+  /// In fr, this message translates to:
+  /// **'Plus'**
+  String get commonMore;
+
+  /// No description provided for @commonLess.
+  ///
+  /// In fr, this message translates to:
+  /// **'Moins'**
+  String get commonLess;
+
+  /// No description provided for @commonWatch.
+  ///
+  /// In fr, this message translates to:
+  /// **'Regarder'**
+  String get commonWatch;
+
+  /// No description provided for @commonPlay.
+  ///
+  /// In fr, this message translates to:
+  /// **'Lire'**
+  String get commonPlay;
+
+  /// No description provided for @liveEmptyTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucune chaîne'**
+  String get liveEmptyTitle;
+
+  /// No description provided for @liveEmptyMessage.
+  ///
+  /// In fr, this message translates to:
+  /// **'Cette catégorie ne contient aucune chaîne.'**
+  String get liveEmptyMessage;
+
+  /// No description provided for @guideUnavailableTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Guide indisponible'**
+  String get guideUnavailableTitle;
+
+  /// No description provided for @guideUnavailableMessage.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucune donnée EPG pour cette source.'**
+  String get guideUnavailableMessage;
+
+  /// No description provided for @vodEmptyTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucun film'**
+  String get vodEmptyTitle;
+
+  /// No description provided for @vodEmptyMessage.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucun film dans cette source.'**
+  String get vodEmptyMessage;
+
+  /// No description provided for @seriesEmptyTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucune série'**
+  String get seriesEmptyTitle;
+
+  /// No description provided for @seriesEmptyMessage.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucune série dans cette source.'**
+  String get seriesEmptyMessage;
+
+  /// No description provided for @seriesNoEpisodes.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucun épisode disponible.'**
+  String get seriesNoEpisodes;
+
+  /// No description provided for @episodeLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Épisode {n}'**
+  String episodeLabel(int n);
 }
 
 class _AppLocalizationsDelegate

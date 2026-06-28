@@ -134,5 +134,21 @@
   "parentalUnlockedToast": "Adult content unlocked",
   "parentalCurrentPin": "Current PIN",
   "parentalNewPin": "New PIN",
-  "parentalChangedToast": "PIN changed"
+  "parentalChangedToast": "PIN changed",
+  "commonAll": "All",
+  "commonError": "Error",
+  "commonMore": "More",
+  "commonLess": "Less",
+  "commonWatch": "Watch",
+  "commonPlay": "Play",
+  "liveEmptyTitle": "No channel",
+  "liveEmptyMessage": "This category has no channels.",
+  "guideUnavailableTitle": "Guide unavailable",
+  "guideUnavailableMessage": "No EPG data for this source.",
+  "vodEmptyTitle": "No movie",
+  "vodEmptyMessage": "No movies in this source.",
+  "seriesEmptyTitle": "No series",
+  "seriesEmptyMessage": "No series in this source.",
+  "seriesNoEpisodes": "No episodes available.",
+  "episodeLabel": "Episode {n}"
 }

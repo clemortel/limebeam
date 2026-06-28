@@ -3,6 +3,7 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart"
     hide AsyncData, AsyncError, AsyncLoading, AsyncValue;
 import "package:iptv_core/iptv_core.dart";
+import "package:iptv_l10n/iptv_l10n.dart";
 import "package:iptv_ui/iptv_ui.dart";
 
 import "../models/series.dart";
@@ -39,7 +40,7 @@ class SeriesGridView extends ConsumerWidget {
             AsyncError<IList<Series>>(:final Failures failure) => Center(
                 child: EmptyState(
                   icon: Icons.error_outline,
-                  title: "Erreur",
+                  title: AppLocalizations.of(context).commonError,
                   message: failure.computeErrorMessage(),
                 ),
               ),
@@ -106,7 +107,7 @@ class _SeriesChips extends ConsumerWidget {
         itemBuilder: (BuildContext context, int index) {
           if (index == 0) {
             return FilterChipX(
-              label: "Tous",
+              label: AppLocalizations.of(context).commonAll,
               selected: selected.isEmpty,
               onTap: () => ref
                   .read(selectedSeriesCategoryProvider.notifier)
@@ -138,11 +139,11 @@ class _Grid extends StatelessWidget {
     final AppTheme t = context.appTheme;
     final int columns = posterGridColumns(FormFactorScope.of(context));
     if (series.isEmpty) {
-      return const Center(
+      return Center(
         child: EmptyState(
           icon: Icons.video_library_outlined,
-          title: "Aucune série",
-          message: "Aucune série dans cette source.",
+          title: AppLocalizations.of(context).seriesEmptyTitle,
+          message: AppLocalizations.of(context).seriesEmptyMessage,
         ),
       );
     }

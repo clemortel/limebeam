@@ -154,5 +154,28 @@
   "parentalUnlockedToast": "Contenu adulte déverrouillé",
   "parentalCurrentPin": "Code actuel",
   "parentalNewPin": "Nouveau code",
-  "parentalChangedToast": "Code modifié"
+  "parentalChangedToast": "Code modifié",
+  "commonAll": "Tous",
+  "commonError": "Erreur",
+  "commonMore": "Plus",
+  "commonLess": "Moins",
+  "commonWatch": "Regarder",
+  "commonPlay": "Lire",
+  "liveEmptyTitle": "Aucune chaîne",
+  "liveEmptyMessage": "Cette catégorie ne contient aucune chaîne.",
+  "guideUnavailableTitle": "Guide indisponible",
+  "guideUnavailableMessage": "Aucune donnée EPG pour cette source.",
+  "vodEmptyTitle": "Aucun film",
+  "vodEmptyMessage": "Aucun film dans cette source.",
+  "seriesEmptyTitle": "Aucune série",
+  "seriesEmptyMessage": "Aucune série dans cette source.",
+  "seriesNoEpisodes": "Aucun épisode disponible.",
+  "episodeLabel": "Épisode {n}",
+  "@episodeLabel": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  }
 }

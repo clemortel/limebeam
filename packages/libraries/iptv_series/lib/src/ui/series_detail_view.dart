@@ -4,6 +4,7 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart"
     hide AsyncData, AsyncError, AsyncLoading, AsyncValue;
 import "package:iptv_core/iptv_core.dart";
+import "package:iptv_l10n/iptv_l10n.dart";
 import "package:iptv_ui/iptv_ui.dart";
 
 import "../models/episode.dart";
@@ -131,7 +132,7 @@ class _SynopsisState extends State<_Synopsis> {
             child: Padding(
               padding: EdgeInsets.symmetric(vertical: t.space.x1),
               child: Text(
-                _expanded ? "Moins" : "Plus",
+                _expanded ? AppLocalizations.of(context).commonLess : AppLocalizations.of(context).commonMore,
                 style: t.typography.bodyStrong
                     .copyWith(color: t.colors.accentTextOnDark),
               ),
@@ -192,7 +193,7 @@ class _SeasonsState extends State<_Seasons> {
     final IList<Season> seasons = widget.seasons;
     if (seasons.isEmpty) {
       return Text(
-        "Aucun épisode disponible.",
+        AppLocalizations.of(context).seriesNoEpisodes,
         style: t.typography.caption.copyWith(color: t.colors.textTertiary),
       );
     }
@@ -274,7 +275,7 @@ class _EpisodeRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
     final String subtitle = episode.duration.isEmpty
-        ? "Épisode ${episode.episodeNum}"
+        ? AppLocalizations.of(context).episodeLabel(episode.episodeNum)
         : episode.duration;
     return PressableScale(
       onTap: onPlay,

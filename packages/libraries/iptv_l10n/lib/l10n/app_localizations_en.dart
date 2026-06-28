@@ -430,4 +430,54 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get parentalChangedToast => 'PIN changed';
+
+  @override
+  String get commonAll => 'All';
+
+  @override
+  String get commonError => 'Error';
+
+  @override
+  String get commonMore => 'More';
+
+  @override
+  String get commonLess => 'Less';
+
+  @override
+  String get commonWatch => 'Watch';
+
+  @override
+  String get commonPlay => 'Play';
+
+  @override
+  String get liveEmptyTitle => 'No channel';
+
+  @override
+  String get liveEmptyMessage => 'This category has no channels.';
+
+  @override
+  String get guideUnavailableTitle => 'Guide unavailable';
+
+  @override
+  String get guideUnavailableMessage => 'No EPG data for this source.';
+
+  @override
+  String get vodEmptyTitle => 'No movie';
+
+  @override
+  String get vodEmptyMessage => 'No movies in this source.';
+
+  @override
+  String get seriesEmptyTitle => 'No series';
+
+  @override
+  String get seriesEmptyMessage => 'No series in this source.';
+
+  @override
+  String get seriesNoEpisodes => 'No episodes available.';
+
+  @override
+  String episodeLabel(int n) {
+    return 'Episode $n';
+  }
 }

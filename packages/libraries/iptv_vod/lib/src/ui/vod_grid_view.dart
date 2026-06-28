@@ -3,6 +3,7 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart"
     hide AsyncData, AsyncError, AsyncLoading, AsyncValue;
 import "package:iptv_core/iptv_core.dart";
+import "package:iptv_l10n/iptv_l10n.dart";
 import "package:iptv_ui/iptv_ui.dart";
 
 import "../models/movie.dart";
@@ -39,7 +40,7 @@ class VodGridView extends ConsumerWidget {
             AsyncError<IList<Movie>>(:final Failures failure) => Center(
                 child: EmptyState(
                   icon: Icons.error_outline,
-                  title: "Erreur",
+                  title: AppLocalizations.of(context).commonError,
                   message: failure.computeErrorMessage(),
                 ),
               ),
@@ -104,7 +105,7 @@ class _VodChips extends ConsumerWidget {
         itemBuilder: (BuildContext context, int index) {
           if (index == 0) {
             return FilterChipX(
-              label: "Tous",
+              label: AppLocalizations.of(context).commonAll,
               selected: selected.isEmpty,
               onTap: () =>
                   ref.read(selectedVodCategoryProvider.notifier).select(""),
@@ -135,11 +136,11 @@ class _Grid extends StatelessWidget {
     final AppTheme t = context.appTheme;
     final int columns = posterGridColumns(FormFactorScope.of(context));
     if (movies.isEmpty) {
-      return const Center(
+      return Center(
         child: EmptyState(
           icon: Icons.movie_outlined,
-          title: "Aucun film",
-          message: "Aucun film dans cette source.",
+          title: AppLocalizations.of(context).vodEmptyTitle,
+          message: AppLocalizations.of(context).vodEmptyMessage,
         ),
       );
     }

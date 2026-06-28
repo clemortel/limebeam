@@ -4,6 +4,7 @@ import "package:flutter_riverpod/flutter_riverpod.dart"
     hide AsyncData, AsyncError, AsyncLoading, AsyncValue;
 import "package:iptv_core/iptv_core.dart";
 import "package:iptv_epg/iptv_epg.dart";
+import "package:iptv_l10n/iptv_l10n.dart";
 import "package:iptv_ui/iptv_ui.dart";
 
 import "../models/channel.dart";
@@ -41,11 +42,11 @@ class EpgGuideView extends ConsumerWidget {
       final bool loading = epgState is AsyncLoading<IList<EpgEntry>> ||
           epgState is AsyncIdle<IList<EpgEntry>>;
       if (loading) return _GuideSkeleton(channels: channels);
-      return const Center(
+      return Center(
         child: EmptyState(
           icon: Icons.calendar_today_outlined,
-          title: "Guide indisponible",
-          message: "Aucune donnée EPG pour cette source.",
+          title: AppLocalizations.of(context).guideUnavailableTitle,
+          message: AppLocalizations.of(context).guideUnavailableMessage,
         ),
       );
     }
@@ -373,7 +374,7 @@ class _ProgrammeDetails extends StatelessWidget {
             ),
           ],
           SizedBox(height: t.space.x4),
-          PrimaryButton(label: "Regarder", onPressed: onWatch),
+          PrimaryButton(label: AppLocalizations.of(context).commonWatch, onPressed: onWatch),
         ],
       ),
     );

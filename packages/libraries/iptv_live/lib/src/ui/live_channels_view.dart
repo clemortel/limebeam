@@ -4,6 +4,7 @@ import "package:flutter_riverpod/flutter_riverpod.dart"
     hide AsyncData, AsyncError, AsyncLoading, AsyncValue;
 import "package:iptv_core/iptv_core.dart";
 import "package:iptv_epg/iptv_epg.dart";
+import "package:iptv_l10n/iptv_l10n.dart";
 import "package:iptv_ui/iptv_ui.dart";
 
 import "../models/channel.dart";
@@ -63,7 +64,7 @@ class LiveChannelsView extends ConsumerWidget {
               AsyncError<IList<Channel>>(:final Failures failure) => Center(
                   child: EmptyState(
                     icon: Icons.error_outline,
-                    title: "Erreur",
+                    title: AppLocalizations.of(context).commonError,
                     message: failure.computeErrorMessage(),
                   ),
                 ),
@@ -144,7 +145,7 @@ class _CategoryChips extends ConsumerWidget {
         itemBuilder: (BuildContext context, int index) {
           if (index == 0) {
             return FilterChipX(
-              label: "Tous",
+              label: AppLocalizations.of(context).commonAll,
               selected: selected.isEmpty,
               onTap: () =>
                   ref.read(selectedLiveCategoryProvider.notifier).select(""),
@@ -178,11 +179,11 @@ class _ChannelList extends ConsumerWidget {
     final Map<String, EpgEntry> nowMap = ref.watch(epgNowProvider(bucket));
 
     if (channels.isEmpty) {
-      return const Center(
+      return Center(
         child: EmptyState(
           icon: Icons.tv_off,
-          title: "Aucune chaîne",
-          message: "Cette catégorie ne contient aucune chaîne.",
+          title: AppLocalizations.of(context).liveEmptyTitle,
+          message: AppLocalizations.of(context).liveEmptyMessage,
         ),
       );
     }
