@@ -123,14 +123,18 @@ class _SynopsisState extends State<_Synopsis> {
           overflow: _expanded ? null : TextOverflow.ellipsis,
           style: t.typography.body.copyWith(color: t.colors.textSecondary),
         ),
-        GestureDetector(
-          onTap: () => setState(() => _expanded = !_expanded),
-          child: Padding(
-            padding: EdgeInsets.only(top: t.space.x1),
-            child: Text(
-              _expanded ? "Moins" : "Plus",
-              style: t.typography.bodyStrong
-                  .copyWith(color: t.colors.accentTextOnDark),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: IptvFocusable(
+            onTap: () => setState(() => _expanded = !_expanded),
+            focusBorderRadius: t.radius.smAll,
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: t.space.x1),
+              child: Text(
+                _expanded ? "Moins" : "Plus",
+                style: t.typography.bodyStrong
+                    .copyWith(color: t.colors.accentTextOnDark),
+              ),
             ),
           ),
         ),
