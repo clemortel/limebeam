@@ -1,4 +1,5 @@
 import "package:flutter/material.dart";
+import "package:flutter/services.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart"
     hide AsyncData, AsyncError, AsyncLoading, AsyncValue;
 import "package:iptv_l10n/iptv_l10n.dart";
@@ -53,6 +54,17 @@ class _XtreamFormViewState extends ConsumerState<XtreamFormView> {
     super.dispose();
   }
 
+  // nextFocus() moves focus but Android doesn't always trigger showSoftInput
+  // automatically. A post-frame channel call forces the keyboard open.
+  void _advanceFocus() {
+    FocusScope.of(context).nextFocus();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        SystemChannels.textInput.invokeMethod<void>('TextInput.show');
+      }
+    });
+  }
+
   void _submit() {
     _passFocus.unfocus();
     if (ref.read(addXtreamSourceProvider).canSubmit) widget.onContinue();
@@ -91,7 +103,7 @@ class _XtreamFormViewState extends ConsumerState<XtreamFormView> {
                   onChanged: notifier.setName,
                   // nextFocus() advances focus AND keeps the keyboard open on
                   // the new field — correct for both IME and TV D-pad.
-                  onEditingComplete: FocusScope.of(context).nextFocus,
+                  onEditingComplete: _advanceFocus,
                 ),
                 SizedBox(height: t.space.x4),
                 AppInput(
@@ -101,7 +113,7 @@ class _XtreamFormViewState extends ConsumerState<XtreamFormView> {
                   keyboardType: TextInputType.url,
                   errorText: state.hostError,
                   onChanged: notifier.setHost,
-                  onEditingComplete: FocusScope.of(context).nextFocus,
+                  onEditingComplete: _advanceFocus,
                 ),
                 SizedBox(height: t.space.x4),
                 AppInput(
@@ -110,7 +122,7 @@ class _XtreamFormViewState extends ConsumerState<XtreamFormView> {
                   placeholder: l.xtreamUsernameHint,
                   errorText: state.usernameError,
                   onChanged: notifier.setUsername,
-                  onEditingComplete: FocusScope.of(context).nextFocus,
+                  onEditingComplete: _advanceFocus,
                 ),
                 SizedBox(height: t.space.x4),
                 AppInput(
