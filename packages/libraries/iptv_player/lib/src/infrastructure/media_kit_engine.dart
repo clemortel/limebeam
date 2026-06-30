@@ -105,10 +105,10 @@ class MediaKitEngine implements PlaybackEngine {
     final NativePlayer? native = _native;
     if (native == null) return;
 
-    // Force MediaCodec hardware decode in copy-mode: decodes on the GPU then
-    // copies back via OpenGL — compatible with Flutter's Texture compositor.
-    // More reliable than "auto-copy" on Fire OS (avoids fallbacks to ffmpeg).
-    await native.setProperty("hwdec", "mediacodec-copy");
+    // Do NOT set hwdec here — VideoControllerConfiguration(enableHardwareAcceleration:
+    // true) already applies hwdec=auto, and that respects the VideoOutput
+    // Surface lifecycle. Overriding with mediacodec-copy races the GL
+    // context init and causes "Both surface and native_window are NULL".
 
     // Android's AudioTrack API: lower latency than OpenSL ES on Android 8+.
     await native.setProperty("ao", "audiotrack");
