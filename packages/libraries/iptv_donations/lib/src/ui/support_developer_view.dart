@@ -31,9 +31,9 @@ class SupportDeveloperView extends ConsumerWidget {
     final AppTheme t = context.appTheme;
     final AppLocalizations l = AppLocalizations.of(context);
     final AsyncState<IList<DonationProduct>> products =
-        ref.watch(donationProductsNotifierProvider);
+        ref.watch(donationProductsProvider);
     final bool busy =
-        ref.watch(donationPurchaseNotifierProvider) is AsyncLoading<bool>;
+        ref.watch(donationPurchaseProvider) is AsyncLoading<bool>;
 
     return Scaffold(
       backgroundColor: t.colors.bgBase,
@@ -52,7 +52,7 @@ class SupportDeveloperView extends ConsumerWidget {
               AsyncLoading<IList<DonationProduct>>() => const _CardsSkeleton(),
               AsyncError<IList<DonationProduct>>() => _ErrorBlock(
                   onRetry: () => ref
-                      .read(donationProductsNotifierProvider.notifier)
+                      .read(donationProductsProvider.notifier)
                       .refresh(),
                 ),
               AsyncSuccess<IList<DonationProduct>>(
@@ -91,14 +91,14 @@ class SupportDeveloperView extends ConsumerWidget {
     DonationProduct product,
   ) async {
     final bool purchased =
-        await ref.read(donationPurchaseNotifierProvider.notifier).buy(product);
+        await ref.read(donationPurchaseProvider.notifier).buy(product);
     if (!context.mounted) return;
     if (purchased) {
       onTipped?.call();
       await TipThanksBottomSheet.show(context);
       return;
     }
-    final AsyncState<bool> state = ref.read(donationPurchaseNotifierProvider);
+    final AsyncState<bool> state = ref.read(donationPurchaseProvider);
     if (state is AsyncError<bool>) {
       AppToast.show(
         context,

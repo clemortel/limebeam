@@ -9,15 +9,15 @@ environment:
   flutter: ">=3.24.0"
 
 dependencies:
-  auto_route: ^9.2.0
+  auto_route: ^11.1.0
   dartz: ^0.10.1
-  fast_immutable_collections: ^10.2.4
+  fast_immutable_collections: ^11.2.0
   flutter:
     sdk: flutter
-  flutter_riverpod: ^2.5.1
-  flutter_secure_storage: ^9.2.2
-  freezed_annotation: ^2.4.4
-  get_it: ^7.7.0
+  flutter_riverpod: ^3.3.1
+  flutter_secure_storage: ^10.3.1
+  freezed_annotation: ^3.1.0
+  get_it: ^9.2.1
   injectable: ^2.4.4
   iptv_api:
     path: ../iptv_api
@@ -28,15 +28,15 @@ dependencies:
   iptv_ui:
     path: ../iptv_ui
   json_annotation: ^4.9.0
-  riverpod_annotation: ^2.3.5
+  riverpod_annotation: ^4.0.2
 
 dev_dependencies:
   build_runner: ^2.4.11
-  flutter_lints: ^4.0.0
+  flutter_lints: ^6.0.0
   flutter_test:
     sdk: flutter
-  freezed: ^2.5.7
+  freezed: ^3.2.5
   injectable_generator: ^2.6.2
   json_serializable: ^6.8.0
   mockito: ^5.4.4
-  riverpod_generator: ^2.4.3
+  riverpod_generator: ^4.0.3

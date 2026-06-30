@@ -30,7 +30,7 @@ void main() {
 
   ProviderContainer makeContainer() {
     final ProviderContainer container = ProviderContainer(
-      overrides: <Override>[
+      overrides: [
         sourceRepositoryProvider.overrideWithValue(repository),
       ],
     );
@@ -48,7 +48,7 @@ void main() {
   test("should not submit while the form is invalid", () async {
     final ProviderContainer container = makeContainer();
     final AddXtreamSourceNotifier notifier =
-        container.read(addXtreamSourceNotifierProvider.notifier);
+        container.read(addXtreamSourceProvider.notifier);
 
     await notifier.submit();
 
@@ -70,13 +70,13 @@ void main() {
 
     final ProviderContainer container = makeContainer();
     final AddXtreamSourceNotifier notifier =
-        container.read(addXtreamSourceNotifierProvider.notifier);
+        container.read(addXtreamSourceProvider.notifier);
     fillValidForm(notifier);
 
     await notifier.submit();
 
     expect(
-      container.read(addXtreamSourceNotifierProvider).submission,
+      container.read(addXtreamSourceProvider).submission,
       const AsyncState<Source>.success(source),
     );
   });
@@ -91,13 +91,13 @@ void main() {
 
     final ProviderContainer container = makeContainer();
     final AddXtreamSourceNotifier notifier =
-        container.read(addXtreamSourceNotifierProvider.notifier);
+        container.read(addXtreamSourceProvider.notifier);
     fillValidForm(notifier);
 
     await notifier.submit();
 
     expect(
-      container.read(addXtreamSourceNotifierProvider).submission,
+      container.read(addXtreamSourceProvider).submission,
       const AsyncState<Source>.error(Failures.portalAuth()),
     );
   });

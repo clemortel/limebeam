@@ -17,7 +17,7 @@ class SourceSuccessScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final AppTheme t = context.appTheme;
     final AppLocalizations l = AppLocalizations.of(context);
-    final SyncProgress p = ref.watch(sourceSyncNotifierProvider);
+    final SyncProgress p = ref.watch(sourceSyncProvider);
     final String summary = l.successCounts(p.channels, p.movies, p.series);
 
     return Scaffold(

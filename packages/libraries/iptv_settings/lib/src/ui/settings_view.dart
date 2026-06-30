@@ -74,9 +74,9 @@ class _InterfaceSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final AppTheme t = context.appTheme;
     final AppLocalizations l = AppLocalizations.of(context);
-    final AppPreferences prefs = ref.watch(appPreferencesNotifierProvider);
+    final AppPreferences prefs = ref.watch(appPreferencesProvider);
     final AppPreferencesNotifier notifier =
-        ref.read(appPreferencesNotifierProvider.notifier);
+        ref.read(appPreferencesProvider.notifier);
     return _SectionCard(
       title: l.settingsInterface,
       children: <Widget>[
@@ -135,9 +135,9 @@ class _LectureSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final AppLocalizations l = AppLocalizations.of(context);
-    final AppPreferences prefs = ref.watch(appPreferencesNotifierProvider);
+    final AppPreferences prefs = ref.watch(appPreferencesProvider);
     final AppPreferencesNotifier notifier =
-        ref.read(appPreferencesNotifierProvider.notifier);
+        ref.read(appPreferencesProvider.notifier);
     return _SectionCard(
       title: l.settingsPlayback,
       children: <Widget>[
@@ -166,9 +166,9 @@ class _SubtitlesSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final AppTheme t = context.appTheme;
     final AppLocalizations l = AppLocalizations.of(context);
-    final AppPreferences prefs = ref.watch(appPreferencesNotifierProvider);
+    final AppPreferences prefs = ref.watch(appPreferencesProvider);
     final AppPreferencesNotifier notifier =
-        ref.read(appPreferencesNotifierProvider.notifier);
+        ref.read(appPreferencesProvider.notifier);
     // Language names stay as endonyms (universal); only "none" is localized.
     final List<(String?, String)> languages = <(String?, String)>[
       (null, l.langNone),
@@ -257,7 +257,7 @@ class _ParentalSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final AppTheme t = context.appTheme;
     final AppLocalizations l = AppLocalizations.of(context);
-    final AppPreferences prefs = ref.watch(appPreferencesNotifierProvider);
+    final AppPreferences prefs = ref.watch(appPreferencesProvider);
     final bool unlocked = ref.watch(parentalSessionProvider);
     return _SectionCard(
       title: l.settingsParental,
@@ -296,7 +296,7 @@ class _ParentalSection extends ConsumerWidget {
   ) async {
     final AppLocalizations l = AppLocalizations.of(context);
     final AppPreferencesNotifier notifier =
-        ref.read(appPreferencesNotifierProvider.notifier);
+        ref.read(appPreferencesProvider.notifier);
     final String? pin = await _PinDialog.show(
       context,
       title: enable ? l.parentalSetPin : l.parentalEnterPin,
@@ -332,7 +332,7 @@ class _ParentalSection extends ConsumerWidget {
         await _PinDialog.show(context, title: l.parentalEnterPin);
     if (pin == null) return;
     final bool ok =
-        await ref.read(appPreferencesNotifierProvider.notifier).verifyPin(pin);
+        await ref.read(appPreferencesProvider.notifier).verifyPin(pin);
     if (!context.mounted) return;
     if (ok) {
       ref.read(parentalSessionProvider.notifier).unlock();
@@ -345,7 +345,7 @@ class _ParentalSection extends ConsumerWidget {
   Future<void> _changePin(BuildContext context, WidgetRef ref) async {
     final AppLocalizations l = AppLocalizations.of(context);
     final AppPreferencesNotifier notifier =
-        ref.read(appPreferencesNotifierProvider.notifier);
+        ref.read(appPreferencesProvider.notifier);
     final String? current = await _PinDialog.show(
       context,
       title: l.parentalCurrentPin,

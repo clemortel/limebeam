@@ -26,7 +26,7 @@ class _M3uFormViewState extends ConsumerState<M3uFormView> {
   @override
   void initState() {
     super.initState();
-    final M3uFormState s = ref.read(addM3uSourceNotifierProvider);
+    final M3uFormState s = ref.read(addM3uSourceProvider);
     _name = TextEditingController(text: s.name);
     _url = TextEditingController(text: s.url);
     _epg = TextEditingController(text: s.epgUrl);
@@ -44,9 +44,9 @@ class _M3uFormViewState extends ConsumerState<M3uFormView> {
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
     final AppLocalizations l = AppLocalizations.of(context);
-    final M3uFormState state = ref.watch(addM3uSourceNotifierProvider);
+    final M3uFormState state = ref.watch(addM3uSourceProvider);
     final AddM3uSourceNotifier notifier =
-        ref.read(addM3uSourceNotifierProvider.notifier);
+        ref.read(addM3uSourceProvider.notifier);
 
     return Scaffold(
       backgroundColor: t.colors.bgBase,

@@ -9,17 +9,17 @@ part "providers.g.dart";
 
 /// Bridges the GetIt-registered repository into Riverpod.
 @Riverpod(keepAlive: true)
-IPreferencesRepository preferencesRepository(PreferencesRepositoryRef ref) =>
+IPreferencesRepository preferencesRepository(Ref ref) =>
     GetIt.instance<IPreferencesRepository>();
 
 /// Bridges the GetIt-registered usage-metrics repository into Riverpod.
 @Riverpod(keepAlive: true)
-IUsageMetricsRepository usageMetricsRepository(UsageMetricsRepositoryRef ref) =>
+IUsageMetricsRepository usageMetricsRepository(Ref ref) =>
     GetIt.instance<IUsageMetricsRepository>();
 
 /// Whether adult content must be hidden right now: parental control is on and
 /// the session has not been unlocked with the PIN. Views watch this.
 @riverpod
-bool adultHidden(AdultHiddenRef ref) =>
-    ref.watch(appPreferencesNotifierProvider).parentalEnabled &&
+bool adultHidden(Ref ref) =>
+    ref.watch(appPreferencesProvider).parentalEnabled &&
     !ref.watch(parentalSessionProvider);

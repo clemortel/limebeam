@@ -61,12 +61,12 @@ class SourceSyncNotifier extends _$SourceSyncNotifier {
 
   /// Forces the feature notifiers to re-read the freshly-written cache.
   void _refreshCaches() {
-    ref.invalidate(liveChannelsNotifierProvider);
-    ref.invalidate(liveCategoriesNotifierProvider);
-    ref.invalidate(vodNotifierProvider);
-    ref.invalidate(vodCategoriesNotifierProvider);
-    ref.invalidate(seriesNotifierProvider);
-    ref.invalidate(seriesCategoriesNotifierProvider);
-    ref.invalidate(epgNotifierProvider);
+    ref.invalidate(liveChannelsProvider);
+    ref.invalidate(liveCategoriesProvider);
+    ref.invalidate(vodProvider);
+    ref.invalidate(vodCategoriesProvider);
+    ref.invalidate(seriesProvider);
+    ref.invalidate(seriesCategoriesProvider);
+    ref.invalidate(epgProvider);
   }
 }

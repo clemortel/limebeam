@@ -6,5 +6,5 @@ part "providers.g.dart";
 
 /// Bridges the GetIt-registered cast repository into Riverpod.
 @Riverpod(keepAlive: true)
-ICastRepository castRepository(CastRepositoryRef ref) =>
+ICastRepository castRepository(Ref ref) =>
     GetIt.instance<ICastRepository>();

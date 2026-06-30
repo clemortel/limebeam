@@ -6,5 +6,5 @@ part "providers.g.dart";
 
 /// Bridges the GetIt-registered repository into Riverpod.
 @Riverpod(keepAlive: true)
-DonationRepository donationRepository(DonationRepositoryRef ref) =>
+DonationRepository donationRepository(Ref ref) =>
     GetIt.instance<DonationRepository>();

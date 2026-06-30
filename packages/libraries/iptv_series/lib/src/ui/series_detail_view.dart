@@ -43,7 +43,7 @@ class SeriesDetailView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final AppTheme t = context.appTheme;
     final AsyncState<SeriesDetail> detail =
-        ref.watch(seriesDetailNotifierProvider(series.id));
+        ref.watch(seriesDetailProvider(series.id));
 
     return Scaffold(
       backgroundColor: t.colors.bgBase,

@@ -6,5 +6,5 @@ part "providers.g.dart";
 
 /// Bridges the GetIt-registered repository into Riverpod.
 @Riverpod(keepAlive: true)
-IFavoritesRepository favoritesRepository(FavoritesRepositoryRef ref) =>
+IFavoritesRepository favoritesRepository(Ref ref) =>
     GetIt.instance<IFavoritesRepository>();

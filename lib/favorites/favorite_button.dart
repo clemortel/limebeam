@@ -17,16 +17,16 @@ class FavoriteButton extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final AppTheme t = context.appTheme;
     // Watch so the icon flips when the list changes.
-    ref.watch(favoritesNotifierProvider);
+    ref.watch(favoritesProvider);
     final bool isFavorite =
-        ref.read(favoritesNotifierProvider.notifier).isFavorite(favorite.key);
+        ref.read(favoritesProvider.notifier).isFavorite(favorite.key);
     return IconButton(
       icon: Icon(
         isFavorite ? Icons.favorite : Icons.favorite_border,
         color: isFavorite ? t.colors.accent : t.colors.textPrimary,
       ),
       onPressed: () =>
-          ref.read(favoritesNotifierProvider.notifier).toggle(favorite),
+          ref.read(favoritesProvider.notifier).toggle(favorite),
     );
   }
 }

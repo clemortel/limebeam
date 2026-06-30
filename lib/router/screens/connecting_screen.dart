@@ -38,24 +38,24 @@ class _ConnectingScreenState extends ConsumerState<ConnectingScreen> {
       widget.kind == SourceType.m3u || widget.kind == SourceType.demo;
 
   AsyncState<Source> _readSubmission() => _isM3u
-      ? ref.read(addM3uSourceNotifierProvider).submission
-      : ref.read(addXtreamSourceNotifierProvider).submission;
+      ? ref.read(addM3uSourceProvider).submission
+      : ref.read(addXtreamSourceProvider).submission;
 
   Future<void> _run() async {
     if (_isDemo) {
-      await ref.read(addM3uSourceNotifierProvider.notifier).startDemo();
+      await ref.read(addM3uSourceProvider.notifier).startDemo();
     } else if (_isM3u) {
-      await ref.read(addM3uSourceNotifierProvider.notifier).submit();
+      await ref.read(addM3uSourceProvider.notifier).submit();
     } else {
-      await ref.read(addXtreamSourceNotifierProvider.notifier).submit();
+      await ref.read(addXtreamSourceProvider.notifier).submit();
     }
 
     if (_readSubmission() is! AsyncSuccess<Source>) return; // error in build
 
-    await ref.read(sourceSyncNotifierProvider.notifier).run();
+    await ref.read(sourceSyncProvider.notifier).run();
     if (!mounted) return;
 
-    final SyncProgress progress = ref.read(sourceSyncNotifierProvider);
+    final SyncProgress progress = ref.read(sourceSyncProvider);
     if (progress.isDone) {
       await context.router.replace(const SourceSuccessRoute());
     }
@@ -65,9 +65,9 @@ class _ConnectingScreenState extends ConsumerState<ConnectingScreen> {
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
     final AsyncState<Source> submission = _isM3u
-        ? ref.watch(addM3uSourceNotifierProvider).submission
-        : ref.watch(addXtreamSourceNotifierProvider).submission;
-    final SyncProgress progress = ref.watch(sourceSyncNotifierProvider);
+        ? ref.watch(addM3uSourceProvider).submission
+        : ref.watch(addXtreamSourceProvider).submission;
+    final SyncProgress progress = ref.watch(sourceSyncProvider);
 
     final Failures? failure = switch (submission) {
       AsyncError<Source>(:final Failures failure) => failure,

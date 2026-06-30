@@ -1270,13 +1270,13 @@ class _CastDeviceSheetState extends ConsumerState<_CastDeviceSheet> {
     super.initState();
     // Defer to after first frame so we mutate the provider outside build.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(castDevicesNotifierProvider.notifier).startDiscovery();
+      ref.read(castDevicesProvider.notifier).startDiscovery();
     });
   }
 
   @override
   void dispose() {
-    ref.read(castDevicesNotifierProvider.notifier).stopDiscovery();
+    ref.read(castDevicesProvider.notifier).stopDiscovery();
     super.dispose();
   }
 
@@ -1289,7 +1289,7 @@ class _CastDeviceSheetState extends ConsumerState<_CastDeviceSheet> {
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
     final AsyncState<IList<CastDevice>> devices =
-        ref.watch(castDevicesNotifierProvider);
+        ref.watch(castDevicesProvider);
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,

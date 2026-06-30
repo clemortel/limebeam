@@ -46,7 +46,7 @@ extension PlayerLaunch on WidgetRef {
         )
         .toIList();
     final int index = scope.indexWhere((Channel c) => c.id == channel.id);
-    final AppPreferences prefs = read(appPreferencesNotifierProvider);
+    final AppPreferences prefs = read(appPreferencesProvider);
     _push(
       context,
       PlaybackQueue(
@@ -73,7 +73,7 @@ extension PlayerLaunch on WidgetRef {
       url: source.buildMovieUrl(movie.streamId, movie.containerExtension),
       startAt: _resumeFor(ContentKind.movie, movie.streamId),
     );
-    final AppPreferences prefs = read(appPreferencesNotifierProvider);
+    final AppPreferences prefs = read(appPreferencesProvider);
     _pushVod(
       context,
       PlaybackQueue.single(request, gesturesEnabled: prefs.playerGestures),
@@ -104,7 +104,7 @@ extension PlayerLaunch on WidgetRef {
     final int index =
         season.episodes.indexWhere((Episode e) => e.id == episode.id);
     final int start = index < 0 ? 0 : index;
-    final AppPreferences prefs = read(appPreferencesNotifierProvider);
+    final AppPreferences prefs = read(appPreferencesProvider);
     _pushVod(
       context,
       PlaybackQueue(
@@ -140,7 +140,7 @@ extension PlayerLaunch on WidgetRef {
       url: url,
       startAt: Duration(seconds: session.positionSeconds),
     );
-    final AppPreferences prefs = read(appPreferencesNotifierProvider);
+    final AppPreferences prefs = read(appPreferencesProvider);
     _pushVod(
       context,
       PlaybackQueue.single(request, gesturesEnabled: prefs.playerGestures),
@@ -150,7 +150,7 @@ extension PlayerLaunch on WidgetRef {
   /// The channels currently visible in the TV tab (selected category, or all).
   IList<Channel> _scopedChannels(Channel fallback) {
     final AsyncState<IList<Channel>> channelsState =
-        read(liveChannelsNotifierProvider);
+        read(liveChannelsProvider);
     final IList<Channel> all = switch (channelsState) {
       AsyncSuccess<IList<Channel>>(:final IList<Channel> data) => data,
       _ => const IListConst<Channel>(<Channel>[]),
@@ -166,7 +166,7 @@ extension PlayerLaunch on WidgetRef {
   /// Saved resume offset for a VOD item, or zero when none exists.
   Duration _resumeFor(ContentKind kind, String id) {
     final AsyncState<IList<WatchSession>> state =
-        read(watchSessionsNotifierProvider);
+        read(watchSessionsProvider);
     final IList<WatchSession> sessions = switch (state) {
       AsyncSuccess<IList<WatchSession>>(:final IList<WatchSession> data) =>
         data,
@@ -197,7 +197,7 @@ extension PlayerLaunch on WidgetRef {
     }
     read(playbackControllerProvider.notifier).start(queue);
     context.router.root.push(const PlayerRoute()).then(
-          (_) => read(watchSessionsNotifierProvider.notifier).refresh(),
+          (_) => read(watchSessionsProvider.notifier).refresh(),
         );
   }
 }

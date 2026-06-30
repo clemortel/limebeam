@@ -26,7 +26,7 @@ void main() {
 
   ProviderContainer makeContainer() {
     final ProviderContainer container = ProviderContainer(
-      overrides: <Override>[
+      overrides: [
         liveRepositoryProvider.overrideWithValue(repository),
       ],
     );
@@ -48,10 +48,10 @@ void main() {
 
     final ProviderContainer container = makeContainer();
     // build() triggers the first fetch; await a microtask turn.
-    await container.read(liveChannelsNotifierProvider.notifier).silentRefresh();
+    await container.read(liveChannelsProvider.notifier).silentRefresh();
 
     expect(
-      container.read(liveChannelsNotifierProvider),
+      container.read(liveChannelsProvider),
       AsyncState<IList<Channel>>.success(channels),
     );
   });
@@ -61,10 +61,10 @@ void main() {
         .thenAnswer((_) async => left(const Failures.network()));
 
     final ProviderContainer container = makeContainer();
-    await container.read(liveChannelsNotifierProvider.notifier).silentRefresh();
+    await container.read(liveChannelsProvider.notifier).silentRefresh();
 
     expect(
-      container.read(liveChannelsNotifierProvider),
+      container.read(liveChannelsProvider),
       const AsyncState<IList<Channel>>.error(Failures.network()),
     );
   });

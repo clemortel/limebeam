@@ -12,7 +12,7 @@ part "providers.g.dart";
 
 /// Bridges the GetIt-registered repository into Riverpod.
 @Riverpod(keepAlive: true)
-IVodRepository vodRepository(VodRepositoryRef ref) =>
+IVodRepository vodRepository(Ref ref) =>
     GetIt.instance<IVodRepository>();
 
 /// Selected VOD category ("" = all).

@@ -56,7 +56,7 @@ class SearchQuery extends _$SearchQuery {
 
 /// Filters the cached content by the debounced query into [SearchResults].
 @riverpod
-SearchResults searchResults(SearchResultsRef ref) {
+SearchResults searchResults(Ref ref) {
   perfLog("searchResults compute START");
   final String q = ref.watch(searchQueryProvider).toLowerCase();
   if (q.isEmpty) {
@@ -65,9 +65,9 @@ SearchResults searchResults(SearchResultsRef ref) {
   }
 
   final IList<Channel> channels =
-      _data(ref.watch(liveChannelsNotifierProvider));
-  final IList<Movie> movies = _data(ref.watch(vodNotifierProvider));
-  final IList<Series> series = _data(ref.watch(seriesNotifierProvider));
+      _data(ref.watch(liveChannelsProvider));
+  final IList<Movie> movies = _data(ref.watch(vodProvider));
+  final IList<Series> series = _data(ref.watch(seriesProvider));
   perfLog(
     "searchResults: catalog read ch=${channels.length} "
     "mv=${movies.length} sr=${series.length}",
@@ -76,13 +76,13 @@ SearchResults searchResults(SearchResultsRef ref) {
   // Parental masking: adult categories must not surface in search (charte §7.4).
   final bool hideAdult = ref.watch(adultHiddenProvider);
   final Set<String> adultChannels = hideAdult
-      ? _adultLiveIds(ref.watch(liveCategoriesNotifierProvider))
+      ? _adultLiveIds(ref.watch(liveCategoriesProvider))
       : const <String>{};
   final Set<String> adultMovies = hideAdult
-      ? _adultVodIds(ref.watch(vodCategoriesNotifierProvider))
+      ? _adultVodIds(ref.watch(vodCategoriesProvider))
       : const <String>{};
   final Set<String> adultSeries = hideAdult
-      ? _adultSeriesIds(ref.watch(seriesCategoriesNotifierProvider))
+      ? _adultSeriesIds(ref.watch(seriesCategoriesProvider))
       : const <String>{};
 
   bool matches(String name) => name.toLowerCase().contains(q);

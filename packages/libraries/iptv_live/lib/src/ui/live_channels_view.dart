@@ -29,11 +29,11 @@ class LiveChannelsView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final AppTheme t = context.appTheme;
     final AsyncState<IList<Channel>> channelsState =
-        ref.watch(liveChannelsNotifierProvider);
+        ref.watch(liveChannelsProvider);
     final String selected = ref.watch(selectedLiveCategoryProvider);
-    final LiveViewMode mode = ref.watch(liveViewModeNotifierProvider);
+    final LiveViewMode mode = ref.watch(liveViewModeProvider);
     final ISet<String> adultIds = hideAdult
-        ? _adultCategoryIds(ref.watch(liveCategoriesNotifierProvider))
+        ? _adultCategoryIds(ref.watch(liveCategoriesProvider))
         : const ISetConst<String>(<String>{});
 
     return Scaffold(
@@ -50,7 +50,7 @@ class LiveChannelsView extends ConsumerWidget {
               color: t.colors.textPrimary,
             ),
             onPressed: () =>
-                ref.read(liveViewModeNotifierProvider.notifier).toggle(),
+                ref.read(liveViewModeProvider.notifier).toggle(),
           ),
         ],
       ),
@@ -120,7 +120,7 @@ class _CategoryChips extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final AppTheme t = context.appTheme;
     final AsyncState<IList<LiveCategory>> state =
-        ref.watch(liveCategoriesNotifierProvider);
+        ref.watch(liveCategoriesProvider);
     final String selected = ref.watch(selectedLiveCategoryProvider);
 
     final IList<LiveCategory> all = switch (state) {

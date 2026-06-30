@@ -37,7 +37,7 @@ class MovieDetailView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final AppTheme t = context.appTheme;
     final AsyncState<MovieInfo> info =
-        ref.watch(movieInfoNotifierProvider(movie.streamId));
+        ref.watch(movieInfoProvider(movie.streamId));
 
     return Scaffold(
       backgroundColor: t.colors.bgBase,

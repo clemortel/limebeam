@@ -12,7 +12,7 @@ part "providers.g.dart";
 
 /// Bridges the GetIt-registered repository into Riverpod.
 @Riverpod(keepAlive: true)
-ISeriesRepository seriesRepository(SeriesRepositoryRef ref) =>
+ISeriesRepository seriesRepository(Ref ref) =>
     GetIt.instance<ISeriesRepository>();
 
 /// Selected series category ("" = all).

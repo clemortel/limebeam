@@ -268,7 +268,7 @@ class DonationsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return SupportDeveloperView(
       onTipped: () =>
-          ref.read(appPreferencesNotifierProvider.notifier).markSupporter(),
+          ref.read(appPreferencesProvider.notifier).markSupporter(),
     );
   }
 }

@@ -49,7 +49,7 @@ class TipPromptService {
   Future<void> maybeShow(BuildContext context, WidgetRef ref) async {
     if (_shownThisSession) return;
 
-    final AppPreferences prefs = ref.read(appPreferencesNotifierProvider);
+    final AppPreferences prefs = ref.read(appPreferencesProvider);
     final UsageMetrics usage =
         ref.read(usageMetricsRepositoryProvider).load();
 

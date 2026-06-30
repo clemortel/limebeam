@@ -10,7 +10,7 @@ part "providers.g.dart";
 
 /// Bridges the GetIt-registered repository into Riverpod.
 @Riverpod(keepAlive: true)
-IEpgRepository epgRepository(EpgRepositoryRef ref) =>
+IEpgRepository epgRepository(Ref ref) =>
     GetIt.instance<IEpgRepository>();
 
 /// Loads all EPG entries from cache as the custom [AsyncState]. keepAlive —
@@ -39,8 +39,8 @@ class EpgNotifier extends _$EpgNotifier {
 /// Current programme per EPG channel id at [at]. Used by the live list for
 /// now-playing titles + progress. Empty when EPG is unavailable.
 @riverpod
-Map<String, EpgEntry> epgNow(EpgNowRef ref, DateTime at) {
-  final AsyncState<IList<EpgEntry>> state = ref.watch(epgNotifierProvider);
+Map<String, EpgEntry> epgNow(Ref ref, DateTime at) {
+  final AsyncState<IList<EpgEntry>> state = ref.watch(epgProvider);
   final IList<EpgEntry> entries = switch (state) {
     AsyncSuccess<IList<EpgEntry>>(:final IList<EpgEntry> data) => data,
     _ => const IListConst<EpgEntry>(<EpgEntry>[]),

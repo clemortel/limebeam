@@ -19,7 +19,7 @@ class IptvApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final AppPreferences prefs = ref.watch(appPreferencesNotifierProvider);
+    final AppPreferences prefs = ref.watch(appPreferencesProvider);
     final ThemeMode themeMode = switch (prefs.themeMode) {
       AppThemeMode.system => ThemeMode.system,
       AppThemeMode.light => ThemeMode.light,

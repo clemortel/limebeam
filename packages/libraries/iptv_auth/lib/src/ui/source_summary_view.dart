@@ -23,7 +23,7 @@ class SourceSummaryView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final AppTheme t = context.appTheme;
     final AppLocalizations l = AppLocalizations.of(context);
-    final XtreamFormState s = ref.watch(addXtreamSourceNotifierProvider);
+    final XtreamFormState s = ref.watch(addXtreamSourceProvider);
 
     return Scaffold(
       backgroundColor: t.colors.bgBase,

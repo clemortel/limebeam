@@ -33,7 +33,7 @@ class EpgGuideView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final AppTheme t = context.appTheme;
-    final AsyncState<IList<EpgEntry>> epgState = ref.watch(epgNotifierProvider);
+    final AsyncState<IList<EpgEntry>> epgState = ref.watch(epgProvider);
     final IList<EpgEntry> entries = switch (epgState) {
       AsyncSuccess<IList<EpgEntry>>(:final IList<EpgEntry> data) => data,
       _ => const IListConst<EpgEntry>(<EpgEntry>[]),

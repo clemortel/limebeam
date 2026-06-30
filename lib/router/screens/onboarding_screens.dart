@@ -15,12 +15,12 @@ class WelcomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return WelcomeView(
       onAddSource: () {
-        ref.read(addXtreamSourceNotifierProvider.notifier).reset();
+        ref.read(addXtreamSourceProvider.notifier).reset();
         context.pushRoute(const SourceTypeRoute());
       },
       onHaveSource: () => context.pushRoute(const SourceTypeRoute()),
       onTryDemo: () {
-        ref.read(addM3uSourceNotifierProvider.notifier).reset();
+        ref.read(addM3uSourceProvider.notifier).reset();
         context.pushRoute(ConnectingRoute(kind: SourceType.demo));
       },
     );
@@ -36,11 +36,11 @@ class SourceTypeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return SourceTypeView(
       onXtream: () {
-        ref.read(addXtreamSourceNotifierProvider.notifier).reset();
+        ref.read(addXtreamSourceProvider.notifier).reset();
         context.pushRoute(const XtreamFormRoute());
       },
       onM3u: () {
-        ref.read(addM3uSourceNotifierProvider.notifier).reset();
+        ref.read(addM3uSourceProvider.notifier).reset();
         context.pushRoute(const M3uFormRoute());
       },
     );

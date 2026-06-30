@@ -6,7 +6,7 @@ part "providers.g.dart";
 
 /// Bridges the GetIt-registered repository into Riverpod.
 @Riverpod(keepAlive: true)
-ILiveRepository liveRepository(LiveRepositoryRef ref) =>
+ILiveRepository liveRepository(Ref ref) =>
     GetIt.instance<ILiveRepository>();
 
 /// Currently selected category id for the channel list ("" = all).

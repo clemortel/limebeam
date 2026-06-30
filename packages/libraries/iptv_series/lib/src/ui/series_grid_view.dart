@@ -24,10 +24,10 @@ class SeriesGridView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final AsyncState<IList<Series>> state = ref.watch(seriesNotifierProvider);
+    final AsyncState<IList<Series>> state = ref.watch(seriesProvider);
     final String selected = ref.watch(selectedSeriesCategoryProvider);
     final ISet<String> adultIds = hideAdult
-        ? _adultSeriesCategoryIds(ref.watch(seriesCategoriesNotifierProvider))
+        ? _adultSeriesCategoryIds(ref.watch(seriesCategoriesProvider))
         : const ISetConst<String>(<String>{});
 
     return Column(
@@ -82,7 +82,7 @@ class _SeriesChips extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final AppTheme t = context.appTheme;
     final AsyncState<IList<SeriesCategory>> state =
-        ref.watch(seriesCategoriesNotifierProvider);
+        ref.watch(seriesCategoriesProvider);
     final String selected = ref.watch(selectedSeriesCategoryProvider);
     final IList<SeriesCategory> all = switch (state) {
       AsyncSuccess<IList<SeriesCategory>>(:final IList<SeriesCategory> data) =>

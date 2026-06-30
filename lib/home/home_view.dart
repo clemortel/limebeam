@@ -46,17 +46,17 @@ class HomeView extends ConsumerWidget {
     final AppTheme t = context.appTheme;
     final AppLocalizations l = AppLocalizations.of(context);
     final AsyncState<IList<Channel>> liveState =
-        ref.watch(liveChannelsNotifierProvider);
-    final AsyncState<IList<Movie>> vodState = ref.watch(vodNotifierProvider);
+        ref.watch(liveChannelsProvider);
+    final AsyncState<IList<Movie>> vodState = ref.watch(vodProvider);
     final AsyncState<IList<Series>> seriesState =
-        ref.watch(seriesNotifierProvider);
+        ref.watch(seriesProvider);
     final IList<Channel> channels = _data(liveState);
     final IList<Movie> movies = _data(vodState);
     final IList<Series> series = _data(seriesState);
     final IList<WatchSession> sessions =
-        _data(ref.watch(watchSessionsNotifierProvider));
+        _data(ref.watch(watchSessionsProvider));
     final IList<Favorite> favorites =
-        _data(ref.watch(favoritesNotifierProvider));
+        _data(ref.watch(favoritesProvider));
 
     final bool everythingEmpty =
         channels.isEmpty && movies.isEmpty && series.isEmpty;
@@ -213,7 +213,7 @@ class _ResumeRail extends ConsumerWidget {
           resumeFraction: session.fraction,
           onTap: () => onOpen?.call(session),
           onLongPress: () => ref
-              .read(watchSessionsNotifierProvider.notifier)
+              .read(watchSessionsProvider.notifier)
               .remove(session.kind, session.id),
         );
       },

@@ -23,7 +23,7 @@ void main() {
 
   ProviderContainer makeContainer() {
     final ProviderContainer container = ProviderContainer(
-      overrides: <Override>[
+      overrides: [
         castRepositoryProvider.overrideWithValue(repository),
       ],
     );
@@ -37,7 +37,7 @@ void main() {
     final ProviderContainer container = makeContainer();
 
     expect(
-      container.read(castDevicesNotifierProvider),
+      container.read(castDevicesProvider),
       const AsyncState<IList<CastDevice>>.idle(),
     );
   });
@@ -52,13 +52,13 @@ void main() {
 
     final ProviderContainer container = makeContainer();
     await container
-        .read(castDevicesNotifierProvider.notifier)
+        .read(castDevicesProvider.notifier)
         .startDiscovery();
     // Let the stream emission propagate.
     await Future<void>.delayed(Duration.zero);
 
     expect(
-      container.read(castDevicesNotifierProvider),
+      container.read(castDevicesProvider),
       AsyncState<IList<CastDevice>>.success(devices),
     );
     verify(repository.initialize()).called(1);
@@ -72,12 +72,12 @@ void main() {
 
     final ProviderContainer container = makeContainer();
     final CastDevicesNotifier notifier =
-        container.read(castDevicesNotifierProvider.notifier);
+        container.read(castDevicesProvider.notifier);
     await notifier.startDiscovery();
     notifier.stopDiscovery();
 
     expect(
-      container.read(castDevicesNotifierProvider),
+      container.read(castDevicesProvider),
       const AsyncState<IList<CastDevice>>.idle(),
     );
     verify(repository.stopDiscovery()).called(1);

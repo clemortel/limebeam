@@ -24,7 +24,7 @@ class SourcesSettingsView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final AppTheme t = context.appTheme;
     final AppLocalizations l = AppLocalizations.of(context);
-    final AsyncState<IList<Source>> state = ref.watch(sourcesNotifierProvider);
+    final AsyncState<IList<Source>> state = ref.watch(sourcesProvider);
 
     return Scaffold(
       backgroundColor: t.colors.bgBase,
@@ -67,7 +67,7 @@ class SourcesSettingsView extends ConsumerWidget {
                   return _SourceRow(
                     source: source,
                     onDelete: () => ref
-                        .read(sourcesNotifierProvider.notifier)
+                        .read(sourcesProvider.notifier)
                         .delete(source.id),
                   );
                 },

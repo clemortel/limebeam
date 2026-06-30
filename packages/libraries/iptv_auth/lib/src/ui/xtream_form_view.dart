@@ -35,7 +35,7 @@ class _XtreamFormViewState extends ConsumerState<XtreamFormView> {
   @override
   void initState() {
     super.initState();
-    final XtreamFormState s = ref.read(addXtreamSourceNotifierProvider);
+    final XtreamFormState s = ref.read(addXtreamSourceProvider);
     _name = TextEditingController(text: s.name);
     _host = TextEditingController(text: s.host);
     _user = TextEditingController(text: s.username);
@@ -64,7 +64,7 @@ class _XtreamFormViewState extends ConsumerState<XtreamFormView> {
       FocusScope.of(context).requestFocus(next);
 
   void _submit() {
-    if (ref.read(addXtreamSourceNotifierProvider).canSubmit) {
+    if (ref.read(addXtreamSourceProvider).canSubmit) {
       widget.onContinue();
     }
   }
@@ -73,9 +73,9 @@ class _XtreamFormViewState extends ConsumerState<XtreamFormView> {
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
     final AppLocalizations l = AppLocalizations.of(context);
-    final XtreamFormState state = ref.watch(addXtreamSourceNotifierProvider);
+    final XtreamFormState state = ref.watch(addXtreamSourceProvider);
     final AddXtreamSourceNotifier notifier =
-        ref.read(addXtreamSourceNotifierProvider.notifier);
+        ref.read(addXtreamSourceProvider.notifier);
 
     return Scaffold(
       backgroundColor: t.colors.bgBase,

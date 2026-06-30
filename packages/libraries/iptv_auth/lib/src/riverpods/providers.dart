@@ -9,18 +9,18 @@ part "providers.g.dart";
 
 /// Bridges the GetIt-registered repository into Riverpod.
 @Riverpod(keepAlive: true)
-ISourceRepository sourceRepository(SourceRepositoryRef ref) =>
+ISourceRepository sourceRepository(Ref ref) =>
     GetIt.instance<ISourceRepository>();
 
 /// Exposes the in-memory active-source holder (set on connect / hydrate).
 @Riverpod(keepAlive: true)
-ActiveSourceStore activeSourceStore(ActiveSourceStoreRef ref) =>
+ActiveSourceStore activeSourceStore(Ref ref) =>
     GetIt.instance<ActiveSourceStore>();
 
 /// The active provider client, used to build playable stream URLs. Null when
 /// no source is connected.
 @riverpod
-IPlaylistSource? activePlaylistSource(ActivePlaylistSourceRef ref) {
+IPlaylistSource? activePlaylistSource(Ref ref) {
   final SourceConfig? config = ref.watch(activeSourceStoreProvider).config;
   if (config == null) return null;
   return GetIt.instance<PlaylistSourceFactory>().create(config);

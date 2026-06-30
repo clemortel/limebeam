@@ -24,10 +24,10 @@ class VodGridView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final AsyncState<IList<Movie>> state = ref.watch(vodNotifierProvider);
+    final AsyncState<IList<Movie>> state = ref.watch(vodProvider);
     final String selected = ref.watch(selectedVodCategoryProvider);
     final ISet<String> adultIds = hideAdult
-        ? _adultVodCategoryIds(ref.watch(vodCategoriesNotifierProvider))
+        ? _adultVodCategoryIds(ref.watch(vodCategoriesProvider))
         : const ISetConst<String>(<String>{});
 
     return Column(
@@ -81,7 +81,7 @@ class _VodChips extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final AppTheme t = context.appTheme;
     final AsyncState<IList<VodCategory>> state =
-        ref.watch(vodCategoriesNotifierProvider);
+        ref.watch(vodCategoriesProvider);
     final String selected = ref.watch(selectedVodCategoryProvider);
     final IList<VodCategory> all = switch (state) {
       AsyncSuccess<IList<VodCategory>>(:final IList<VodCategory> data) => data,
