@@ -22,8 +22,12 @@ class MediaKitEngine implements PlaybackEngine {
   MediaKitEngine() {
     // Surface libmpv open/demux/network failures (their real reason, not just
     // the generic "Failed to open <url>"); error level only, debug builds only.
+    // 64 MB demuxer buffer absorbs short network hiccups without stalling.
     _player = Player(
-      configuration: const PlayerConfiguration(logLevel: MPVLogLevel.error),
+      configuration: const PlayerConfiguration(
+        logLevel: MPVLogLevel.error,
+        bufferSize: 64 * 1024 * 1024,
+      ),
     );
     if (kDebugMode) {
       _logSub = _player.stream.log.listen(
@@ -38,6 +42,12 @@ class MediaKitEngine implements PlaybackEngine {
         enableHardwareAcceleration: !playerSoftwareRenderingOnly,
       ),
     );
+    // Android-specific mpv tuning: hardware decode, audio driver, buffer and
+    // network config. Enqueued immediately — applied before any open() call.
+    if (defaultTargetPlatform == TargetPlatform.android &&
+        !playerSoftwareRenderingOnly) {
+      unawaited(_applyAndroidProperties());
+    }
   }
 
   late final Player _player;
@@ -83,6 +93,55 @@ class MediaKitEngine implements PlaybackEngine {
 
   @override
   bool get supportsSyncOffsets => true;
+
+  // --- Android tuning ---------------------------------------------------------
+
+  /// Sets mpv properties that maximise decode and streaming performance on
+  /// Android TV / Firestick. Called once at construction with [unawaited] so
+  /// it does not block the constructor; all props are applied before the first
+  /// [open] call because [start] → [_openIndex] → [open] is always deferred
+  /// to a later frame.
+  Future<void> _applyAndroidProperties() async {
+    final NativePlayer? native = _native;
+    if (native == null) return;
+
+    // Force MediaCodec hardware decode in copy-mode: decodes on the GPU then
+    // copies back via OpenGL — compatible with Flutter's Texture compositor.
+    // More reliable than "auto-copy" on Fire OS (avoids fallbacks to ffmpeg).
+    await native.setProperty("hwdec", "mediacodec-copy");
+
+    // Android's AudioTrack API: lower latency than OpenSL ES on Android 8+.
+    await native.setProperty("ao", "audiotrack");
+
+    // Larger demuxer read-ahead: absorbs micro-dropouts common on WiFi IPTV.
+    await native.setProperty("demuxer-max-bytes", "150MiB");
+    await native.setProperty("demuxer-max-back-bytes", "50MiB");
+    await native.setProperty("demuxer-readahead-secs", "20");
+
+    // Don't pause at stream start waiting for the cache to fill — show the
+    // first frame immediately (critical for live channel zapping speed).
+    await native.setProperty("cache-pause-initial", "no");
+    // Re-buffer only if the buffer drops under 1 s (vs. a larger default).
+    await native.setProperty("cache-pause-wait", "1");
+
+    // Abandon a dead/stalled stream after 15 s (prevents infinite hangs).
+    await native.setProperty("network-timeout", "15");
+
+    // Many IPTV portals reject unknown user-agents or require a browser UA to
+    // serve the correct stream variant.
+    await native.setProperty(
+      "user-agent",
+      "Mozilla/5.0 (Linux; Android 11) AppleWebKit/537.36"
+      " (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36",
+    );
+
+    // Resample audio to stay locked to the display refresh rate (60 Hz on
+    // Firestick) — eliminates the periodic micro-stutters caused by clock drift.
+    await native.setProperty("video-sync", "display-resample");
+
+    // Auto-detect decode thread count for FFmpeg software-decode fallback.
+    await native.setProperty("vd-lavc-threads", "0");
+  }
 
   @override
   Future<void> open(String url) => _player.open(Media(url));

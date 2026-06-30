@@ -202,6 +202,7 @@ class _ChannelList extends ConsumerWidget {
           nowPlaying: entry?.title,
           progress: entry?.progressAt(bucket),
           isLive: true,
+          autofocus: index == 0 && FormFactorScope.isTv(context),
           onTap: () => onOpenChannel?.call(channel),
         );
       },

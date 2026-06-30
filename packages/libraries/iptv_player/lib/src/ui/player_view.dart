@@ -21,6 +21,10 @@ import "../riverpods/player_ui_state.dart";
 
 const double _kPlayButtonSize = 72;
 
+/// Max width of the player controls on TV so buttons don't stretch across a
+/// 1080p/4K screen. The gradient scrim remains full-width.
+const double _kTvControlsMaxWidth = 1280;
+
 /// Step applied by the subtitle/audio sync stepper buttons (250 ms).
 const int _kSyncStepMs = 250;
 
@@ -43,6 +47,11 @@ const Color _kPlayerBackground = Color(0xFF000000);
 const Color _kScrimTop = Color(0x99000000);
 const Color _kScrimBottom = Color(0xCC000000);
 const Color _kPillBg = Color(0xCC000000);
+
+/// Width of the TV side panel (tracks / queue picker).
+const double _kTvPanelWidth = 320;
+/// Slide-in / slide-out duration for the TV side panel.
+const Duration _kTvPanelDuration = Duration(milliseconds: 220);
 
 /// Which level the gesture HUD is showing.
 enum _Hud { volume, brightness }
@@ -71,6 +80,13 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
   // remote keeps driving transport (play/pause/seek) with no visible controls.
   final FocusNode _tvFocusNode = FocusNode(debugLabel: "player-tv");
 
+  // Receives focus when the overlay becomes visible so the remote immediately
+  // lands on the play/pause button (Apple TV behaviour).
+  final FocusNode _playFocusNode = FocusNode(debugLabel: "player-play");
+
+  // TV side panel (tracks picker). Never shown on touch devices.
+  bool _tvPanelVisible = false;
+
   // Captured in [initState] so [dispose] never touches `ref` (which is invalid
   // once the element is defunct). The controller is an app-scoped keepAlive
   // singleton, so the reference stays valid after this route is popped.
@@ -91,6 +107,7 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
   void dispose() {
     _flashTimer?.cancel();
     _tvFocusNode.dispose();
+    _playFocusNode.dispose();
     // Popped (minimized) → show the floating window, keep playing. Deferred to
     // the next frame: mutating the provider this widget watches *during*
     // dispose would notify our own now-defunct element (markNeedsBuild on a
@@ -163,17 +180,38 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
     PlayerUiState state,
     PlaybackController controller,
     bool canScrub,
+    PlaybackQueue queue,
   ) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
     final LogicalKeyboardKey key = event.logicalKey;
 
+    // TV side panel open: Back/Escape closes it before any other key handling.
+    if (_tvPanelVisible &&
+        (key == LogicalKeyboardKey.escape ||
+            key == LogicalKeyboardKey.goBack ||
+            key == LogicalKeyboardKey.browserBack)) {
+      setState(() => _tvPanelVisible = false);
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _playFocusNode.requestFocus(),
+      );
+      return KeyEventResult.handled;
+    }
+
     // Transport media keys work regardless of overlay visibility / focus.
-    if (key == LogicalKeyboardKey.mediaPlayPause ||
-        key == LogicalKeyboardKey.mediaPlay ||
-        key == LogicalKeyboardKey.mediaPause) {
+    // mediaPlay / mediaPause are state-conditional so Fire TV's spurious "play"
+    // event (sent a few seconds after pausing) never accidentally resumes.
+    if (key == LogicalKeyboardKey.mediaPlayPause) {
       controller.playOrPause();
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.mediaPlay) {
+      if (!state.playing) controller.playOrPause();
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.mediaPause) {
+      if (state.playing) controller.playOrPause();
       return KeyEventResult.handled;
     }
     if (canScrub && key == LogicalKeyboardKey.mediaFastForward) {
@@ -215,7 +253,17 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
     }
     if (key == LogicalKeyboardKey.arrowUp ||
         key == LogicalKeyboardKey.arrowDown) {
-      controller.revealOverlay();
+      // Live TV + queue with siblings: D-pad up/down = channel zapping.
+      // Any other content: just reveal the overlay.
+      if (state.isLive && queue.hasSiblings) {
+        if (key == LogicalKeyboardKey.arrowUp) {
+          controller.playPrevious();
+        } else {
+          controller.playNext();
+        }
+      } else {
+        controller.revealOverlay();
+      }
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
@@ -250,14 +298,22 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
     final bool gestures = queue.gesturesEnabled && !isTv;
     final bool scrubGesture = canScrub && !isTv;
 
-    // When the controls auto-hide on TV, pull key focus back to the player so
-    // the remote keeps working without any focused on-screen button.
+    // Overlay visibility → focus management on TV.
+    // Visible: auto-focus the play button so the remote lands on it instantly.
+    // Hidden: reclaim the player focus node so left/right/OK drive transport.
     if (isTv) {
       ref.listen<bool>(
         playbackControllerProvider
             .select((PlayerUiState s) => s.overlayVisible),
         (bool? previous, bool next) {
-          if (!next) _tvFocusNode.requestFocus();
+          if (next) {
+            WidgetsBinding.instance.addPostFrameCallback(
+              (_) => _playFocusNode.requestFocus(),
+            );
+          } else {
+            setState(() => _tvPanelVisible = false);
+            _tvFocusNode.requestFocus();
+          }
         },
       );
     }
@@ -351,12 +407,31 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
                       request: request,
                       queue: queue,
                       controller: controller,
+                      playFocusNode: _playFocusNode,
                       isLandscape: _landscape,
                       onToggleFullscreen: _toggleFullscreen,
                       onMinimize: () => Navigator.of(context).maybePop(),
+                      onShowTracksPanel: isTv
+                          ? () => setState(() => _tvPanelVisible = true)
+                          : null,
                     ),
                   ),
                 ),
+
+                // TV side panel — slides in from the right; contains the track
+                // picker (audio + subtitles). Never rendered on touch devices.
+                if (isTv)
+                  _TvSidePanel(
+                    state: state,
+                    controller: controller,
+                    visible: _tvPanelVisible,
+                    onClose: () {
+                      setState(() => _tvPanelVisible = false);
+                      WidgetsBinding.instance.addPostFrameCallback(
+                        (_) => _playFocusNode.requestFocus(),
+                      );
+                    },
+                  ),
 
                 // Transient feedback — always on top, never blocks input.
                 if (_scrubMs != null)
@@ -398,7 +473,7 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
             focusNode: _tvFocusNode,
             autofocus: true,
             onKeyEvent: (FocusNode node, KeyEvent event) =>
-                _handleTvKey(event, state, controller, canScrub),
+                _handleTvKey(event, state, controller, canScrub, queue),
             child: gestureLayer,
           );
         },
@@ -436,21 +511,27 @@ class _Controls extends StatelessWidget {
     required this.request,
     required this.queue,
     required this.controller,
+    required this.playFocusNode,
     required this.isLandscape,
     required this.onToggleFullscreen,
     required this.onMinimize,
+    this.onShowTracksPanel,
   });
 
   final PlayerUiState state;
   final PlaybackRequest request;
   final PlaybackQueue queue;
   final PlaybackController controller;
+  final FocusNode playFocusNode;
   final bool isLandscape;
   final VoidCallback onToggleFullscreen;
   final VoidCallback onMinimize;
+  /// Non-null on TV: opens the side panel instead of a bottom sheet.
+  final VoidCallback? onShowTracksPanel;
 
   @override
   Widget build(BuildContext context) {
+    final bool isTv = FormFactorScope.isTv(context);
     return DecoratedBox(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -460,32 +541,43 @@ class _Controls extends StatelessWidget {
           stops: <double>[0, 0.5, 1],
         ),
       ),
+      // Gradient is full-width; only the controls content is constrained on TV
+      // so the scrim stays edge-to-edge while buttons don't span a 55" screen.
       child: SafeArea(
-        child: Column(
-          children: <Widget>[
-            _TopBar(
-              request: request,
-              isLive: state.isLive,
-              onMinimize: onMinimize,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: isTv ? _kTvControlsMaxWidth : double.infinity,
             ),
-            Expanded(
-              child: Center(
-                child: _CenterControls(
+            child: Column(
+              children: <Widget>[
+                _TopBar(
+                  request: request,
+                  isLive: state.isLive,
+                  onMinimize: onMinimize,
+                ),
+                Expanded(
+                  child: Center(
+                    child: _CenterControls(
+                      state: state,
+                      queue: queue,
+                      controller: controller,
+                      playFocusNode: playFocusNode,
+                    ),
+                  ),
+                ),
+                _BottomBar(
                   state: state,
+                  request: request,
                   queue: queue,
                   controller: controller,
+                  isLandscape: isLandscape,
+                  onToggleFullscreen: onToggleFullscreen,
+                  onShowTracksPanel: onShowTracksPanel,
                 ),
-              ),
+              ],
             ),
-            _BottomBar(
-              state: state,
-              request: request,
-              queue: queue,
-              controller: controller,
-              isLandscape: isLandscape,
-              onToggleFullscreen: onToggleFullscreen,
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -580,11 +672,14 @@ class _CenterControls extends StatelessWidget {
     required this.state,
     required this.queue,
     required this.controller,
+    required this.playFocusNode,
   });
 
   final PlayerUiState state;
   final PlaybackQueue queue;
   final PlaybackController controller;
+  /// Receives focus when the overlay becomes visible on TV.
+  final FocusNode playFocusNode;
 
   @override
   Widget build(BuildContext context) {
@@ -610,15 +705,19 @@ class _CenterControls extends StatelessWidget {
             ),
           )
         else
-          IconButton(
-            iconSize: _kPlayButtonSize,
-            icon: Icon(
+          // PressableScale instead of IconButton so the TV focus ring appears
+          // and the focusNode can be externally requested (overlay auto-focus).
+          PressableScale(
+            focusNode: playFocusNode,
+            onTap: controller.playOrPause,
+            focusBorderRadius: t.radius.fullAll,
+            child: Icon(
               state.playing
                   ? Icons.pause_circle_filled
                   : Icons.play_circle_fill,
+              size: _kPlayButtonSize,
               color: t.colors.textPrimary,
             ),
-            onPressed: controller.playOrPause,
           ),
         SizedBox(width: t.space.x4),
         if (hasSiblings)
@@ -642,6 +741,7 @@ class _BottomBar extends StatelessWidget {
     required this.controller,
     required this.isLandscape,
     required this.onToggleFullscreen,
+    this.onShowTracksPanel,
   });
 
   final PlayerUiState state;
@@ -650,10 +750,14 @@ class _BottomBar extends StatelessWidget {
   final PlaybackController controller;
   final bool isLandscape;
   final VoidCallback onToggleFullscreen;
+  /// Non-null on TV: opens the side panel instead of a bottom sheet.
+  final VoidCallback? onShowTracksPanel;
 
   @override
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
+    final bool isTv = FormFactorScope.isTv(context);
+    final AppLocalizations l = AppLocalizations.of(context);
     return Padding(
       padding:
           EdgeInsets.symmetric(horizontal: t.space.x4, vertical: t.space.x2),
@@ -685,36 +789,49 @@ class _BottomBar extends StatelessWidget {
           Row(
             children: <Widget>[
               if (queue.hasSiblings)
-                TextButton.icon(
-                  onPressed: () => _showQueue(context),
-                  icon: Icon(Icons.playlist_play, color: t.colors.textPrimary),
-                  label: Text(
-                    request.isLive ? AppLocalizations.of(context).playerChannels : AppLocalizations.of(context).playerEpisodes,
-                    style: t.typography.bodyStrong
-                        .copyWith(color: t.colors.textPrimary),
+                // PressableScale wrapper gives the TV focus ring to the queue
+                // button (TextButton.icon has no focus ring affordance).
+                PressableScale(
+                  onTap: () => _showQueue(context),
+                  focusBorderRadius: t.radius.smAll,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: t.space.x2,
+                      vertical: t.space.x2,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        Icon(
+                          Icons.playlist_play,
+                          color: t.colors.textPrimary,
+                        ),
+                        SizedBox(width: t.space.x1),
+                        Text(
+                          request.isLive ? l.playerChannels : l.playerEpisodes,
+                          style: t.typography.bodyStrong
+                              .copyWith(color: t.colors.textPrimary),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               const Spacer(),
               if (state.tracks.hasAny)
-                IconButton(
-                  icon: Icon(
-                    state.tracks.hasSubtitleOn
-                        ? Icons.closed_caption
-                        : Icons.closed_caption_outlined,
-                    color: t.colors.textPrimary,
-                  ),
+                AppIconButton(
+                  icon: state.tracks.hasSubtitleOn
+                      ? Icons.closed_caption
+                      : Icons.closed_caption_outlined,
+                  active: state.tracks.hasSubtitleOn,
                   onPressed: () => _showTracks(context),
                 ),
               const _PipButton(),
               _CastButton(controller: controller),
               // No orientation toggle on TV — it is already full-screen
               // landscape and has no portrait mode.
-              if (!FormFactorScope.isTv(context))
-                IconButton(
-                  icon: Icon(
-                    isLandscape ? Icons.fullscreen_exit : Icons.fullscreen,
-                    color: t.colors.textPrimary,
-                  ),
+              if (!isTv)
+                AppIconButton(
+                  icon: isLandscape ? Icons.fullscreen_exit : Icons.fullscreen,
                   onPressed: onToggleFullscreen,
                 ),
             ],
@@ -725,9 +842,10 @@ class _BottomBar extends StatelessWidget {
   }
 
   void _showQueue(BuildContext context) {
+    final AppLocalizations l = AppLocalizations.of(context);
     AppBottomSheet.show<void>(
       context,
-      title: request.isLive ? AppLocalizations.of(context).playerChannels : AppLocalizations.of(context).playerEpisodes,
+      title: request.isLive ? l.playerChannels : l.playerEpisodes,
       child: _QueueList(
         queue: queue,
         currentIndex: state.queueIndex,
@@ -740,6 +858,11 @@ class _BottomBar extends StatelessWidget {
   }
 
   void _showTracks(BuildContext context) {
+    // TV: delegate to the side panel callback (set by _PlayerViewState).
+    if (onShowTracksPanel != null) {
+      onShowTracksPanel!();
+      return;
+    }
     AppBottomSheet.show<void>(
       context,
       title: AppLocalizations.of(context).playerTracks,
@@ -1412,4 +1535,150 @@ String _formatDuration(Duration d) {
   final String mm = minutes.toString().padLeft(2, "0");
   final String ss = seconds.toString().padLeft(2, "0");
   return hours > 0 ? "$hours:$mm:$ss" : "$mm:$ss";
+}
+
+// ── TV side panel — track picker ─────────────────────────────────────────────
+
+/// Slide-in panel on the right side of the player screen for TV/D-pad track
+/// selection. Replaces the bottom sheet so the user can navigate with
+/// up/down without having to interact with a modal overlay.
+class _TvSidePanel extends ConsumerWidget {
+  const _TvSidePanel({
+    required this.state,
+    required this.controller,
+    required this.visible,
+    required this.onClose,
+  });
+
+  final PlayerUiState state;
+  final PlaybackController controller;
+  final bool visible;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final AppTheme t = context.appTheme;
+    final AppLocalizations l = AppLocalizations.of(context);
+    final PlayerTracks tracks = state.tracks;
+
+    return AnimatedPositioned(
+      duration: _kTvPanelDuration,
+      curve: Curves.easeOut,
+      top: 0,
+      bottom: 0,
+      right: visible ? 0 : -_kTvPanelWidth,
+      width: _kTvPanelWidth,
+      child: ColoredBox(
+        color: const Color(0xEE0A0A0A),
+        child: SafeArea(
+          child: ListView(
+            padding: EdgeInsets.symmetric(vertical: t.space.x4),
+            children: <Widget>[
+              if (tracks.audio.isNotEmpty) ...<Widget>[
+                _TvPanelHeader(label: l.playerAudio),
+                for (int i = 0; i < tracks.audio.length; i++)
+                  _TvTrackItem(
+                    label: _trackLabel(tracks.audio[i], l),
+                    selected: tracks.audio[i].id == tracks.selectedAudioId,
+                    autofocus: i == 0 && visible,
+                    onTap: () {
+                      controller.selectAudioTrack(tracks.audio[i].id);
+                      onClose();
+                    },
+                  ),
+              ],
+              if (tracks.subtitle.isNotEmpty) ...<Widget>[
+                _TvPanelHeader(label: l.playerSubtitles),
+                _TvTrackItem(
+                  label: l.playerSubtitlesOff,
+                  selected: !tracks.hasSubtitleOn,
+                  autofocus: tracks.audio.isEmpty && visible,
+                  onTap: () {
+                    controller.selectSubtitleTrack(MediaTrack.noneId);
+                    onClose();
+                  },
+                ),
+                for (final MediaTrack track in tracks.subtitle)
+                  _TvTrackItem(
+                    label: _trackLabel(track, l),
+                    selected: track.id == tracks.selectedSubtitleId,
+                    onTap: () {
+                      controller.selectSubtitleTrack(track.id);
+                      onClose();
+                    },
+                  ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _trackLabel(MediaTrack track, AppLocalizations l) =>
+      track.label ?? l.playerTrackFallback(track.id);
+}
+
+class _TvPanelHeader extends StatelessWidget {
+  const _TvPanelHeader({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppTheme t = context.appTheme;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(t.space.x4, t.space.x3, t.space.x4, t.space.x1),
+      child: Text(
+        label,
+        style: t.typography.caption.copyWith(color: t.colors.textTertiary),
+      ),
+    );
+  }
+}
+
+class _TvTrackItem extends StatelessWidget {
+  const _TvTrackItem({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.autofocus = false,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final bool autofocus;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppTheme t = context.appTheme;
+    return PressableScale(
+      onTap: onTap,
+      autofocus: autofocus,
+      focusBorderRadius: t.radius.smAll,
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: t.space.x4,
+          vertical: t.space.x3,
+        ),
+        child: Row(
+          children: <Widget>[
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: t.typography.body.copyWith(
+                  color: selected ? t.colors.accent : t.colors.textPrimary,
+                ),
+              ),
+            ),
+            if (selected)
+              Icon(Icons.check, size: 18, color: t.colors.accent),
+          ],
+        ),
+      ),
+    );
+  }
 }

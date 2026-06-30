@@ -16,6 +16,7 @@ import "../domain/subtitle_style.dart";
 import "../infrastructure/airplay_monitor.dart";
 import "../infrastructure/av_player_engine.dart";
 import "../infrastructure/media_kit_engine.dart";
+import "../pip/media_session_service.dart";
 import "player_ui_state.dart";
 
 part "player_controller.g.dart";
@@ -116,9 +117,18 @@ class PlaybackController extends _$PlaybackController {
   /// Whether casting is supported on this build (repository registered).
   bool get canCast => _castRepo != null;
 
+  static const MediaSessionService _mediaSession = MediaSessionService();
+
   @override
   PlayerUiState build() {
     ref.onDispose(_release);
+    // Forward native media-button intents (voice, HDMI-CEC, lock screen) to
+    // the playback engine. The handler is idempotent — safe to re-register on
+    // hot-restart because the MethodChannel replaces the previous handler.
+    _mediaSession.setCommandHandler((bool play) {
+      final bool alreadyInState = play == state.playing;
+      if (!alreadyInState) playOrPause();
+    });
     return const PlayerUiState();
   }
 
@@ -262,6 +272,9 @@ class PlaybackController extends _$PlaybackController {
       engine.playing.listen((bool p) {
         if (isCasting) return;
         _set(state.copyWith(playing: p, error: p ? null : state.error));
+        // Keep the native MediaSession in sync so the OS knows whether the
+        // pause was intentional (prevents Fire TV auto-resume after ~3 s).
+        unawaited(_mediaSession.setPlaying(playing: p));
         if (p) {
           _watchClock.start();
         } else {

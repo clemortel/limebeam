@@ -20,6 +20,7 @@ class ChannelRow extends StatelessWidget {
     this.progress,
     this.isLive = false,
     this.isFavorite = false,
+    this.autofocus = false,
     this.onToggleFavorite,
     super.key,
   });
@@ -35,6 +36,7 @@ class ChannelRow extends StatelessWidget {
   final double? progress;
   final bool isLive;
   final bool isFavorite;
+  final bool autofocus;
   final VoidCallback? onToggleFavorite;
 
   @override
@@ -44,6 +46,7 @@ class ChannelRow extends StatelessWidget {
     return RepaintBoundary(
       child: PressableScale(
         onTap: onTap,
+        autofocus: autofocus,
         child: Container(
           color: t.colors.bgSurface,
           padding: EdgeInsets.symmetric(

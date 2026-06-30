@@ -34,6 +34,7 @@ class SourceTypeView extends StatelessWidget {
                 icon: Icons.vpn_key,
                 title: l.sourceTypeXtream,
                 subtitle: l.sourceTypeXtreamSub,
+                autofocus: FormFactorScope.isTv(context),
                 onTap: onXtream,
               ),
               SizedBox(height: t.space.x4),
@@ -57,12 +58,14 @@ class _TypeCard extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.onTap,
+    this.autofocus = false,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
   final VoidCallback? onTap;
+  final bool autofocus;
 
   @override
   Widget build(BuildContext context) {
@@ -72,6 +75,7 @@ class _TypeCard extends StatelessWidget {
       opacity: enabled ? 1 : 0.4,
       child: PressableScale(
         enabled: enabled,
+        autofocus: autofocus,
         onTap: onTap,
         child: Container(
           width: double.infinity,

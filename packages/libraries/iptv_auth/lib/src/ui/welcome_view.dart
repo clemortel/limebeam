@@ -49,6 +49,7 @@ class WelcomeView extends StatelessWidget {
                       const Spacer(),
                       PrimaryButton(
                         label: l.authAddSource,
+                        autofocus: FormFactorScope.isTv(context),
                         onPressed: onAddSource,
                       ),
                       SizedBox(height: t.space.x2),

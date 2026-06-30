@@ -60,7 +60,11 @@ class SourceSummaryView extends ConsumerWidget {
                         ),
                       ),
                       const Spacer(),
-                      PrimaryButton(label: l.commonValidate, onPressed: onValidate),
+                      PrimaryButton(
+                        label: l.commonValidate,
+                        autofocus: FormFactorScope.isTv(context),
+                        onPressed: onValidate,
+                      ),
                       SizedBox(height: t.space.x2),
                       SecondaryButton(label: l.commonEdit, onPressed: onEdit),
                     ],
