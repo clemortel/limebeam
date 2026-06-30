@@ -3,8 +3,10 @@ import java.util.Properties
 
 plugins {
     id("com.android.application")
-    id("kotlin-android")
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    // kotlin-android is intentionally absent: Flutter's Built-in Kotlin applies
+    // it automatically to avoid conflicts with plugins that also apply KGP
+    // (wakelock_plus, flutter_chrome_cast, package_info_plus).
+    // See: https://docs.flutter.dev/release/breaking-changes/migrate-to-built-in-kotlin
     id("dev.flutter.flutter-gradle-plugin")
 }
 
