@@ -24,14 +24,6 @@
         android:banner="@drawable/tv_banner"
         android:usesCleartextTraffic="true"
         android:largeHeap="true">
-        <!-- media_kit_video 2.0.1+ supports Impeller. Force it on so Flutter
-             uses the Vulkan/GLES Impeller backend instead of Skia, which
-             avoids the EGLImage consistency errors on PowerVR GE8300 that
-             cause 50-70ms raster times every frame during video playback. -->
-        <meta-data
-            android:name="io.flutter.embedding.android.EnableImpeller"
-            android:value="true" />
-
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -50,6 +42,13 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+            <!-- media_kit_video 2.0.1+ supports Impeller. Force it on so Flutter
+                 uses the Vulkan/GLES Impeller path instead of Skia, fixing the
+                 PowerVR EGLImage consistency errors (50-70ms raster per frame).
+                 Must be inside <activity> — engine reads ActivityInfo, not ApplicationInfo. -->
+            <meta-data
+                android:name="io.flutter.embedding.android.EnableImpeller"
+                android:value="true" />
             <!-- LAUNCHER shows on phones; LEANBACK_LAUNCHER shows the app in
                  the Android TV / Fire TV home launcher. -->
             <intent-filter>
