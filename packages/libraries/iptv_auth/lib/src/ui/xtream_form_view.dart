@@ -54,15 +54,20 @@ class _XtreamFormViewState extends ConsumerState<XtreamFormView> {
     super.dispose();
   }
 
-  // nextFocus() moves focus but Android doesn't always trigger showSoftInput
-  // automatically. A post-frame channel call forces the keyboard open.
+  // On TV (Fire TV / Android TV), the QR-code + keyboard dialog is triggered
+  // by the user pressing OK on a focused field — showSoftInput() bypasses it.
+  // So on TV we just move focus and let the user press OK to open the keyboard.
+  // On phone, a post-frame TextInput.show forces the keyboard open since
+  // nextFocus() alone doesn't always call showSoftInput on Android.
   void _advanceFocus() {
     FocusScope.of(context).nextFocus();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        SystemChannels.textInput.invokeMethod<void>('TextInput.show');
-      }
-    });
+    if (!FormFactorScope.isTv(context)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          SystemChannels.textInput.invokeMethod<void>('TextInput.show');
+        }
+      });
+    }
   }
 
   void _submit() {
@@ -96,7 +101,9 @@ class _XtreamFormViewState extends ConsumerState<XtreamFormView> {
               children: <Widget>[
                 AppInput(
                   controller: _name,
-                  autofocus: true,
+                  // On TV, autofocus would pop the Fire TV keyboard immediately
+                  // at screen load — user prefers to navigate with D-pad first.
+                  autofocus: !FormFactorScope.isTv(context),
                   label: l.formSourceName,
                   placeholder: l.xtreamNameHint,
                   errorText: state.nameError,
