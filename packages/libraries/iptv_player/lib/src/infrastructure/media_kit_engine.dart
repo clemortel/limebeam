@@ -113,10 +113,13 @@ class MediaKitEngine implements PlaybackEngine {
     // Android's AudioTrack API: lower latency than OpenSL ES on Android 8+.
     await native.setProperty("ao", "audiotrack");
 
-    // Larger demuxer read-ahead: absorbs micro-dropouts common on WiFi IPTV.
-    await native.setProperty("demuxer-max-bytes", "150MiB");
-    await native.setProperty("demuxer-max-back-bytes", "50MiB");
-    await native.setProperty("demuxer-readahead-secs", "20");
+    // In-memory demuxer buffer: 32 MiB forward + 16 MiB backward.
+    // Fire TV Stick 4K has ~1.5 GB RAM total; 150 MiB caused memory pressure
+    // and mpv tried (and failed) to spill to a file cache.
+    await native.setProperty("demuxer-max-bytes", "32MiB");
+    await native.setProperty("demuxer-max-back-bytes", "16MiB");
+    // 5 s read-ahead (was 20 s — too aggressive for live, wasted bandwidth).
+    await native.setProperty("demuxer-readahead-secs", "5");
 
     // Don't pause at stream start waiting for the cache to fill — show the
     // first frame immediately (critical for live channel zapping speed).
@@ -135,9 +138,10 @@ class MediaKitEngine implements PlaybackEngine {
       " (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36",
     );
 
-    // Resample audio to stay locked to the display refresh rate (60 Hz on
-    // Firestick) — eliminates the periodic micro-stutters caused by clock drift.
-    await native.setProperty("video-sync", "display-resample");
+    // Sync video to audio clock (mpv default). display-resample was burning
+    // an entire Cortex-A53 core on real-time audio SRC on the Fire TV Stick —
+    // causing frame drops and 100-300 ms Flutter build spikes.
+    await native.setProperty("video-sync", "audio");
 
     // Auto-detect decode thread count for FFmpeg software-decode fallback.
     await native.setProperty("vd-lavc-threads", "0");
