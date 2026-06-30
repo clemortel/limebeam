@@ -15,7 +15,6 @@ const double _kFormMaxWidth = 560;
 class XtreamFormView extends ConsumerStatefulWidget {
   const XtreamFormView({required this.onContinue, super.key});
 
-  /// Called when the user proceeds to the summary with a valid form.
   final VoidCallback onContinue;
 
   @override
@@ -28,9 +27,6 @@ class _XtreamFormViewState extends ConsumerState<XtreamFormView> {
   late final TextEditingController _user;
   late final TextEditingController _pass;
 
-  // Explicit FocusNodes on every field so _advance() can target them by name.
-  // nextFocus() traversal order is not guaranteed in a ListView on TV and can
-  // skip fields or land on labels / buttons instead of the next TextField.
   late final FocusNode _nameFocus;
   late final FocusNode _hostFocus;
   late final FocusNode _userFocus;
@@ -44,10 +40,50 @@ class _XtreamFormViewState extends ConsumerState<XtreamFormView> {
     _host = TextEditingController(text: s.host);
     _user = TextEditingController(text: s.username);
     _pass = TextEditingController(text: s.password);
-    _nameFocus = FocusNode();
-    _hostFocus = FocusNode();
-    _userFocus = FocusNode();
-    _passFocus = FocusNode();
+
+    _nameFocus = _fieldNode(next: () => _advance(_hostFocus));
+    _hostFocus = _fieldNode(next: () => _advance(_userFocus));
+    _userFocus = _fieldNode(next: () => _advance(_passFocus));
+    _passFocus = _fieldNode(next: _submit);
+  }
+
+  // Creates a FocusNode that handles D-pad Down / Enter → advance.
+  // On TV the Fire TV keyboard is a native overlay Activity; it may not send
+  // an IME action back to Flutter, so we can't rely on onEditingComplete alone.
+  // Handling the key event directly on the FocusNode is always reliable.
+  FocusNode _fieldNode({required VoidCallback next}) {
+    final FocusNode node = FocusNode();
+    node.onKeyEvent = (_, KeyEvent event) {
+      if (event is! KeyDownEvent) return KeyEventResult.ignored;
+      final LogicalKeyboardKey key = event.logicalKey;
+      if (key == LogicalKeyboardKey.arrowDown ||
+          key == LogicalKeyboardKey.enter ||
+          key == LogicalKeyboardKey.numpadEnter) {
+        next();
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    };
+    return node;
+  }
+
+  // Unfocuses the current field first (closes IME connection so D-pad can
+  // navigate freely), then requests focus on the next field after a frame.
+  // On phone we also force the keyboard open; on TV the user presses OK.
+  void _advance(FocusNode next) {
+    FocusManager.instance.primaryFocus?.unfocus();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      next.requestFocus();
+      if (!FormFactorScope.isTv(context)) {
+        SystemChannels.textInput.invokeMethod<void>('TextInput.show');
+      }
+    });
+  }
+
+  void _submit() {
+    _passFocus.unfocus();
+    if (ref.read(addXtreamSourceProvider).canSubmit) widget.onContinue();
   }
 
   @override
@@ -63,27 +99,6 @@ class _XtreamFormViewState extends ConsumerState<XtreamFormView> {
     super.dispose();
   }
 
-  // Moves focus to [next] and, on non-TV platforms, forces the soft keyboard
-  // open. On Fire TV / Android TV the keyboard dialog (with QR code) only
-  // opens when the user explicitly presses OK on a focused field; calling
-  // showSoftInput() bypasses that native UI and leaves the field focused but
-  // with no keyboard visible.
-  void _advance(FocusNode next) {
-    next.requestFocus();
-    if (!FormFactorScope.isTv(context)) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          SystemChannels.textInput.invokeMethod<void>('TextInput.show');
-        }
-      });
-    }
-  }
-
-  void _submit() {
-    _passFocus.unfocus();
-    if (ref.read(addXtreamSourceProvider).canSubmit) widget.onContinue();
-  }
-
   @override
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
@@ -91,6 +106,7 @@ class _XtreamFormViewState extends ConsumerState<XtreamFormView> {
     final XtreamFormState state = ref.watch(addXtreamSourceProvider);
     final AddXtreamSourceNotifier notifier =
         ref.read(addXtreamSourceProvider.notifier);
+    final bool isTv = FormFactorScope.isTv(context);
 
     return Scaffold(
       backgroundColor: t.colors.bgBase,
@@ -111,8 +127,7 @@ class _XtreamFormViewState extends ConsumerState<XtreamFormView> {
                 AppInput(
                   controller: _name,
                   focusNode: _nameFocus,
-                  // On TV the Fire TV keyboard opens on OK press, not autofocus.
-                  autofocus: !FormFactorScope.isTv(context),
+                  autofocus: !isTv,
                   label: l.formSourceName,
                   placeholder: l.xtreamNameHint,
                   errorText: state.nameError,
