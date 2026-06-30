@@ -28,9 +28,12 @@ class _XtreamFormViewState extends ConsumerState<XtreamFormView> {
   late final TextEditingController _user;
   late final TextEditingController _pass;
 
-  // Only the last field needs an explicit FocusNode (to unfocus on submit).
-  // Intermediate fields use FocusScope.nextFocus() which correctly handles
-  // both the IME "Next" button and D-pad navigation on Android TV.
+  // Explicit FocusNodes on every field so _advance() can target them by name.
+  // nextFocus() traversal order is not guaranteed in a ListView on TV and can
+  // skip fields or land on labels / buttons instead of the next TextField.
+  late final FocusNode _nameFocus;
+  late final FocusNode _hostFocus;
+  late final FocusNode _userFocus;
   late final FocusNode _passFocus;
 
   @override
@@ -41,6 +44,9 @@ class _XtreamFormViewState extends ConsumerState<XtreamFormView> {
     _host = TextEditingController(text: s.host);
     _user = TextEditingController(text: s.username);
     _pass = TextEditingController(text: s.password);
+    _nameFocus = FocusNode();
+    _hostFocus = FocusNode();
+    _userFocus = FocusNode();
     _passFocus = FocusNode();
   }
 
@@ -50,17 +56,20 @@ class _XtreamFormViewState extends ConsumerState<XtreamFormView> {
     _host.dispose();
     _user.dispose();
     _pass.dispose();
+    _nameFocus.dispose();
+    _hostFocus.dispose();
+    _userFocus.dispose();
     _passFocus.dispose();
     super.dispose();
   }
 
-  // On TV (Fire TV / Android TV), the QR-code + keyboard dialog is triggered
-  // by the user pressing OK on a focused field — showSoftInput() bypasses it.
-  // So on TV we just move focus and let the user press OK to open the keyboard.
-  // On phone, a post-frame TextInput.show forces the keyboard open since
-  // nextFocus() alone doesn't always call showSoftInput on Android.
-  void _advanceFocus() {
-    FocusScope.of(context).nextFocus();
+  // Moves focus to [next] and, on non-TV platforms, forces the soft keyboard
+  // open. On Fire TV / Android TV the keyboard dialog (with QR code) only
+  // opens when the user explicitly presses OK on a focused field; calling
+  // showSoftInput() bypasses that native UI and leaves the field focused but
+  // with no keyboard visible.
+  void _advance(FocusNode next) {
+    next.requestFocus();
     if (!FormFactorScope.isTv(context)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
@@ -101,35 +110,35 @@ class _XtreamFormViewState extends ConsumerState<XtreamFormView> {
               children: <Widget>[
                 AppInput(
                   controller: _name,
-                  // On TV, autofocus would pop the Fire TV keyboard immediately
-                  // at screen load — user prefers to navigate with D-pad first.
+                  focusNode: _nameFocus,
+                  // On TV the Fire TV keyboard opens on OK press, not autofocus.
                   autofocus: !FormFactorScope.isTv(context),
                   label: l.formSourceName,
                   placeholder: l.xtreamNameHint,
                   errorText: state.nameError,
                   onChanged: notifier.setName,
-                  // nextFocus() advances focus AND keeps the keyboard open on
-                  // the new field — correct for both IME and TV D-pad.
-                  onEditingComplete: _advanceFocus,
+                  onEditingComplete: () => _advance(_hostFocus),
                 ),
                 SizedBox(height: t.space.x4),
                 AppInput(
                   controller: _host,
+                  focusNode: _hostFocus,
                   label: l.xtreamHost,
                   placeholder: "http://monportail.tv:8080",
                   keyboardType: TextInputType.url,
                   errorText: state.hostError,
                   onChanged: notifier.setHost,
-                  onEditingComplete: _advanceFocus,
+                  onEditingComplete: () => _advance(_userFocus),
                 ),
                 SizedBox(height: t.space.x4),
                 AppInput(
                   controller: _user,
+                  focusNode: _userFocus,
                   label: l.xtreamUsername,
                   placeholder: l.xtreamUsernameHint,
                   errorText: state.usernameError,
                   onChanged: notifier.setUsername,
-                  onEditingComplete: _advanceFocus,
+                  onEditingComplete: () => _advance(_passFocus),
                 ),
                 SizedBox(height: t.space.x4),
                 AppInput(
