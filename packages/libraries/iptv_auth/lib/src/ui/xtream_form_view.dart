@@ -27,9 +27,9 @@ class _XtreamFormViewState extends ConsumerState<XtreamFormView> {
   late final TextEditingController _user;
   late final TextEditingController _pass;
 
-  late final FocusNode _nameFocus;
-  late final FocusNode _hostFocus;
-  late final FocusNode _userFocus;
+  // Only the last field needs an explicit FocusNode (to unfocus on submit).
+  // Intermediate fields use FocusScope.nextFocus() which correctly handles
+  // both the IME "Next" button and D-pad navigation on Android TV.
   late final FocusNode _passFocus;
 
   @override
@@ -40,10 +40,6 @@ class _XtreamFormViewState extends ConsumerState<XtreamFormView> {
     _host = TextEditingController(text: s.host);
     _user = TextEditingController(text: s.username);
     _pass = TextEditingController(text: s.password);
-
-    _nameFocus = FocusNode();
-    _hostFocus = FocusNode();
-    _userFocus = FocusNode();
     _passFocus = FocusNode();
   }
 
@@ -53,20 +49,13 @@ class _XtreamFormViewState extends ConsumerState<XtreamFormView> {
     _host.dispose();
     _user.dispose();
     _pass.dispose();
-    _nameFocus.dispose();
-    _hostFocus.dispose();
-    _userFocus.dispose();
     _passFocus.dispose();
     super.dispose();
   }
 
-  void _moveFocus(FocusNode next) =>
-      FocusScope.of(context).requestFocus(next);
-
   void _submit() {
-    if (ref.read(addXtreamSourceProvider).canSubmit) {
-      widget.onContinue();
-    }
+    _passFocus.unfocus();
+    if (ref.read(addXtreamSourceProvider).canSubmit) widget.onContinue();
   }
 
   @override
@@ -95,33 +84,33 @@ class _XtreamFormViewState extends ConsumerState<XtreamFormView> {
               children: <Widget>[
                 AppInput(
                   controller: _name,
-                  focusNode: _nameFocus,
+                  autofocus: true,
                   label: l.formSourceName,
                   placeholder: l.xtreamNameHint,
                   errorText: state.nameError,
                   onChanged: notifier.setName,
-                  onEditingComplete: () => _moveFocus(_hostFocus),
+                  // nextFocus() advances focus AND keeps the keyboard open on
+                  // the new field — correct for both IME and TV D-pad.
+                  onEditingComplete: FocusScope.of(context).nextFocus,
                 ),
                 SizedBox(height: t.space.x4),
                 AppInput(
                   controller: _host,
-                  focusNode: _hostFocus,
                   label: l.xtreamHost,
                   placeholder: "http://monportail.tv:8080",
                   keyboardType: TextInputType.url,
                   errorText: state.hostError,
                   onChanged: notifier.setHost,
-                  onEditingComplete: () => _moveFocus(_userFocus),
+                  onEditingComplete: FocusScope.of(context).nextFocus,
                 ),
                 SizedBox(height: t.space.x4),
                 AppInput(
                   controller: _user,
-                  focusNode: _userFocus,
                   label: l.xtreamUsername,
                   placeholder: l.xtreamUsernameHint,
                   errorText: state.usernameError,
                   onChanged: notifier.setUsername,
-                  onEditingComplete: () => _moveFocus(_passFocus),
+                  onEditingComplete: FocusScope.of(context).nextFocus,
                 ),
                 SizedBox(height: t.space.x4),
                 AppInput(

@@ -13,6 +13,7 @@ class AppInput extends StatefulWidget {
     this.helperText,
     this.errorText,
     this.obscure = false,
+    this.autofocus = false,
     this.keyboardType,
     this.focusNode,
     this.textInputAction = TextInputAction.next,
@@ -27,6 +28,7 @@ class AppInput extends StatefulWidget {
   final String? helperText;
   final String? errorText;
   final bool obscure;
+  final bool autofocus;
   final TextInputType? keyboardType;
   final FocusNode? focusNode;
   final TextInputAction textInputAction;
@@ -74,6 +76,7 @@ class _AppInputState extends State<AppInput> {
         TextField(
           controller: widget.controller,
           focusNode: widget.focusNode,
+          autofocus: widget.autofocus,
           obscureText: widget.obscure && _hidden,
           keyboardType: widget.keyboardType,
           textInputAction: widget.textInputAction,
