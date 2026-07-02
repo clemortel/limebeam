@@ -47,6 +47,10 @@ dependencies:
   # Device class detection (Android TV / Fire TV leanback feature)
   device_info_plus: ^13.2.0
 
+  # TV D-pad navigation: regions with memory, beam-based traversal, TextField
+  # edge-navigation, focus-never-dies. Replaces manual FocusNode/onKeyEvent.
+  dpad: ^3.0.0
+
   # Functional / models
   dartz: ^0.10.1
   freezed_annotation: ^3.1.0

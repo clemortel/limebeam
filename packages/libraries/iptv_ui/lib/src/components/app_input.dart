@@ -1,10 +1,14 @@
 import "package:flutter/material.dart";
+import "package:iptv_ui/iptv_ui.dart";
 
 import "../theme/app_theme.dart";
 
 /// Text input (§2.7). Helper slot under the field doubles as the error slot.
 /// Password fields get a reveal eye. Validation/error text is supplied by the
 /// caller (computed in a notifier) — this widget holds no business logic.
+///
+/// TV navigation (D-pad edge, Fire TV keyboard, focus-never-dies) is handled
+/// transparently by the dpad package installed at the app root (Dpad.wrap).
 class AppInput extends StatefulWidget {
   const AppInput({
     required this.controller,

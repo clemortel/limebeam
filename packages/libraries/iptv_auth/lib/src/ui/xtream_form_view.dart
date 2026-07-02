@@ -12,6 +12,11 @@ const double _kFormMaxWidth = 560;
 
 /// Form — Xtream (§4.1.4). Fields + inline validation; "Continuer" enabled
 /// only when valid. Field state + validation live in the notifier.
+///
+/// Focus / keyboard behaviour is handled by the dpad package installed at the
+/// app root (Dpad.wrap). On TV, D-pad Down at the cursor edge advances to the
+/// next field; IME composition owns the keys while a Fire TV keyboard is open.
+/// On phone, TextInput.show forces the soft keyboard open after advancing.
 class XtreamFormView extends ConsumerStatefulWidget {
   const XtreamFormView({required this.onContinue, super.key});
 
@@ -26,10 +31,6 @@ class _XtreamFormViewState extends ConsumerState<XtreamFormView> {
   late final TextEditingController _host;
   late final TextEditingController _user;
   late final TextEditingController _pass;
-
-  late final FocusNode _nameFocus;
-  late final FocusNode _hostFocus;
-  late final FocusNode _userFocus;
   late final FocusNode _passFocus;
 
   @override
@@ -40,50 +41,7 @@ class _XtreamFormViewState extends ConsumerState<XtreamFormView> {
     _host = TextEditingController(text: s.host);
     _user = TextEditingController(text: s.username);
     _pass = TextEditingController(text: s.password);
-
-    _nameFocus = _fieldNode(next: () => _advance(_hostFocus));
-    _hostFocus = _fieldNode(next: () => _advance(_userFocus));
-    _userFocus = _fieldNode(next: () => _advance(_passFocus));
-    _passFocus = _fieldNode(next: _submit);
-  }
-
-  // Creates a FocusNode that handles D-pad Down / Enter → advance.
-  // On TV the Fire TV keyboard is a native overlay Activity; it may not send
-  // an IME action back to Flutter, so we can't rely on onEditingComplete alone.
-  // Handling the key event directly on the FocusNode is always reliable.
-  FocusNode _fieldNode({required VoidCallback next}) {
-    final FocusNode node = FocusNode();
-    node.onKeyEvent = (_, KeyEvent event) {
-      if (event is! KeyDownEvent) return KeyEventResult.ignored;
-      final LogicalKeyboardKey key = event.logicalKey;
-      if (key == LogicalKeyboardKey.arrowDown ||
-          key == LogicalKeyboardKey.enter ||
-          key == LogicalKeyboardKey.numpadEnter) {
-        next();
-        return KeyEventResult.handled;
-      }
-      return KeyEventResult.ignored;
-    };
-    return node;
-  }
-
-  // Unfocuses the current field first (closes IME connection so D-pad can
-  // navigate freely), then requests focus on the next field after a frame.
-  // On phone we also force the keyboard open; on TV the user presses OK.
-  void _advance(FocusNode next) {
-    FocusManager.instance.primaryFocus?.unfocus();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      next.requestFocus();
-      if (!FormFactorScope.isTv(context)) {
-        SystemChannels.textInput.invokeMethod<void>('TextInput.show');
-      }
-    });
-  }
-
-  void _submit() {
-    _passFocus.unfocus();
-    if (ref.read(addXtreamSourceProvider).canSubmit) widget.onContinue();
+    _passFocus = FocusNode();
   }
 
   @override
@@ -92,11 +50,25 @@ class _XtreamFormViewState extends ConsumerState<XtreamFormView> {
     _host.dispose();
     _user.dispose();
     _pass.dispose();
-    _nameFocus.dispose();
-    _hostFocus.dispose();
-    _userFocus.dispose();
     _passFocus.dispose();
     super.dispose();
+  }
+
+  void _advance() {
+    // dpad's TextField integration moves focus to the next field via D-pad
+    // edge navigation on TV. onEditingComplete fires on both TV and phone
+    // when the IME action (Next) is received.
+    FocusScope.of(context).nextFocus();
+    if (!FormFactorScope.isTv(context)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) SystemChannels.textInput.invokeMethod<void>('TextInput.show');
+      });
+    }
+  }
+
+  void _submit() {
+    _passFocus.unfocus();
+    if (ref.read(addXtreamSourceProvider).canSubmit) widget.onContinue();
   }
 
   @override
@@ -126,34 +98,32 @@ class _XtreamFormViewState extends ConsumerState<XtreamFormView> {
               children: <Widget>[
                 AppInput(
                   controller: _name,
-                  focusNode: _nameFocus,
+                  // On TV dpad handles autofocus per route; phone opens keyboard.
                   autofocus: !isTv,
                   label: l.formSourceName,
                   placeholder: l.xtreamNameHint,
                   errorText: state.nameError,
                   onChanged: notifier.setName,
-                  onEditingComplete: () => _advance(_hostFocus),
+                  onEditingComplete: _advance,
                 ),
                 SizedBox(height: t.space.x4),
                 AppInput(
                   controller: _host,
-                  focusNode: _hostFocus,
                   label: l.xtreamHost,
                   placeholder: "http://monportail.tv:8080",
                   keyboardType: TextInputType.url,
                   errorText: state.hostError,
                   onChanged: notifier.setHost,
-                  onEditingComplete: () => _advance(_userFocus),
+                  onEditingComplete: _advance,
                 ),
                 SizedBox(height: t.space.x4),
                 AppInput(
                   controller: _user,
-                  focusNode: _userFocus,
                   label: l.xtreamUsername,
                   placeholder: l.xtreamUsernameHint,
                   errorText: state.usernameError,
                   onChanged: notifier.setUsername,
-                  onEditingComplete: () => _advance(_passFocus),
+                  onEditingComplete: _advance,
                 ),
                 SizedBox(height: t.space.x4),
                 AppInput(

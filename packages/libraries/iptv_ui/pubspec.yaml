@@ -13,6 +13,7 @@ environment:
 # Components take primitives + callbacks only.
 dependencies:
   cached_network_image: ^3.4.1
+  dpad: ^3.0.0
   flutter:
     sdk: flutter
 

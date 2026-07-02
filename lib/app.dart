@@ -1,3 +1,4 @@
+import "package:dpad/dpad.dart";
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart"
     hide AsyncData, AsyncError, AsyncLoading, AsyncValue;
@@ -53,12 +54,16 @@ class IptvApp extends ConsumerWidget {
       supportedLocales: AppLocalizations.supportedLocales,
       locale: locale,
       routerConfig: appRouter.config(),
+      // Dpad.wrap() installs beam-based D-pad traversal for every route, dialog
+      // and sheet. TextFields navigate away at cursor edges on TV; focus never
+      // dies. The existing builder is chained inside as the inner builder.
+      // debugOverlay: true — enable to visualise focus nodes while developing.
       builder: (BuildContext context, Widget? child) {
         // TV is decided by the platform probe; phone vs tablet by viewport.
         final FormFactor formFactor = isTelevision
             ? FormFactor.tv
             : formFactorFromSize(MediaQuery.sizeOf(context));
-        return MediaQuery(
+        final Widget inner = MediaQuery(
           data: MediaQuery.of(context).copyWith(textScaler: textScaler),
           // The active device class flows to every widget through this scope
           // (nav shell, grids, player) without prop-drilling.
@@ -83,6 +88,7 @@ class IptvApp extends ConsumerWidget {
             ),
           ),
         );
+        return Dpad.wrap()(context, inner);
       },
     );
   }
