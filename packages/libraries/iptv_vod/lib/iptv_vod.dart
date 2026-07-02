@@ -1,7 +1,7 @@
 /// iptv_vod — movies (VOD).
 ///
 /// Public surface only. Implementation stays private under `src/`.
-library iptv_vod;
+library;
 
 export "src/di.dart";
 export "src/infrastructure/vod_repository.dart" show IVodRepository;

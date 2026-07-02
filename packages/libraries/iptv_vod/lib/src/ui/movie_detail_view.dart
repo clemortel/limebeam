@@ -43,7 +43,7 @@ class MovieDetailView extends ConsumerWidget {
       backgroundColor: t.colors.bgBase,
       appBar: AppBar(backgroundColor: t.colors.bgBase, actions: actions),
       body: ListView(
-        padding: EdgeInsets.only(bottom: t.space.x8),
+        padding: EdgeInsets.only(bottom: t.space.x8) + tvOverscan(context),
         children: <Widget>[
           _Hero(posterUrl: movie.posterUrl, backdropUrl: _backdrop(info)),
           Padding(

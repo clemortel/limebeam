@@ -56,6 +56,8 @@ class XtreamFormScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return XtreamFormView(
       onContinue: () => context.pushRoute(const SourceSummaryRoute()),
+      // Phone-filled + reviewed on TV → skip the summary, connect straight away.
+      onPhoneFilled: () => context.pushRoute(ConnectingRoute()),
     );
   }
 }

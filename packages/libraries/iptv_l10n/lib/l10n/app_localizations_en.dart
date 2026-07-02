@@ -207,6 +207,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get commonContinue => 'Continue';
 
   @override
+  String get typeOnPhone => 'Type on your phone';
+
+  @override
+  String get typeOnPhoneHint => 'Fastest — scan a code and type on your phone';
+
+  @override
+  String get orEnterManually => 'or enter manually';
+
+  @override
   String get commonValidate => 'Confirm';
 
   @override

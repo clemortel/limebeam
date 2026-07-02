@@ -41,6 +41,29 @@ int posterGridColumns(FormFactor formFactor) => switch (formFactor) {
       FormFactor.tv => 5,
     };
 
+/// Fraction of the screen kept as a TV overscan-safe margin. Many TVs crop the
+/// outer ~5% of the panel; content inside this inset is guaranteed visible.
+const double _kTvOverscanFraction = 0.045;
+
+/// Overscan-safe content inset for TV; zero on phone/tablet so touch layouts
+/// are unchanged. Read inside `build` where a [MediaQuery] is available.
+///
+/// [includeLeft] defaults to true for full-screen routes (detail, player,
+/// onboarding). The navigation shell passes `false` because its side rail
+/// already owns the left edge.
+EdgeInsets tvOverscan(BuildContext context, {bool includeLeft = true}) {
+  if (!FormFactorScope.isTv(context)) return EdgeInsets.zero;
+  final Size size = MediaQuery.sizeOf(context);
+  final double h = size.width * _kTvOverscanFraction;
+  final double v = size.height * _kTvOverscanFraction;
+  return EdgeInsets.only(
+    left: includeLeft ? h : 0,
+    top: v,
+    right: h,
+    bottom: v,
+  );
+}
+
 /// App-wide form-factor switch. The app wraps its tree once with
 /// `FormFactorScope(formFactor: ...)`; any widget reads the active class via
 /// [FormFactorScope.of] without prop-drilling, keeping this package free of

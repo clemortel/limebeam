@@ -209,6 +209,16 @@ class AppLocalizationsFr extends AppLocalizations {
   String get commonContinue => 'Continuer';
 
   @override
+  String get typeOnPhone => 'Saisir depuis le téléphone';
+
+  @override
+  String get typeOnPhoneHint =>
+      'Le plus rapide — scannez un code et saisissez sur votre téléphone';
+
+  @override
+  String get orEnterManually => 'ou saisir manuellement';
+
+  @override
   String get commonValidate => 'Valider';
 
   @override

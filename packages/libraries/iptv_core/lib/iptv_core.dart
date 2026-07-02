@@ -1,7 +1,7 @@
 /// iptv_core — shared foundation for every IPTV package.
 ///
 /// Exposes the public surface only; implementation stays under `src/`.
-library iptv_core;
+library;
 
 export "src/async_state/async_state.dart";
 export "src/cache/cache_store.dart";

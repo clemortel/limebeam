@@ -30,6 +30,7 @@ class MediaPosterCard extends StatelessWidget {
     this.watched = false,
     this.resumeFraction,
     this.qualityLabel,
+    this.autofocus = false,
     super.key,
   });
 
@@ -45,6 +46,10 @@ class MediaPosterCard extends StatelessWidget {
   final double? resumeFraction;
   final String? qualityLabel;
 
+  /// Anchors the TV remote on this card on first build (set on the first card
+  /// of a grid/rail so entering the content pane always lands focus).
+  final bool autofocus;
+
   @override
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
@@ -54,6 +59,7 @@ class MediaPosterCard extends StatelessWidget {
       child: PressableScale(
         onTap: onTap,
         onLongPress: onLongPress,
+        autofocus: autofocus,
         focusBorderRadius: t.radius.lgAll,
         // The poster flexes to fill the bounded cell/rail height so the two
         // text lines never cause a RenderFlex overflow (incl. large text scale).

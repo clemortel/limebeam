@@ -1,7 +1,7 @@
 /// iptv_settings — app preferences (theme, font scale, playback, parental).
 ///
 /// Public surface only. Implementation stays private under `src/`.
-library iptv_settings;
+library;
 
 export "src/di.dart";
 export "src/infrastructure/preferences_repository.dart"

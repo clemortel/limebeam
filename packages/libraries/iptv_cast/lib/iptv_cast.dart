@@ -6,7 +6,7 @@
 /// models ([CastDevice] / [CastSession]) and the Riverpod surface only.
 ///
 /// Follows the 4-layer pattern — see `iptv_live` for the worked reference.
-library iptv_cast;
+library;
 
 export "src/di.dart";
 export "src/infrastructure/cast_repository.dart" show ICastRepository;

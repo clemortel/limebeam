@@ -2,7 +2,7 @@
 ///
 /// Reference implementation of the 4-layer pattern (models / infrastructure /
 /// riverpods / ui). Mirror this structure in the other feature libraries.
-library iptv_live;
+library;
 
 export "src/di.dart";
 export "src/infrastructure/live_repository.dart" show ILiveRepository;

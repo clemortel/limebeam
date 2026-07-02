@@ -1,7 +1,7 @@
 /// iptv_series — series / seasons / episodes.
 ///
 /// Public surface only. Implementation stays private under `src/`.
-library iptv_series;
+library;
 
 export "src/di.dart";
 export "src/infrastructure/series_repository.dart" show ISeriesRepository;

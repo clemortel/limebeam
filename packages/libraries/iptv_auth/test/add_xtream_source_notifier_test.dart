@@ -1,11 +1,10 @@
 import "package:dartz/dartz.dart" hide IList, IMap, ISet;
-import "package:flutter_riverpod/flutter_riverpod.dart"
-    hide AsyncData, AsyncError, AsyncLoading, AsyncValue;
 import "package:flutter_test/flutter_test.dart";
 import "package:iptv_auth/iptv_auth.dart";
 import "package:iptv_core/iptv_core.dart";
 import "package:mockito/annotations.dart";
 import "package:mockito/mockito.dart";
+import "package:riverpod/src/framework.dart";
 
 import "add_xtream_source_notifier_test.mocks.dart";
 
@@ -30,7 +29,7 @@ void main() {
 
   ProviderContainer makeContainer() {
     final ProviderContainer container = ProviderContainer(
-      overrides: [
+      overrides: <Override>[
         sourceRepositoryProvider.overrideWithValue(repository),
       ],
     );

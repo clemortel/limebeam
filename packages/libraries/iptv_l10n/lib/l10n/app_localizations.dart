@@ -470,6 +470,24 @@ abstract class AppLocalizations {
   /// **'Continuer'**
   String get commonContinue;
 
+  /// No description provided for @typeOnPhone.
+  ///
+  /// In fr, this message translates to:
+  /// **'Saisir depuis le téléphone'**
+  String get typeOnPhone;
+
+  /// No description provided for @typeOnPhoneHint.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le plus rapide — scannez un code et saisissez sur votre téléphone'**
+  String get typeOnPhoneHint;
+
+  /// No description provided for @orEnterManually.
+  ///
+  /// In fr, this message translates to:
+  /// **'ou saisir manuellement'**
+  String get orEnterManually;
+
   /// No description provided for @commonValidate.
   ///
   /// In fr, this message translates to:

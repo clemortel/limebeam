@@ -4,7 +4,7 @@
 /// overlay; the engine stays hidden behind this boundary. Build a
 /// [PlaybackQueue] of [PlaybackRequest]s and pass it in. Call
 /// [ensurePlayerInitialized] once at startup.
-library iptv_player;
+library;
 
 export "src/domain/media_track.dart";
 export "src/domain/playback_queue.dart";

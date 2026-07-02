@@ -88,7 +88,13 @@ class IptvApp extends ConsumerWidget {
             ),
           ),
         );
-        return Dpad.wrap()(context, inner);
+        // Dpad.wrap() places its child as a NON-positioned child of an internal
+        // Stack, so the child receives loose constraints. `inner`'s root Stack
+        // has only Positioned.fill children (+ a 0x0 SizedBox.shrink from
+        // FloatingPlayer on TV), so under loose constraints it collapses to
+        // 0x0 and nothing paints (black screen on Fire TV). SizedBox.expand
+        // forces `inner` to fill the space, restoring tight constraints.
+        return Dpad.wrap()(context, SizedBox.expand(child: inner));
       },
     );
   }

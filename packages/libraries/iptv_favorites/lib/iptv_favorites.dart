@@ -1,7 +1,7 @@
 /// iptv_favorites — Favorites + continue-watching / resume positions.
 ///
 /// Public surface only. Implementation stays private under `src/`.
-library iptv_favorites;
+library;
 
 export "src/di.dart";
 export "src/infrastructure/favorites_repository.dart" show IFavoritesRepository;

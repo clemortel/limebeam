@@ -35,3 +35,4 @@ dev_dependencies:
   json_serializable: ^6.8.0
   mockito: ^5.4.4
   riverpod_generator: ^4.0.3
+  riverpod: any

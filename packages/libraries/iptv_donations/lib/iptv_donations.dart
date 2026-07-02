@@ -1,7 +1,7 @@
 /// iptv_donations — Tip Jar (support the developer) via in-app purchase.
 ///
 /// Public surface only. Implementation stays private under `src/`.
-library iptv_donations;
+library;
 
 export "src/di.dart";
 export "src/infrastructure/donation_repository.dart" show DonationRepository;

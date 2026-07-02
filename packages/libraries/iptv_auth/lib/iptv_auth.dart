@@ -1,7 +1,7 @@
 /// iptv_auth — portal credentials, multi-profile, parental PIN.
 ///
 /// Public surface only. Implementation stays private under `src/`.
-library iptv_auth;
+library;
 
 export "src/di.dart";
 export "src/infrastructure/source_repository.dart" show ISourceRepository;

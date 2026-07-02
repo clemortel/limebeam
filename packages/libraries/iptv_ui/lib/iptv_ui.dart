@@ -2,7 +2,7 @@
 ///
 /// Pure, primitive-only widgets and design tokens. No business logic,
 /// no Failures, no Riverpod. Implementation stays under `src/`.
-library iptv_ui;
+library;
 
 // Brand (LimeBeam mark / wordmark / lockup).
 export "src/brand/brand.dart";

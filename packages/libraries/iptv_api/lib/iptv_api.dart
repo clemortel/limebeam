@@ -3,7 +3,7 @@
 /// Hosts the concrete [HttpService] implementation and the swappable
 /// `IPlaylistSource` provider clients (Xtream / M3U), accessed through
 /// [PlaylistSourceFactory]. Concrete clients stay private under `src/`.
-library iptv_api;
+library;
 
 export "src/di.dart";
 export "src/domain/playlist_source.dart";

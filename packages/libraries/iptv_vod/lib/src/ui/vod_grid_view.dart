@@ -165,6 +165,8 @@ class _Grid extends StatelessWidget {
           title: movie.name,
           subtitle: movie.year ?? "",
           posterUrl: movie.posterUrl,
+          // First card anchors the remote when entering the grid on TV.
+          autofocus: index == 0 && FormFactorScope.isTv(context),
           onTap: () => onOpenMovie?.call(movie),
         );
       },

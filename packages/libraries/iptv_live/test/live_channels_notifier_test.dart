@@ -1,12 +1,11 @@
 import "package:dartz/dartz.dart" hide IList, IMap, ISet;
 import "package:fast_immutable_collections/fast_immutable_collections.dart";
-import "package:flutter_riverpod/flutter_riverpod.dart"
-    hide AsyncData, AsyncError, AsyncLoading, AsyncValue;
 import "package:flutter_test/flutter_test.dart";
 import "package:iptv_core/iptv_core.dart";
 import "package:iptv_live/iptv_live.dart";
 import "package:mockito/annotations.dart";
 import "package:mockito/mockito.dart";
+import "package:riverpod/src/framework.dart";
 
 import "live_channels_notifier_test.mocks.dart";
 
@@ -26,7 +25,7 @@ void main() {
 
   ProviderContainer makeContainer() {
     final ProviderContainer container = ProviderContainer(
-      overrides: [
+      overrides: <Override>[
         liveRepositoryProvider.overrideWithValue(repository),
       ],
     );

@@ -7,6 +7,9 @@ import android.media.session.MediaSession
 import android.media.session.PlaybackState
 import android.os.Build
 import android.util.Rational
+import android.view.KeyEvent
+import android.view.WindowInsets
+import android.view.inputmethod.InputMethodManager
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -18,6 +21,28 @@ class MainActivity : FlutterActivity() {
 
     private lateinit var playerMethodChannel: MethodChannel
     private var mediaSession: MediaSession? = null
+
+    /**
+     * Fire TV shows the system keyboard as a modal overlay that Flutter's
+     * TextField fails to dismiss on Back (flutter/flutter#52170) — the field
+     * traps focus. When the IME is visible, consume Back to hide it instead of
+     * popping the route. Guarded to API 30+ (where IME visibility is
+     * queryable); older Fire OS and phones fall through to normal Back.
+     */
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.keyCode == KeyEvent.KEYCODE_BACK &&
+            event.action == KeyEvent.ACTION_UP &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+        ) {
+            val insets = window.decorView.rootWindowInsets
+            if (insets != null && insets.isVisible(WindowInsets.Type.ime())) {
+                val imm = getSystemService(InputMethodManager::class.java)
+                imm?.hideSoftInputFromWindow(window.decorView.windowToken, 0)
+                return true
+            }
+        }
+        return super.dispatchKeyEvent(event)
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)

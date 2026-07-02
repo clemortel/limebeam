@@ -55,7 +55,7 @@ void main() {
     });
 
     test("should add default port 8080 when no port is specified", () {
-      final XtreamConfig configNoPort = XtreamConfig(
+      const XtreamConfig configNoPort = XtreamConfig(
         host: "http://portal.tv",
         username: "user",
         password: "pass",
@@ -69,7 +69,7 @@ void main() {
     });
 
     test("should preserve explicit port when specified", () {
-      final XtreamConfig configCustomPort = XtreamConfig(
+      const XtreamConfig configCustomPort = XtreamConfig(
         host: "http://portal.tv:9000",
         username: "user",
         password: "pass",

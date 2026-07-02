@@ -70,7 +70,14 @@ class _TvShell extends StatelessWidget {
           body: Row(
             children: <Widget>[
               _SideRail(tabsRouter: tabsRouter),
-              Expanded(child: child),
+              // TV overscan-safe margin around all tab content (top/right/
+              // bottom; the rail owns the left edge). No-op on phone/tablet.
+              Expanded(
+                child: Padding(
+                  padding: tvOverscan(context, includeLeft: false),
+                  child: child,
+                ),
+              ),
             ],
           ),
         );

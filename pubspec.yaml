@@ -51,6 +51,7 @@ dependencies:
   # edge-navigation, focus-never-dies. Replaces manual FocusNode/onKeyEvent.
   dpad: ^3.0.0
 
+
   # Functional / models
   dartz: ^0.10.1
   freezed_annotation: ^3.1.0
@@ -100,6 +101,8 @@ dependencies:
   iptv_settings_part:
     path: packages/parts/iptv_settings_part
 
+  riverpod: any
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -114,6 +117,7 @@ dev_dependencies:
   auto_route_generator: ^10.4.0
   mockito: ^5.4.4
   flutter_launcher_icons: ^0.14.1
+  melos: ^7.4.0
 
 flutter:
   uses-material-design: true
@@ -130,17 +134,27 @@ flutter_launcher_icons:
 melos:
   scripts:
     analyze:
-      description: Analyze all packages.
-      run: dart analyze .
-      exec:
-        concurrency: 1
+      description: Analyze all packages in parallel.
+      exec: dart analyze .
+      packageFilters:
+        dirExists: lib
     build_runner:
-      description: Run code generation in packages that need it.
-      run: dart run build_runner build --delete-conflicting-outputs
+      description: Run code generation in packages that need it (parallel).
+      exec: dart run build_runner build --delete-conflicting-outputs
+      packageFilters:
+        dependsOn: build_runner
+    build_runner:watch:
+      description: Watch-mode code generation in packages that need it.
+      exec: dart run build_runner watch --delete-conflicting-outputs
+      packageFilters:
+        dependsOn: build_runner
+    build_runner:clean:
+      description: Clean generated outputs in packages that need it.
+      exec: dart run build_runner clean
       packageFilters:
         dependsOn: build_runner
     test:
-      description: Run all tests.
-      run: flutter test
+      description: Run all tests in packages that have them.
+      exec: flutter test
       packageFilters:
         dirExists: test

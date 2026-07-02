@@ -30,6 +30,13 @@ dependencies:
     path: ../iptv_ui
   json_annotation: ^4.9.0
   riverpod_annotation: ^4.0.2
+  # "Type on your phone": on-device HTTP + WebSocket server a phone browser
+  # connects to via a scanned QR code, to enter the Xtream URL / credentials
+  # from the phone instead of the TV remote.
+  shelf: ^1.4.0
+  shelf_web_socket: ^3.0.0
+  web_socket_channel: ^3.0.0
+  pretty_qr_code: ^3.3.0
 
 dev_dependencies:
   build_runner: ^2.4.11
@@ -41,3 +48,4 @@ dev_dependencies:
   json_serializable: ^6.8.0
   mockito: ^5.4.4
   riverpod_generator: ^4.0.3
+  riverpod: any
