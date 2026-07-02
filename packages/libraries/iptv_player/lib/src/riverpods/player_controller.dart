@@ -51,6 +51,13 @@ const int _kSeekFlashMs = 700;
 /// Maximum subtitle / audio sync offset the UI allows, in milliseconds (±10s).
 const int _kMaxSyncOffsetMs = 10000;
 
+/// Minimum gap between position/buffer → state emits during playback. libmpv
+/// emits far more often than the seek bar needs; coalescing to ~4 Hz removes
+/// the per-tick full-state notification that rebuilt the whole player and
+/// janked Fire TV (build spikes → dropped video frames). A large jump
+/// (open/seek) always emits so the bar snaps immediately.
+const Duration _kPositionEmitInterval = Duration(milliseconds: 250);
+
 /// App-scoped playback engine (keepAlive): playback **survives** popping the
 /// full-screen player, which is what powers the docked mini-player. Call
 /// [start] to (re)play a queue; [stop] tears the engine down. The concrete
@@ -67,6 +74,11 @@ class PlaybackController extends _$PlaybackController {
   Timer? _flashTimer;
   bool _disposed = false;
   int _lastSavedSeconds = 0;
+
+  /// Last position/buffer actually pushed to [state]; the throttle compares
+  /// against these to decide whether to emit (see [_kPositionEmitInterval]).
+  Duration _lastEmittedPosition = Duration.zero;
+  Duration _lastEmittedBuffer = Duration.zero;
 
   /// Optional continue-watching sink (registered by iptv_favorites).
   final WatchProgressSink? _progressSink =
@@ -260,7 +272,14 @@ class PlaybackController extends _$PlaybackController {
     _subscriptions.add(
       engine.position.listen((Duration p) {
         if (isCasting) return;
-        _set(state.copyWith(position: p));
+        // Coalesce to ~4 Hz; a jump (open/seek) exceeds the interval and emits.
+        final int deltaMs = (p - _lastEmittedPosition).inMilliseconds.abs();
+        if (deltaMs >= _kPositionEmitInterval.inMilliseconds) {
+          _lastEmittedPosition = p;
+          _set(state.copyWith(position: p));
+        }
+        // Save/watch-time run every raw tick (cheap, second-granularity) so the
+        // throttle never delays a resume-point write.
         _maybeSaveProgress();
         if (_watchClock.elapsed.inSeconds >= _kWatchFlushSeconds) {
           _accrueWatchTime(resume: true);
@@ -297,7 +316,12 @@ class PlaybackController extends _$PlaybackController {
     _subscriptions.add(
       engine.buffer.listen((Duration b) {
         if (isCasting) return;
-        _set(state.copyWith(buffer: b));
+        // Buffer ticks as often as position; coalesce it the same way.
+        final int deltaMs = (b - _lastEmittedBuffer).inMilliseconds.abs();
+        if (deltaMs >= _kPositionEmitInterval.inMilliseconds) {
+          _lastEmittedBuffer = b;
+          _set(state.copyWith(buffer: b));
+        }
       }),
     );
     _subscriptions.add(
@@ -499,6 +523,12 @@ class PlaybackController extends _$PlaybackController {
     _set(state.copyWith(countdownSeconds: 0));
     playNext();
   }
+
+  /// Latest known playhead / duration. May lag the engine by up to
+  /// [_kPositionEmitInterval] due to throttling — fine for touch scrub gestures
+  /// (the only readers), which start from the current playhead.
+  Duration get currentPosition => state.position;
+  Duration get currentDuration => state.duration;
 
   /// Current volume as a 0..1 fraction (for the gesture HUD).
   double get currentVolume01 => (_engine?.volume ?? 100) / 100;

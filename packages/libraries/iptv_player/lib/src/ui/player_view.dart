@@ -53,6 +53,23 @@ const Duration _kTvPanelDuration = Duration(milliseconds: 220);
 /// Which level the gesture HUD is showing.
 enum _Hud { volume, brightness }
 
+/// The subset of [PlayerUiState] that changes the player's *structure* (which
+/// overlays exist, focus routing, gesture enablement). [PlayerView] watches
+/// only this via `.select`, so the high-frequency playhead / buffer ticks never
+/// rebuild the whole tree — only the seek bar + labels inside [_Controls] do.
+typedef _PlayerVm = ({
+  bool active,
+  bool overlayVisible,
+  bool playing,
+  bool buffering,
+  bool isLive,
+  bool canScrub,
+  CastDevice? castDevice,
+  Failures? error,
+  String? seekFlash,
+  int countdownSeconds,
+});
+
 /// Full-screen player surface (§4.5). One gesture surface sits under the
 /// controls; all transient feedback (HUD / scrub preview / double-tap flash) is
 /// drawn on top. Reads the app-scoped [PlaybackController] so the engine keeps
@@ -170,14 +187,14 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
   /// are reachable); when it is hidden the remote drives transport directly.
   KeyEventResult _handleTvKey(
     KeyEvent event,
-    PlayerUiState state,
+    _PlayerVm vm,
     PlaybackController controller,
-    bool canScrub,
     PlaybackQueue queue,
   ) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
+    final bool canScrub = vm.canScrub;
     final LogicalKeyboardKey key = event.logicalKey;
 
     // TV side panel open: Back/Escape closes it before any other key handling.
@@ -200,11 +217,11 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.mediaPlay) {
-      if (!state.playing) controller.playOrPause();
+      if (!vm.playing) controller.playOrPause();
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.mediaPause) {
-      if (state.playing) controller.playOrPause();
+      if (vm.playing) controller.playOrPause();
       return KeyEventResult.handled;
     }
     if (canScrub && key == LogicalKeyboardKey.mediaFastForward) {
@@ -225,7 +242,7 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
     }
 
     // Controls visible → defer arrows/select to focus traversal + buttons.
-    if (state.overlayVisible) return KeyEventResult.ignored;
+    if (vm.overlayVisible) return KeyEventResult.ignored;
 
     // Controls hidden → the remote drives the player directly.
     if (key == LogicalKeyboardKey.arrowLeft) {
@@ -248,7 +265,7 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
         key == LogicalKeyboardKey.arrowDown) {
       // Live TV + queue with siblings: D-pad up/down = channel zapping.
       // Any other content: just reveal the overlay.
-      if (state.isLive && queue.hasSiblings) {
+      if (vm.isLive && queue.hasSiblings) {
         if (key == LogicalKeyboardKey.arrowUp) {
           controller.playPrevious();
         } else {
@@ -271,20 +288,37 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
   @override
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
-    final PlayerUiState state = ref.watch(playbackControllerProvider);
+    // Structure-only watch: playhead/duration/buffer are excluded so their
+    // high-frequency ticks don't rebuild this tree (see [_PlayerVm]).
+    final _PlayerVm vm = ref.watch(
+      playbackControllerProvider.select(
+        (PlayerUiState s) => (
+          active: s.active,
+          overlayVisible: s.overlayVisible,
+          playing: s.playing,
+          buffering: s.buffering,
+          isLive: s.isLive,
+          canScrub: !s.isLive && s.duration > Duration.zero,
+          castDevice: s.castDevice,
+          error: s.error,
+          seekFlash: s.seekFlash,
+          countdownSeconds: s.countdownSeconds,
+        ),
+      ),
+    );
     final PlaybackController controller = _controller;
     final PlaybackQueue? queue = controller.queue;
     final PlaybackRequest? request = controller.currentRequest;
     final Widget? videoView = controller.buildVideoView();
 
-    if (!state.active ||
+    if (!vm.active ||
         queue == null ||
         request == null ||
         videoView == null) {
       return const Scaffold(backgroundColor: _kPlayerBackground);
     }
 
-    final bool canScrub = !state.isLive && state.duration > Duration.zero;
+    final bool canScrub = vm.canScrub;
     final bool isTv = FormFactorScope.isTv(context);
     // Touch gestures (drag scrub, swipe volume/brightness, double-tap seek)
     // make no sense with a remote — TV drives the player from [_handleTvKey].
@@ -323,17 +357,21 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
             onTapUp: (_) => controller.toggleOverlay(),
             onDoubleTapDown: (TapDownDetails d) =>
                 _doubleTapDx = d.localPosition.dx,
-            onDoubleTap: state.isLive || isTv
+            onDoubleTap: vm.isLive || isTv
                 ? null
                 : () => _doubleSeek(_doubleTapDx < width / 2),
             onHorizontalDragStart: scrubGesture
                 ? (_) => setState(
-                      () => _scrubMs = state.position.inMilliseconds.toDouble(),
+                      () => _scrubMs =
+                          controller.currentPosition.inMilliseconds.toDouble(),
                     )
                 : null,
             onHorizontalDragUpdate: scrubGesture
-                ? (DragUpdateDetails d) =>
-                    _scrubUpdate(d.primaryDelta ?? 0, width, state.duration)
+                ? (DragUpdateDetails d) => _scrubUpdate(
+                      d.primaryDelta ?? 0,
+                      width,
+                      controller.currentDuration,
+                    )
                 : null,
             onHorizontalDragEnd: scrubGesture
                 ? (_) {
@@ -362,13 +400,13 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
 
                 // While casting the local surface is idle (black); explain why
                 // and name the receiver so the black screen isn't confusing.
-                if (state.castDevice != null)
+                if (vm.castDevice != null)
                   IgnorePointer(
-                    child: _CastingOverlay(device: state.castDevice!),
+                    child: _CastingOverlay(device: vm.castDevice!),
                   ),
 
                 // Brand watermark while watching (controls hidden).
-                if (!state.overlayVisible)
+                if (!vm.overlayVisible)
                   Positioned(
                     top: t.space.x6,
                     right: t.space.x4,
@@ -383,31 +421,29 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
                 // Full-screen spinner only when controls are hidden; while
                 // they're shown the centre play button becomes the spinner
                 // (avoids a spinner stacked behind the play glyph).
-                if (state.buffering &&
-                    state.error == null &&
-                    !state.overlayVisible)
+                if (vm.buffering && vm.error == null && !vm.overlayVisible)
                   const IgnorePointer(child: Center(child: _Buffering())),
 
                 // Controls — above gestures; pointer-ignored + faded when hidden.
-                // Empty areas pass through to the gesture surface (tap to toggle).
-                IgnorePointer(
-                  ignoring: !state.overlayVisible,
-                  child: AnimatedOpacity(
-                    opacity: state.overlayVisible ? 1 : 0,
-                    duration: t.motion.base,
-                    child: _Controls(
-                      state: state,
-                      request: request,
-                      queue: queue,
-                      controller: controller,
-                      playFocusNode: _playFocusNode,
-                      isLandscape: _landscape,
-                      onToggleFullscreen: _toggleFullscreen,
-                      onMinimize: () => Navigator.of(context).maybePop(),
-                      onShowTracksPanel: isTv
-                          ? () => setState(() => _tvPanelVisible = true)
-                          : null,
-                    ),
+                // Empty areas pass through to the gesture surface (tap to
+                // toggle). The subtree is *unmounted* while hidden (after the
+                // fade) so playhead ticks never rebuild the gradient / bars /
+                // seek bar — the main Fire TV jank source. [_Controls] watches
+                // the live state itself, so it only rebuilds while mounted.
+                _ControlsLayer(
+                  visible: vm.overlayVisible,
+                  duration: t.motion.base,
+                  builder: (BuildContext context) => _Controls(
+                    request: request,
+                    queue: queue,
+                    controller: controller,
+                    playFocusNode: _playFocusNode,
+                    isLandscape: _landscape,
+                    onToggleFullscreen: _toggleFullscreen,
+                    onMinimize: () => Navigator.of(context).maybePop(),
+                    onShowTracksPanel: isTv
+                        ? () => setState(() => _tvPanelVisible = true)
+                        : null,
                   ),
                 ),
 
@@ -415,7 +451,6 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
                 // picker (audio + subtitles). Never rendered on touch devices.
                 if (isTv)
                   _TvSidePanel(
-                    state: state,
                     controller: controller,
                     visible: _tvPanelVisible,
                     onClose: () {
@@ -433,7 +468,7 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
                       child: _Pill(
                         text:
                             "${_formatDuration(Duration(milliseconds: _scrubMs!.round()))}"
-                            " / ${_formatDuration(state.duration)}",
+                            " / ${_formatDuration(controller.currentDuration)}",
                       ),
                     ),
                   ),
@@ -443,20 +478,20 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
                       child: _HudIndicator(kind: _hud!, value: _hudValue),
                     ),
                   ),
-                if (state.seekFlash != null)
+                if (vm.seekFlash != null)
                   IgnorePointer(
-                    child: Center(child: _Pill(text: state.seekFlash!)),
+                    child: Center(child: _Pill(text: vm.seekFlash!)),
                   ),
 
-                if (state.countdownSeconds > 0)
+                if (vm.countdownSeconds > 0)
                   _NextEpisodeCard(
-                    seconds: state.countdownSeconds,
+                    seconds: vm.countdownSeconds,
                     onPlayNow: controller.playNextNow,
                     onCancel: controller.cancelCountdown,
                   ),
-                if (state.error != null)
+                if (vm.error != null)
                   _ErrorOverlay(
-                    failure: state.error!,
+                    failure: vm.error!,
                     onRetry: controller.retry,
                   ),
               ],
@@ -468,7 +503,7 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
             focusNode: _tvFocusNode,
             autofocus: true,
             onKeyEvent: (FocusNode node, KeyEvent event) =>
-                _handleTvKey(event, state, controller, canScrub, queue),
+                _handleTvKey(event, vm, controller, queue),
             child: gestureLayer,
           );
         },
@@ -500,9 +535,63 @@ class _Buffering extends StatelessWidget {
       CircularProgressIndicator(color: context.appTheme.colors.accent);
 }
 
-class _Controls extends StatelessWidget {
+/// Fades the controls in/out and, crucially, **unmounts** them once the
+/// fade-out completes so the (state-watching) [_Controls] subtree stops
+/// rebuilding while hidden. Ignores pointers whenever not visible so empty taps
+/// fall through to the gesture surface. [builder] is only invoked while the
+/// controls are on screen — during steady hidden playback nothing is built.
+class _ControlsLayer extends StatefulWidget {
+  const _ControlsLayer({
+    required this.visible,
+    required this.duration,
+    required this.builder,
+  });
+
+  final bool visible;
+  final Duration duration;
+  final WidgetBuilder builder;
+
+  @override
+  State<_ControlsLayer> createState() => _ControlsLayerState();
+}
+
+class _ControlsLayerState extends State<_ControlsLayer> {
+  late bool _mounted = widget.visible;
+
+  @override
+  void didUpdateWidget(_ControlsLayer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Becoming visible: mount immediately so the fade-in has something to show.
+    if (widget.visible && !_mounted) {
+      setState(() => _mounted = true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      ignoring: !widget.visible,
+      child: AnimatedOpacity(
+        opacity: widget.visible ? 1 : 0,
+        duration: widget.duration,
+        // Fade-out finished → drop the subtree so it no longer rebuilds.
+        onEnd: () {
+          if (!widget.visible && _mounted) {
+            setState(() => _mounted = false);
+          }
+        },
+        child: _mounted ? widget.builder(context) : const SizedBox.shrink(),
+      ),
+    );
+  }
+}
+
+/// The transport overlay (scrim + top/center/bottom bars). A [ConsumerWidget]
+/// that watches the live [PlayerUiState] itself: it is only mounted while the
+/// overlay is visible (see [_ControlsLayer]), so the playhead ticks it depends
+/// on rebuild only these bars, never the whole player.
+class _Controls extends ConsumerWidget {
   const _Controls({
-    required this.state,
     required this.request,
     required this.queue,
     required this.controller,
@@ -513,7 +602,6 @@ class _Controls extends StatelessWidget {
     this.onShowTracksPanel,
   });
 
-  final PlayerUiState state;
   final PlaybackRequest request;
   final PlaybackQueue queue;
   final PlaybackController controller;
@@ -525,7 +613,8 @@ class _Controls extends StatelessWidget {
   final VoidCallback? onShowTracksPanel;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final PlayerUiState state = ref.watch(playbackControllerProvider);
     final bool isTv = FormFactorScope.isTv(context);
     return DecoratedBox(
       decoration: const BoxDecoration(
@@ -690,30 +779,31 @@ class _CenterControls extends StatelessWidget {
             onPressed: state.queueIndex > 0 ? controller.playPrevious : null,
           ),
         SizedBox(width: t.space.x4),
-        if (state.buffering)
-          SizedBox(
+        // Always mount the PressableScale that owns [playFocusNode], even while
+        // buffering — otherwise revealing the overlay right after a channel /
+        // episode switch focuses an unmounted node and the remote goes dead
+        // (the buffering spinner just swaps in as its child).
+        PressableScale(
+          focusNode: playFocusNode,
+          onTap: controller.playOrPause,
+          focusBorderRadius: t.radius.fullAll,
+          child: SizedBox(
             width: _kPlayButtonSize,
             height: _kPlayButtonSize,
-            child: Padding(
-              padding: EdgeInsets.all(t.space.x3),
-              child: CircularProgressIndicator(color: t.colors.accent),
-            ),
-          )
-        else
-          // PressableScale instead of IconButton so the TV focus ring appears
-          // and the focusNode can be externally requested (overlay auto-focus).
-          PressableScale(
-            focusNode: playFocusNode,
-            onTap: controller.playOrPause,
-            focusBorderRadius: t.radius.fullAll,
-            child: Icon(
-              state.playing
-                  ? Icons.pause_circle_filled
-                  : Icons.play_circle_fill,
-              size: _kPlayButtonSize,
-              color: t.colors.textPrimary,
-            ),
+            child: state.buffering
+                ? Padding(
+                    padding: EdgeInsets.all(t.space.x3),
+                    child: CircularProgressIndicator(color: t.colors.accent),
+                  )
+                : Icon(
+                    state.playing
+                        ? Icons.pause_circle_filled
+                        : Icons.play_circle_fill,
+                    size: _kPlayButtonSize,
+                    color: t.colors.textPrimary,
+                  ),
           ),
+        ),
         SizedBox(width: t.space.x4),
         if (hasSiblings)
           IconButton(
@@ -1539,13 +1629,11 @@ String _formatDuration(Duration d) {
 /// up/down without having to interact with a modal overlay.
 class _TvSidePanel extends ConsumerWidget {
   const _TvSidePanel({
-    required this.state,
     required this.controller,
     required this.visible,
     required this.onClose,
   });
 
-  final PlayerUiState state;
   final PlaybackController controller;
   final bool visible;
   final VoidCallback onClose;
@@ -1554,7 +1642,10 @@ class _TvSidePanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final AppTheme t = context.appTheme;
     final AppLocalizations l = AppLocalizations.of(context);
-    final PlayerTracks tracks = state.tracks;
+    // Watch only the track list — the panel is independent of the playhead.
+    final PlayerTracks tracks = ref.watch(
+      playbackControllerProvider.select((PlayerUiState s) => s.tracks),
+    );
 
     return AnimatedPositioned(
       duration: _kTvPanelDuration,

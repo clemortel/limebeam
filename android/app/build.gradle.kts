@@ -42,6 +42,14 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // Impeller renderer toggle, injected into AndroidManifest's
+        // EnableImpeller meta-data. Default on (avoids Skia's EGLImage raster
+        // cost on the Fire TV Stick PowerVR GE8300). To A/B against Skia, set
+        // `enableImpeller=false` in android/gradle.properties (or pass
+        // `-PenableImpeller=false`) and rebuild. See tool/perf/README.md.
+        manifestPlaceholders["enableImpeller"] =
+            (project.findProperty("enableImpeller") as String?) ?: "true"
     }
 
     signingConfigs {

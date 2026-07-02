@@ -203,9 +203,19 @@ class MediaKitEngine implements PlaybackEngine {
     );
   }
 
+  /// Built once per engine and reused: a fresh `Video` each call would rebuild
+  /// the texture subtree on every player rebuild. The RepaintBoundary isolates
+  /// the video layer so overlay/HUD repaints never invalidate the texture.
+  Widget? _view;
+
   @override
-  Widget buildView() =>
-      Video(controller: _videoController, controls: null, fit: BoxFit.contain);
+  Widget buildView() => _view ??= RepaintBoundary(
+        child: Video(
+          controller: _videoController,
+          controls: null,
+          fit: BoxFit.contain,
+        ),
+      );
 
   @override
   Future<void> dispose() async {

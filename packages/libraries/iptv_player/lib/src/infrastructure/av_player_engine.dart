@@ -190,10 +190,16 @@ class AvPlayerEngine implements PlaybackEngine {
         "backgroundOpacity": style.backgroundOpacity,
       });
 
+  /// Built once and reused; the RepaintBoundary isolates the platform view so
+  /// overlay repaints never invalidate the AVPlayer surface.
+  Widget? _view;
+
   @override
-  Widget buildView() => const UiKitView(
-        viewType: _kAvViewType,
-        creationParamsCodec: StandardMessageCodec(),
+  Widget buildView() => _view ??= const RepaintBoundary(
+        child: UiKitView(
+          viewType: _kAvViewType,
+          creationParamsCodec: StandardMessageCodec(),
+        ),
       );
 
   @override

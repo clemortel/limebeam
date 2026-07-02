@@ -60,10 +60,13 @@
              enable_impeller=false; setting true activates the Vulkan/GLES Impeller
              renderer, which avoids the Skia EGLImage path that causes 50-70ms raster
              per frame on PowerVR GE8300 (Fire TV Stick). media_kit_video 2.0.1+
-             supports Impeller. -->
+             supports Impeller. The value is a Gradle manifest placeholder
+             (`enableImpeller`, default "true") so it can be flipped for the
+             Impeller-vs-Skia A/B without editing this file — see
+             tool/perf/README.md and app/build.gradle.kts. -->
         <meta-data
             android:name="io.flutter.embedding.android.EnableImpeller"
-            android:value="true" />
+            android:value="${enableImpeller}" />
 
         <!-- Google Cast: receiver options provider (supplied by
              flutter_chrome_cast) + the media-notification service that powers
