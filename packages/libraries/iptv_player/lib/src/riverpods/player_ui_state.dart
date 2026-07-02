@@ -37,5 +37,8 @@ sealed class PlayerUiState with _$PlayerUiState {
     // Whether the active engine supports sync offsets (media_kit yes, AVPlayer
     // no) — the overlay hides those controls when false.
     @Default(false) bool supportsSyncOffsets,
+    // Non-null for _kSeekFlashMs after a double-tap seek so the widget can
+    // display the flash pill without owning any timer state.
+    String? seekFlash,
   }) = _PlayerUiState;
 }

@@ -1,5 +1,3 @@
-import "dart:async";
-
 import "package:fast_immutable_collections/fast_immutable_collections.dart";
 import "package:flutter/foundation.dart";
 import "package:flutter/material.dart";
@@ -42,7 +40,6 @@ const double _kHudIconSize = 28;
 
 /// Vertical drag pixels for a full-range (0→100%) volume/brightness change.
 const double _kVolumeDragSpan = 300;
-const int _kSeekFlashMs = 700;
 const Color _kPlayerBackground = Color(0xFF000000);
 const Color _kScrimTop = Color(0x99000000);
 const Color _kScrimBottom = Color(0xCC000000);
@@ -73,8 +70,6 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
   double? _scrubMs;
   _Hud? _hud;
   double _hudValue = 0;
-  String? _seekFlash;
-  Timer? _flashTimer;
 
   // Owns key input on TV: reclaims focus whenever the overlay auto-hides so the
   // remote keeps driving transport (play/pause/seek) with no visible controls.
@@ -105,7 +100,6 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
 
   @override
   void dispose() {
-    _flashTimer?.cancel();
     _tvFocusNode.dispose();
     _playFocusNode.dispose();
     // Popped (minimized) → show the floating window, keep playing. Deferred to
@@ -138,12 +132,11 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
   }
 
   void _doubleSeek(bool isLeft) {
-    isLeft ? _controller.seekBackward() : _controller.seekForward();
-    setState(() => _seekFlash = isLeft ? "− 10s" : "+ 10s");
-    _flashTimer?.cancel();
-    _flashTimer = Timer(const Duration(milliseconds: _kSeekFlashMs), () {
-      if (mounted) setState(() => _seekFlash = null);
-    });
+    if (isLeft) {
+      _controller.seekBackward();
+    } else {
+      _controller.seekForward();
+    }
   }
 
   void _verticalStart(bool isLeft) {
@@ -450,8 +443,10 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
                       child: _HudIndicator(kind: _hud!, value: _hudValue),
                     ),
                   ),
-                if (_seekFlash != null)
-                  IgnorePointer(child: Center(child: _Pill(text: _seekFlash!))),
+                if (state.seekFlash != null)
+                  IgnorePointer(
+                    child: Center(child: _Pill(text: state.seekFlash!)),
+                  ),
 
                 if (state.countdownSeconds > 0)
                   _NextEpisodeCard(

@@ -45,6 +45,9 @@ const Duration _kResumeSeekTimeout = Duration(seconds: 6);
 /// Poll interval for the remote (Chromecast) playhead while casting.
 const Duration _kCastPollInterval = Duration(seconds: 1);
 
+/// Duration of the seek-flash pill shown after double-tap seek.
+const int _kSeekFlashMs = 700;
+
 /// Maximum subtitle / audio sync offset the UI allows, in milliseconds (±10s).
 const int _kMaxSyncOffsetMs = 10000;
 
@@ -61,6 +64,7 @@ class PlaybackController extends _$PlaybackController {
       <StreamSubscription<dynamic>>[];
   Timer? _hideTimer;
   Timer? _countdownTimer;
+  Timer? _flashTimer;
   bool _disposed = false;
   int _lastSavedSeconds = 0;
 
@@ -231,6 +235,7 @@ class PlaybackController extends _$PlaybackController {
     _maybeSaveProgress(force: true);
     _hideTimer?.cancel();
     _countdownTimer?.cancel();
+    _flashTimer?.cancel();
     _castPollTimer?.cancel();
     _castPollTimer = null;
     await _castConnSub?.cancel();
@@ -579,15 +584,30 @@ class PlaybackController extends _$PlaybackController {
     revealOverlay();
   }
 
-  void seekForward() => _seekBy(_kPlayerSeekStep);
+  void seekForward() {
+    _seekBy(_kPlayerSeekStep);
+    _showSeekFlash("+ 10s");
+  }
 
-  void seekBackward() => _seekBy(-_kPlayerSeekStep);
+  void seekBackward() {
+    _seekBy(-_kPlayerSeekStep);
+    _showSeekFlash("− 10s");
+  }
 
   void seekTo(Duration target) => _seekTo(target);
 
   void _seekBy(Duration delta) {
     if (state.isLive) return;
     _seekTo(state.position + delta);
+  }
+
+  void _showSeekFlash(String label) {
+    _flashTimer?.cancel();
+    _set(state.copyWith(seekFlash: label));
+    _flashTimer = Timer(
+      const Duration(milliseconds: _kSeekFlashMs),
+      () => _set(state.copyWith(seekFlash: null)),
+    );
   }
 
   void playAt(int index) {
