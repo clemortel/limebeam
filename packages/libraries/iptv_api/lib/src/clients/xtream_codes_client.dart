@@ -180,7 +180,7 @@ class XtreamCodesClient implements IPlaylistSource {
 
   // --- helpers -------------------------------------------------------------
 
-  /// Ensures a scheme is present and strips any trailing slash.
+  /// Ensures a scheme is present, adds default port 8080 if missing, and strips any trailing slash.
   static String _normalizeHost(String host) {
     String h = host.trim();
     if (!h.startsWith("http://") && !h.startsWith("https://")) {
@@ -188,6 +188,15 @@ class XtreamCodesClient implements IPlaylistSource {
     }
     while (h.endsWith("/")) {
       h = h.substring(0, h.length - 1);
+    }
+    // Add default port 8080 if no port is specified
+    final Uri? uri = Uri.tryParse(h);
+    if (uri != null) {
+      // Check if the original string has an explicit port (not default 80/443)
+      final bool hasExplicitPort = RegExp(r'://[^/:\s]+:\d+').hasMatch(h);
+      if (!hasExplicitPort) {
+        h = "${uri.scheme}://${uri.host}:8080${uri.hasQuery ? '?${uri.query}' : ''}${uri.hasFragment ? '#${uri.fragment}' : ''}";
+      }
     }
     return h;
   }

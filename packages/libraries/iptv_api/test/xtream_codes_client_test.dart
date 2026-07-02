@@ -53,6 +53,34 @@ void main() {
         "http://portal.tv:8080/series/user/pass/9.mp4",
       );
     });
+
+    test("should add default port 8080 when no port is specified", () {
+      final XtreamConfig configNoPort = XtreamConfig(
+        host: "http://portal.tv",
+        username: "user",
+        password: "pass",
+      );
+      final XtreamCodesClient clientNoPort =
+          XtreamCodesClient(config: configNoPort, http: http);
+      expect(
+        clientNoPort.buildLiveUrl("123"),
+        "http://portal.tv:8080/live/user/pass/123.ts",
+      );
+    });
+
+    test("should preserve explicit port when specified", () {
+      final XtreamConfig configCustomPort = XtreamConfig(
+        host: "http://portal.tv:9000",
+        username: "user",
+        password: "pass",
+      );
+      final XtreamCodesClient clientCustomPort =
+          XtreamCodesClient(config: configCustomPort, http: http);
+      expect(
+        clientCustomPort.buildLiveUrl("123"),
+        "http://portal.tv:9000/live/user/pass/123.ts",
+      );
+    });
   });
 
   group("authenticate", () {
