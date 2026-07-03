@@ -16,15 +16,19 @@ import "../riverpods/providers.dart";
 const double _kBackdropAspect = 16 / 9;
 const int _kSynopsisCollapsedLines = 3;
 
-/// On TV the hero is capped to this fraction of the viewport height so the
-/// synopsis + episodes stay above the fold (a full-width 16:9 image would
-/// otherwise fill the whole landscape screen).
-const double _kTvHeroHeightFraction = 0.4;
 const double _kSeasonSkeletonHeight = 120;
 const double _kSeasonChipsHeight = 34;
 const double _kEpisodePlayIconSize = 28;
 
-/// Series detail (§4.4.1): hero, synopsis, season picker, episode list.
+/// TV cinematic hero: fraction of viewport height, and content-column width
+/// fraction (lower-left), so episodes peek below and text stays readable.
+const double _kTvHeroFraction = 0.56;
+const double _kTvContentWidthFraction = 0.52;
+const int _kTvBackdropCacheWidth = 1280;
+
+/// Series detail (§4.4.1). Mobile: stacked hero + synopsis + seasons/episodes.
+/// TV: a cinematic full-bleed hero with Play (first/next episode) autofocused,
+/// then season chips + episode list below the fold.
 class SeriesDetailView extends ConsumerWidget {
   const SeriesDetailView({
     required this.series,
@@ -36,7 +40,8 @@ class SeriesDetailView extends ConsumerWidget {
   final Series series;
   final void Function(Season season, Episode episode)? onPlayEpisode;
 
-  /// App-layer actions (e.g. a favorite toggle) shown in the app bar.
+  /// App-layer actions (e.g. a favorite toggle). App bar on mobile; beside
+  /// Play on TV.
   final List<Widget>? actions;
 
   @override
@@ -45,11 +50,21 @@ class SeriesDetailView extends ConsumerWidget {
     final AsyncState<SeriesDetail> detail =
         ref.watch(seriesDetailProvider(series.id));
 
+    if (FormFactorScope.isTv(context)) {
+      return _CinematicSeriesDetail(
+        series: series,
+        detail: detail,
+        onPlayEpisode: onPlayEpisode,
+        actions: actions,
+      );
+    }
+
+    // Mobile / tablet: unchanged stacked layout.
     return Scaffold(
       backgroundColor: t.colors.bgBase,
       appBar: AppBar(backgroundColor: t.colors.bgBase, actions: actions),
       body: ListView(
-        padding: EdgeInsets.only(bottom: t.space.x8) + tvOverscan(context),
+        padding: EdgeInsets.only(bottom: t.space.x8),
         children: <Widget>[
           _Hero(coverUrl: series.coverUrl),
           Padding(
@@ -71,6 +86,163 @@ class SeriesDetailView extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// TV-only cinematic series detail.
+class _CinematicSeriesDetail extends StatelessWidget {
+  const _CinematicSeriesDetail({
+    required this.series,
+    required this.detail,
+    this.onPlayEpisode,
+    this.actions,
+  });
+
+  final Series series;
+  final AsyncState<SeriesDetail> detail;
+  final void Function(Season season, Episode episode)? onPlayEpisode;
+  final List<Widget>? actions;
+
+  /// First playable (season, episode) across all seasons, or null while the
+  /// detail is still loading / empty.
+  (Season, Episode)? _firstEpisode() {
+    final SeriesDetail? data = switch (detail) {
+      AsyncSuccess<SeriesDetail>(:final SeriesDetail data) => data,
+      _ => null,
+    };
+    if (data == null) return null;
+    for (final Season s in data.seasons) {
+      if (s.episodes.isNotEmpty) return (s, s.episodes.first);
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final AppTheme t = context.appTheme;
+    final Size size = MediaQuery.sizeOf(context);
+    final (Season, Episode)? first = _firstEpisode();
+    final String? url = series.coverUrl;
+
+    return Scaffold(
+      backgroundColor: t.colors.bgBase,
+      body: CustomScrollView(
+        slivers: <Widget>[
+          SliverToBoxAdapter(
+            child: SizedBox(
+              height: size.height * _kTvHeroFraction,
+              child: Stack(
+                fit: StackFit.expand,
+                children: <Widget>[
+                  if (url != null && url.isNotEmpty)
+                    CachedNetworkImage(
+                      imageUrl: url,
+                      fit: BoxFit.cover,
+                      memCacheWidth: _kTvBackdropCacheWidth,
+                      placeholder: (BuildContext c, String _) =>
+                          ColoredBox(color: t.colors.bgElevated),
+                      errorWidget: (BuildContext c, String _, Object __) =>
+                          ColoredBox(color: t.colors.bgElevated),
+                    )
+                  else
+                    ColoredBox(color: t.colors.bgElevated),
+                  const _ScrimGradient(),
+                  Padding(
+                    padding: tvOverscan(context),
+                    child: Align(
+                      alignment: Alignment.bottomLeft,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: size.width * _kTvContentWidthFraction,
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Text(
+                              series.name,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: t.typography.h1
+                                  .copyWith(color: t.colors.textPrimary),
+                            ),
+                            SizedBox(height: t.space.x2),
+                            _Meta(series: series),
+                            SizedBox(height: t.space.x4),
+                            _Synopsis(plot: series.plot ?? ""),
+                            SizedBox(height: t.space.x4),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: <Widget>[
+                                PrimaryButton(
+                                  label: AppLocalizations.of(context).commonPlay,
+                                  expand: false,
+                                  autofocus: true,
+                                  onPressed: first == null
+                                      ? null
+                                      : () => onPlayEpisode?.call(
+                                            first.$1,
+                                            first.$2,
+                                          ),
+                                ),
+                                if (actions != null) ...<Widget>[
+                                  SizedBox(width: t.space.x3),
+                                  ...actions!,
+                                ],
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: tvOverscan(context),
+              child: _SeasonsSection(
+                detail: detail,
+                onPlayEpisode: onPlayEpisode,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Left→right + bottom→up dark scrims tinted with bgBase — legibility without
+/// blur (cheap on Fire TV GPUs).
+class _ScrimGradient extends StatelessWidget {
+  const _ScrimGradient();
+
+  @override
+  Widget build(BuildContext context) {
+    return const DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: <Color>[Color(0xE60B0C0E), Color(0x990B0C0E), Color(0x000B0C0E)],
+          stops: <double>[0.0, 0.45, 0.85],
+        ),
+      ),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.bottomCenter,
+            end: Alignment.topCenter,
+            colors: <Color>[Color(0xE60B0C0E), Color(0x000B0C0E)],
+            stops: <double>[0.0, 0.6],
+          ),
+        ),
+        child: SizedBox.expand(),
       ),
     );
   }
@@ -132,7 +304,9 @@ class _SynopsisState extends State<_Synopsis> {
             child: Padding(
               padding: EdgeInsets.symmetric(vertical: t.space.x1),
               child: Text(
-                _expanded ? AppLocalizations.of(context).commonLess : AppLocalizations.of(context).commonMore,
+                _expanded
+                    ? AppLocalizations.of(context).commonLess
+                    : AppLocalizations.of(context).commonMore,
                 style: t.typography.bodyStrong
                     .copyWith(color: t.colors.accentTextOnDark),
               ),
@@ -190,6 +364,7 @@ class _SeasonsState extends State<_Seasons> {
   @override
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
+    final bool isTv = FormFactorScope.isTv(context);
     final IList<Season> seasons = widget.seasons;
     if (seasons.isEmpty) {
       return Text(
@@ -220,11 +395,13 @@ class _SeasonsState extends State<_Seasons> {
         for (int i = 0; i < season.episodes.length; i++)
           _EpisodeRow(
             episode: season.episodes[i],
-            // Anchor the TV remote on the first episode so play is one click.
-            autofocus: i == 0 && FormFactorScope.isTv(context),
+            // On TV the hero Play owns initial focus; here the list is reached
+            // by pressing Down, so don't steal focus. On mobile, no autofocus.
+            autofocus: false,
             onPlay: () =>
                 widget.onPlayEpisode?.call(season, season.episodes[i]),
           ),
+        if (isTv) SizedBox(height: t.space.x6),
       ],
     );
   }
@@ -247,15 +424,6 @@ class _Hero extends StatelessWidget {
             errorWidget: (BuildContext c, String _, Object __) =>
                 ColoredBox(color: t.colors.bgElevated),
           );
-    // TV: cap the height so episodes stay above the fold. Touch: full-width
-    // 16:9 (only ~⅓ of a portrait phone screen).
-    if (FormFactorScope.isTv(context)) {
-      return SizedBox(
-        width: double.infinity,
-        height: MediaQuery.sizeOf(context).height * _kTvHeroHeightFraction,
-        child: image,
-      );
-    }
     return AspectRatio(aspectRatio: _kBackdropAspect, child: image);
   }
 }
@@ -280,8 +448,9 @@ class _EpisodeRow extends StatelessWidget {
     return PressableScale(
       onTap: onPlay,
       autofocus: autofocus,
+      focusBorderRadius: t.radius.mdAll,
       child: Padding(
-        padding: EdgeInsets.symmetric(vertical: t.space.x2),
+        padding: EdgeInsets.symmetric(vertical: t.space.x2, horizontal: t.space.x2),
         child: Row(
           children: <Widget>[
             Icon(

@@ -241,8 +241,20 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
       return KeyEventResult.handled;
     }
 
-    // Controls visible → defer arrows/select to focus traversal + buttons.
-    if (vm.overlayVisible) return KeyEventResult.ignored;
+    // Controls visible: first Back/Escape hides them (a second Back then exits
+    // the player); every other navigation key keeps them alive (restart the
+    // auto-hide timer) and is left to the focus system so the on-screen buttons
+    // stay reachable and don't vanish mid-interaction.
+    if (vm.overlayVisible) {
+      if (key == LogicalKeyboardKey.escape ||
+          key == LogicalKeyboardKey.goBack ||
+          key == LogicalKeyboardKey.browserBack) {
+        controller.hideOverlay();
+        return KeyEventResult.handled;
+      }
+      controller.pokeOverlay();
+      return KeyEventResult.ignored;
+    }
 
     // Controls hidden → the remote drives the player directly.
     if (key == LogicalKeyboardKey.arrowLeft) {
@@ -253,12 +265,14 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
       canScrub ? controller.seekForward() : controller.revealOverlay();
       return KeyEventResult.handled;
     }
+    // OK/Select wakes the controls first (Apple TV / Netflix behaviour) rather
+    // than blindly toggling playback; play/pause happens on the focused button.
     if (key == LogicalKeyboardKey.select ||
         key == LogicalKeyboardKey.enter ||
         key == LogicalKeyboardKey.numpadEnter ||
         key == LogicalKeyboardKey.gameButtonA ||
         key == LogicalKeyboardKey.space) {
-      controller.playOrPause();
+      controller.revealOverlay();
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.arrowUp ||
@@ -433,6 +447,9 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
                 _ControlsLayer(
                   visible: vm.overlayVisible,
                   duration: t.motion.base,
+                  // Live on TV uses the SurfaceView engine (video off the app
+                  // GPU) → keep controls mounted for an instant HUD reveal.
+                  keepMounted: isTv && vm.isLive,
                   builder: (BuildContext context) => _Controls(
                     request: request,
                     queue: queue,
@@ -545,24 +562,34 @@ class _ControlsLayer extends StatefulWidget {
     required this.visible,
     required this.duration,
     required this.builder,
+    this.keepMounted = false,
   });
 
   final bool visible;
   final Duration duration;
   final WidgetBuilder builder;
 
+  /// Keep the subtree mounted while hidden (just fade it). Used on the
+  /// SurfaceView live path: video is composited off the app GPU there, so the
+  /// per-tick rebuild is cheap, and staying mounted makes the overlay appear
+  /// instantly — no remount and no hybrid-composition overlay-surface spin-up
+  /// on reveal. The texture path (VOD) leaves this false so hidden playback
+  /// rebuilds nothing.
+  final bool keepMounted;
+
   @override
   State<_ControlsLayer> createState() => _ControlsLayerState();
 }
 
 class _ControlsLayerState extends State<_ControlsLayer> {
-  late bool _mounted = widget.visible;
+  late bool _mounted = widget.visible || widget.keepMounted;
 
   @override
   void didUpdateWidget(_ControlsLayer oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Becoming visible: mount immediately so the fade-in has something to show.
-    if (widget.visible && !_mounted) {
+    // Becoming visible (or asked to stay mounted): mount so the reveal has
+    // something to show without rebuilding first.
+    if ((widget.visible || widget.keepMounted) && !_mounted) {
       setState(() => _mounted = true);
     }
   }
@@ -574,9 +601,10 @@ class _ControlsLayerState extends State<_ControlsLayer> {
       child: AnimatedOpacity(
         opacity: widget.visible ? 1 : 0,
         duration: widget.duration,
-        // Fade-out finished → drop the subtree so it no longer rebuilds.
+        // Fade-out finished → drop the subtree so it no longer rebuilds, unless
+        // asked to stay mounted (live/SurfaceView path — instant reveal).
         onEnd: () {
-          if (!widget.visible && _mounted) {
+          if (!widget.visible && !widget.keepMounted && _mounted) {
             setState(() => _mounted = false);
           }
         },
@@ -854,6 +882,9 @@ class _BottomBar extends StatelessWidget {
               position: state.position,
               duration: state.duration,
               onSeek: controller.seekTo,
+              isTv: isTv,
+              onSeekBackward: controller.seekBackward,
+              onSeekForward: controller.seekForward,
             ),
             Row(
               children: <Widget>[
@@ -1126,11 +1157,19 @@ class _SeekBar extends StatefulWidget {
     required this.position,
     required this.duration,
     required this.onSeek,
+    this.isTv = false,
+    this.onSeekBackward,
+    this.onSeekForward,
   });
 
   final Duration position;
   final Duration duration;
   final void Function(Duration target) onSeek;
+
+  /// On TV the bar becomes a focusable D-pad scrubber (◀/▶, hold to repeat).
+  final bool isTv;
+  final VoidCallback? onSeekBackward;
+  final VoidCallback? onSeekForward;
 
   @override
   State<_SeekBar> createState() => _SeekBarState();
@@ -1138,6 +1177,24 @@ class _SeekBar extends StatefulWidget {
 
 class _SeekBarState extends State<_SeekBar> {
   double? _dragValue;
+  bool _focused = false;
+
+  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    // ◀/▶ scrub and are consumed so focus stays on the bar (hold = fast seek);
+    // up/down/OK fall through to traversal so the user can leave the bar.
+    if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+      widget.onSeekBackward?.call();
+      return KeyEventResult.handled;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+      widget.onSeekForward?.call();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1146,7 +1203,7 @@ class _SeekBarState extends State<_SeekBar> {
         widget.duration.inMilliseconds.toDouble().clamp(1, double.infinity);
     final double current =
         (_dragValue ?? widget.position.inMilliseconds.toDouble()).clamp(0, max);
-    return SliderTheme(
+    final Widget slider = SliderTheme(
       data: SliderTheme.of(context).copyWith(
         activeTrackColor: t.colors.accent,
         inactiveTrackColor: t.colors.borderDefault,
@@ -1161,6 +1218,21 @@ class _SeekBarState extends State<_SeekBar> {
           widget.onSeek(Duration(milliseconds: v.round()));
           setState(() => _dragValue = null);
         },
+      ),
+    );
+
+    if (!widget.isTv) return slider;
+
+    // The Material Slider's own focus is excluded so the remote's ◀/▶ aren't
+    // double-handled; our Focus owns the keys and the glass focus ring.
+    return Focus(
+      onFocusChange: (bool f) => setState(() => _focused = f),
+      onKeyEvent: _onKey,
+      child: AnimatedContainer(
+        duration: t.motion.fast,
+        decoration: focusFloat(t, t.radius.smAll, focused: _focused),
+        foregroundDecoration: focusSkin(t, t.radius.smAll, focused: _focused),
+        child: ExcludeFocus(child: slider),
       ),
     );
   }
@@ -1654,12 +1726,17 @@ class _TvSidePanel extends ConsumerWidget {
       bottom: 0,
       right: visible ? 0 : -_kTvPanelWidth,
       width: _kTvPanelWidth,
-      child: ColoredBox(
-        color: const Color(0xEE0A0A0A),
-        child: SafeArea(
-          child: ListView(
-            padding: EdgeInsets.symmetric(vertical: t.space.x4),
-            children: <Widget>[
+      // When closed the panel is parked off-screen but still in the tree (for
+      // the slide animation); ExcludeFocus keeps the D-pad from wandering into
+      // its off-screen rows — the "phantom options past the right edge" bug.
+      child: ExcludeFocus(
+        excluding: !visible,
+        child: ColoredBox(
+          color: const Color(0xEE0A0A0A),
+          child: SafeArea(
+            child: ListView(
+              padding: EdgeInsets.symmetric(vertical: t.space.x4),
+              children: <Widget>[
               if (tracks.audio.isNotEmpty) ...<Widget>[
                 _TvPanelHeader(label: l.playerAudio),
                 for (int i = 0; i < tracks.audio.length; i++)
@@ -1697,6 +1774,7 @@ class _TvSidePanel extends ConsumerWidget {
             ],
           ),
         ),
+      ),
       ),
     );
   }

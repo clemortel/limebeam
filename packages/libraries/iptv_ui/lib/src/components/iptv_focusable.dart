@@ -1,15 +1,7 @@
 import "package:flutter/widgets.dart";
 
 import "../theme/app_theme.dart";
-
-/// Width of the accent ring drawn around a focused item, in logical pixels.
-/// Matches [PressableScale] so nav/rail focus reads as strongly as content.
-const double _kFocusRingWidth = 3.5;
-
-/// Soft accent glow behind a focused item — the couch-distance cue that a thin
-/// ring alone can't carry on a big screen. Mirrors [PressableScale].
-const double _kFocusGlowBlur = 16;
-const double _kFocusGlowSpread = 1;
+import "focus_style.dart";
 
 /// D-pad / TV focus wrapper. Bakes focus state into the design system so
 /// Android TV / Fire TV / webOS navigation is consistent across components.
@@ -67,32 +59,14 @@ class _IptvFocusableState extends State<IptvFocusable> {
     final AppTheme theme = context.appTheme;
     final BorderRadius radius = widget.focusBorderRadius ?? theme.radius.mdAll;
 
-    // `foregroundDecoration` paints the ring over the child without affecting
-    // layout, so focusing never shifts surrounding items. The accent glow sits
-    // behind (via the shadow's blur/spread) for a stronger 10-foot cue.
+    // Same "liquid glass grey" treatment as PressableScale (focus_style.dart):
+    // float shadow behind, glass skin + accent ring over — no layout shift, no
+    // blur. Keeps the nav rail consistent with content focus.
+    final bool focusedRing = _focused && widget.showFocusRing;
     final Widget content = AnimatedContainer(
       duration: theme.motion.fast,
-      decoration: BoxDecoration(
-        borderRadius: radius,
-        boxShadow: _focused && widget.showFocusRing
-            ? <BoxShadow>[
-                BoxShadow(
-                  color: theme.colors.accentSubtle,
-                  blurRadius: _kFocusGlowBlur,
-                  spreadRadius: _kFocusGlowSpread,
-                ),
-              ]
-            : const <BoxShadow>[],
-      ),
-      foregroundDecoration: BoxDecoration(
-        borderRadius: radius,
-        border: Border.all(
-          color: _focused && widget.showFocusRing
-              ? theme.colors.accent
-              : const Color(0x00000000),
-          width: _kFocusRingWidth,
-        ),
-      ),
+      decoration: focusFloat(theme, radius, focused: focusedRing),
+      foregroundDecoration: focusSkin(theme, radius, focused: focusedRing),
       child: widget.child,
     );
 

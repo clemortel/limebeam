@@ -15,6 +15,7 @@ export "src/components/app_toast.dart";
 export "src/components/channel_row.dart";
 export "src/components/empty_state.dart";
 export "src/components/filter_chip_x.dart";
+export "src/components/focus_style.dart";
 export "src/components/glass_scope.dart";
 export "src/components/glass_surface.dart";
 export "src/components/iptv_focusable.dart";

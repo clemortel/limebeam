@@ -49,6 +49,8 @@ Future<void> bootstrap(Flavor flavor) async {
   // Probe the device class once, before the first frame, so the UI can adopt
   // the TV layout (side rail, solid surfaces, focus nav) from launch.
   final bool isTelevision = await detectIsTelevision();
+  // Let the player pick the SurfaceView ExoPlayer engine for live on TV.
+  setPlayerTelevision(isTelevision: isTelevision);
 
   runApp(
     ProviderScope(

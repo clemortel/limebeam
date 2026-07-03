@@ -15,8 +15,10 @@ import "../domain/playback_request.dart";
 import "../domain/subtitle_style.dart";
 import "../infrastructure/airplay_monitor.dart";
 import "../infrastructure/av_player_engine.dart";
+import "../infrastructure/exoplayer_engine.dart";
 import "../infrastructure/media_kit_engine.dart";
 import "../pip/media_session_service.dart";
+import "../player_init.dart";
 import "player_ui_state.dart";
 
 part "player_controller.g.dart";
@@ -165,22 +167,56 @@ class PlaybackController extends _$PlaybackController {
     return q.items[state.queueIndex];
   }
 
-  /// Builds the local engine. Default everywhere is libmpv (media_kit), which
-  /// decodes the MPEG-TS / MKV that Xtream serves — AVPlayer cannot. On iOS we
-  /// switch to the native AVPlayer only while [_externalPlayback] (AirPlay) is
-  /// active, since libmpv renders to a texture and cannot AirPlay video.
-  PlaybackEngine _createEngine() {
+  /// Whether LIVE playback should use the native SurfaceView ExoPlayer engine:
+  /// Android TV only. Its hardware-overlay surface avoids the video-frame drops
+  /// the libmpv texture path suffers with high-fps live on weak TV GPUs. Phones
+  /// and all VOD keep media_kit.
+  bool _wantsNativeLive(bool isLive) =>
+      defaultTargetPlatform == TargetPlatform.android &&
+      playerIsTelevision &&
+      isLive;
+
+  /// Builds the local engine for the given content. Default everywhere is
+  /// libmpv (media_kit), which decodes the MPEG-TS / MKV that Xtream serves.
+  /// Live on Android TV uses ExoPlayer (SurfaceView). On iOS we switch to the
+  /// native AVPlayer only while [_externalPlayback] (AirPlay) is active, since
+  /// libmpv renders to a texture and cannot AirPlay video.
+  PlaybackEngine _createEngine(bool isLive) {
+    if (_wantsNativeLive(isLive)) {
+      return ExoPlayerEngine();
+    }
     if (defaultTargetPlatform == TargetPlatform.iOS && _externalPlayback) {
       return AvPlayerEngine();
     }
     return MediaKitEngine();
   }
 
+  /// Cancels the current engine's stream subscriptions and disposes it so a
+  /// different engine can take over (e.g. VOD↔live transition on TV). Cancelling
+  /// a subscription stops delivery immediately, so the old engine's late events
+  /// never reach the newly-installed one; dispose runs in the background.
+  void _replaceEngineSubscriptions() {
+    for (final StreamSubscription<dynamic> sub in _subscriptions) {
+      unawaited(sub.cancel());
+    }
+    _subscriptions.clear();
+    final PlaybackEngine? old = _engine;
+    _engine = null;
+    unawaited(old?.dispose());
+  }
+
   /// Begins (or replaces) playback with [queue].
   void start(PlaybackQueue queue) {
     _countdownTimer?.cancel();
-    if (_engine == null) {
-      final PlaybackEngine engine = _createEngine();
+    final bool isLive = queue.current.isLive;
+    // Reuse the existing engine only if it is still the right kind for this
+    // content (live→ExoPlayer vs everything-else→media_kit on TV). Otherwise
+    // tear it down and build the correct one — handles VOD↔live without stop().
+    final bool engineMatches =
+        _engine != null && (_engine is ExoPlayerEngine) == _wantsNativeLive(isLive);
+    if (!engineMatches) {
+      _replaceEngineSubscriptions();
+      final PlaybackEngine engine = _createEngine(isLive);
       _engine = engine;
       _listen(engine);
     }
@@ -229,7 +265,7 @@ class PlaybackController extends _$PlaybackController {
     _subscriptions.clear();
     await _engine?.dispose();
     if (_disposed) return;
-    final PlaybackEngine engine = _createEngine();
+    final PlaybackEngine engine = _createEngine(state.isLive);
     _engine = engine;
     _listen(engine);
     _set(
@@ -600,6 +636,19 @@ class PlaybackController extends _$PlaybackController {
   void revealOverlay() {
     _set(state.copyWith(overlayVisible: true));
     _restartHideTimer();
+  }
+
+  /// Keeps the visible overlay alive after a D-pad interaction — restarts the
+  /// auto-hide timer without churning state (so navigating the controls on TV
+  /// doesn't let them vanish mid-interaction). No-op when already hidden.
+  void pokeOverlay() {
+    if (state.overlayVisible) _restartHideTimer();
+  }
+
+  /// Hides the controls immediately (first Back press on TV).
+  void hideOverlay() {
+    _hideTimer?.cancel();
+    if (state.overlayVisible) _set(state.copyWith(overlayVisible: false));
   }
 
   void playOrPause() {

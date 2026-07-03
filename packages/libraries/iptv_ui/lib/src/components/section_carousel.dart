@@ -2,6 +2,7 @@ import "package:flutter/material.dart" show Icons;
 import "package:flutter/widgets.dart";
 
 import "../theme/app_theme.dart";
+import "iptv_focusable.dart";
 
 const double _kTitleRowHeight = 28;
 
@@ -47,21 +48,28 @@ class SectionCarousel extends StatelessWidget {
                   style: t.typography.h3.copyWith(color: t.colors.textPrimary),
                 ),
                 if (onSeeAll != null)
-                  GestureDetector(
+                  IptvFocusable(
                     onTap: onSeeAll,
-                    child: Row(
-                      children: <Widget>[
-                        Text(
-                          "Voir tout",
-                          style: t.typography.caption
-                              .copyWith(color: t.colors.textSecondary),
-                        ),
-                        Icon(
-                          Icons.chevron_right,
-                          size: 16,
-                          color: t.colors.textSecondary,
-                        ),
-                      ],
+                    focusBorderRadius: t.radius.smAll,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: t.space.x2,
+                        vertical: t.space.x1,
+                      ),
+                      child: Row(
+                        children: <Widget>[
+                          Text(
+                            "Voir tout",
+                            style: t.typography.caption
+                                .copyWith(color: t.colors.textSecondary),
+                          ),
+                          Icon(
+                            Icons.chevron_right,
+                            size: 16,
+                            color: t.colors.textSecondary,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
               ],

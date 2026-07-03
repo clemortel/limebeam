@@ -10,6 +10,8 @@ import android.util.Rational
 import android.view.KeyEvent
 import android.view.WindowInsets
 import android.view.inputmethod.InputMethodManager
+import com.limebeam.app.exoplayer.ExoPlayerController
+import com.limebeam.app.exoplayer.ExoPlayerViewFactory
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -79,6 +81,18 @@ class MainActivity : FlutterActivity() {
         }
 
         setupMediaSession()
+
+        // ── ExoPlayer (SurfaceView) engine for LIVE on Android TV ────────────
+        // Registers the control/event channels + the SurfaceView platform view
+        // consumed by the Dart ExoPlayerEngine. Idle unless live plays on TV.
+        ExoPlayerController.register(
+            flutterEngine.dartExecutor.binaryMessenger,
+            applicationContext,
+        )
+        flutterEngine.platformViewsController.registry.registerViewFactory(
+            "limebeam/exoplayer_view",
+            ExoPlayerViewFactory(),
+        )
     }
 
     // ── MediaSession ─────────────────────────────────────────────────────────

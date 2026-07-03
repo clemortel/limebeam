@@ -13,12 +13,17 @@ import "../riverpods/providers.dart";
 const double _kBackdropAspect = 16 / 9;
 const int _kSynopsisCollapsedLines = 3;
 
-/// On TV the hero is capped to this fraction of the viewport height so the
-/// title + AppLocalizations.of(context).commonPlay stay above the fold (a full-width 16:9 image would otherwise
-/// fill the whole landscape screen and push the action off-screen).
-const double _kTvHeroHeightFraction = 0.4;
+/// TV cinematic hero: the content column is capped to this fraction of the
+/// screen width (lower-left), so text measure stays readable and the backdrop
+/// art breathes on the right — the Netflix / Apple TV / Google TV pattern.
+const double _kTvContentWidthFraction = 0.52;
 
-/// Movie detail (§4.4.1): hero, meta line, synopsis (clamped + AppLocalizations.of(context).commonMore), Lire.
+/// Cap the full-screen backdrop decode so a 4K JPEG doesn't blow the texture
+/// budget on a Fire TV Stick.
+const int _kTvBackdropCacheWidth = 1280;
+
+/// Movie detail (§4.4.1). Mobile: stacked hero + meta + synopsis + Play. TV: a
+/// cinematic full-bleed backdrop with lower-left content and Play autofocused.
 class MovieDetailView extends ConsumerWidget {
   const MovieDetailView({
     required this.movie,
@@ -30,7 +35,8 @@ class MovieDetailView extends ConsumerWidget {
   final Movie movie;
   final VoidCallback? onPlay;
 
-  /// App-layer actions (e.g. a favorite toggle) shown in the app bar.
+  /// App-layer actions (e.g. a favorite toggle). On mobile they sit in the app
+  /// bar; on TV they sit in the action row beside Play.
   final List<Widget>? actions;
 
   @override
@@ -39,11 +45,21 @@ class MovieDetailView extends ConsumerWidget {
     final AsyncState<MovieInfo> info =
         ref.watch(movieInfoProvider(movie.streamId));
 
+    if (FormFactorScope.isTv(context)) {
+      return _CinematicMovieDetail(
+        movie: movie,
+        info: info,
+        onPlay: onPlay,
+        actions: actions,
+      );
+    }
+
+    // Mobile / tablet: unchanged stacked layout.
     return Scaffold(
       backgroundColor: t.colors.bgBase,
       appBar: AppBar(backgroundColor: t.colors.bgBase, actions: actions),
       body: ListView(
-        padding: EdgeInsets.only(bottom: t.space.x8) + tvOverscan(context),
+        padding: EdgeInsets.only(bottom: t.space.x8),
         children: <Widget>[
           _Hero(posterUrl: movie.posterUrl, backdropUrl: _backdrop(info)),
           Padding(
@@ -61,7 +77,6 @@ class MovieDetailView extends ConsumerWidget {
                 PrimaryButton(
                   label: AppLocalizations.of(context).commonPlay,
                   onPressed: onPlay,
-                  autofocus: FormFactorScope.isTv(context),
                 ),
                 SizedBox(height: t.space.x6),
                 _Synopsis(info: info),
@@ -77,6 +92,131 @@ class MovieDetailView extends ConsumerWidget {
         AsyncSuccess<MovieInfo>(:final MovieInfo data) => data.backdropUrl,
         _ => null,
       };
+}
+
+/// TV-only cinematic detail: full-bleed backdrop + scrims + lower-left content.
+class _CinematicMovieDetail extends StatelessWidget {
+  const _CinematicMovieDetail({
+    required this.movie,
+    required this.info,
+    this.onPlay,
+    this.actions,
+  });
+
+  final Movie movie;
+  final AsyncState<MovieInfo> info;
+  final VoidCallback? onPlay;
+  final List<Widget>? actions;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppTheme t = context.appTheme;
+    final Size size = MediaQuery.sizeOf(context);
+    final String? backdrop = switch (info) {
+      AsyncSuccess<MovieInfo>(:final MovieInfo data) => data.backdropUrl,
+      _ => null,
+    };
+    final String? url = (backdrop != null && backdrop.isNotEmpty)
+        ? backdrop
+        : movie.posterUrl;
+
+    return Scaffold(
+      backgroundColor: t.colors.bgBase,
+      body: Stack(
+        fit: StackFit.expand,
+        children: <Widget>[
+          if (url != null && url.isNotEmpty)
+            CachedNetworkImage(
+              imageUrl: url,
+              fit: BoxFit.cover,
+              memCacheWidth: _kTvBackdropCacheWidth,
+              placeholder: (BuildContext c, String _) =>
+                  ColoredBox(color: t.colors.bgElevated),
+              errorWidget: (BuildContext c, String _, Object __) =>
+                  ColoredBox(color: t.colors.bgElevated),
+            )
+          else
+            ColoredBox(color: t.colors.bgElevated),
+          const _ScrimGradient(),
+          Padding(
+            padding: tvOverscan(context),
+            child: Align(
+              alignment: Alignment.bottomLeft,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: size.width * _kTvContentWidthFraction,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      movie.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style:
+                          t.typography.h1.copyWith(color: t.colors.textPrimary),
+                    ),
+                    SizedBox(height: t.space.x2),
+                    _MetaLine(movie: movie, info: info),
+                    SizedBox(height: t.space.x5),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        PrimaryButton(
+                          label: AppLocalizations.of(context).commonPlay,
+                          onPressed: onPlay,
+                          expand: false,
+                          autofocus: true,
+                        ),
+                        if (actions != null) ...<Widget>[
+                          SizedBox(width: t.space.x3),
+                          ...actions!,
+                        ],
+                      ],
+                    ),
+                    SizedBox(height: t.space.x5),
+                    _Synopsis(info: info),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Left→right + bottom→up dark scrims (tinted with bgBase) so left-anchored
+/// text stays legible over the backdrop. Two gradients, zero GPU cost — no blur.
+class _ScrimGradient extends StatelessWidget {
+  const _ScrimGradient();
+
+  @override
+  Widget build(BuildContext context) {
+    return const DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: <Color>[Color(0xE60B0C0E), Color(0x990B0C0E), Color(0x000B0C0E)],
+          stops: <double>[0.0, 0.45, 0.85],
+        ),
+      ),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.bottomCenter,
+            end: Alignment.topCenter,
+            colors: <Color>[Color(0xE60B0C0E), Color(0x000B0C0E)],
+            stops: <double>[0.0, 0.6],
+          ),
+        ),
+        child: SizedBox.expand(),
+      ),
+    );
+  }
 }
 
 class _Hero extends StatelessWidget {
@@ -100,15 +240,6 @@ class _Hero extends StatelessWidget {
             errorWidget: (BuildContext c, String _, Object __) =>
                 ColoredBox(color: t.colors.bgElevated),
           );
-    // TV: cap the height so the action stays above the fold. Touch: full-width
-    // 16:9 (only ~⅓ of a portrait phone screen).
-    if (FormFactorScope.isTv(context)) {
-      return SizedBox(
-        width: double.infinity,
-        height: MediaQuery.sizeOf(context).height * _kTvHeroHeightFraction,
-        child: image,
-      );
-    }
     return AspectRatio(aspectRatio: _kBackdropAspect, child: image);
   }
 }
@@ -162,36 +293,37 @@ class _SynopsisState extends State<_Synopsis> {
           height: 60,
           borderRadius: t.radius.smAll,
         ),
-      AsyncSuccess<MovieInfo>(:final MovieInfo data) =>
-        data.plot.isEmpty
-            ? const SizedBox.shrink()
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    data.plot,
-                    maxLines: _expanded ? null : _kSynopsisCollapsedLines,
-                    overflow: _expanded ? null : TextOverflow.ellipsis,
-                    style: t.typography.body
-                        .copyWith(color: t.colors.textSecondary),
-                  ),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: IptvFocusable(
-                      onTap: () => setState(() => _expanded = !_expanded),
-                      focusBorderRadius: t.radius.smAll,
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(vertical: t.space.x1),
-                        child: Text(
-                          _expanded ? AppLocalizations.of(context).commonLess : AppLocalizations.of(context).commonMore,
-                          style: t.typography.bodyStrong
-                              .copyWith(color: t.colors.accentTextOnDark),
-                        ),
+      AsyncSuccess<MovieInfo>(:final MovieInfo data) => data.plot.isEmpty
+          ? const SizedBox.shrink()
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  data.plot,
+                  maxLines: _expanded ? null : _kSynopsisCollapsedLines,
+                  overflow: _expanded ? null : TextOverflow.ellipsis,
+                  style:
+                      t.typography.body.copyWith(color: t.colors.textSecondary),
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: IptvFocusable(
+                    onTap: () => setState(() => _expanded = !_expanded),
+                    focusBorderRadius: t.radius.smAll,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: t.space.x1),
+                      child: Text(
+                        _expanded
+                            ? AppLocalizations.of(context).commonLess
+                            : AppLocalizations.of(context).commonMore,
+                        style: t.typography.bodyStrong
+                            .copyWith(color: t.colors.accentTextOnDark),
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
+            ),
       _ => const SizedBox.shrink(),
     };
   }

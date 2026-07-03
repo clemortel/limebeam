@@ -77,3 +77,16 @@ android {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // ExoPlayer (androidx.media3): backs the SurfaceView video engine used for
+    // LIVE playback on Android TV. A SurfaceView is composited by SurfaceFlinger
+    // as a hardware overlay, so the app GPU never composites video frames —
+    // which is what lets a weak Fire TV Stick present 50/60fps live without
+    // dropping frames (the libmpv texture path cannot). VOD + phones stay on
+    // media_kit. -exoplayer-hls covers HLS live variants; core handles MPEG-TS.
+    val media3Version = "1.5.1"
+    implementation("androidx.media3:media3-exoplayer:$media3Version")
+    implementation("androidx.media3:media3-exoplayer-hls:$media3Version")
+    implementation("androidx.media3:media3-common:$media3Version")
+}

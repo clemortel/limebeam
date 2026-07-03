@@ -1,18 +1,7 @@
 import "package:flutter/widgets.dart";
 
 import "../theme/app_theme.dart";
-
-/// Scale applied while an item is focused via D-pad / keyboard (TV).
-const double _kFocusedScale = 1.06;
-
-/// Width of the accent ring drawn around a focused item, in logical pixels.
-/// Thick enough to read as the focused element from 10 feet.
-const double _kFocusRingWidth = 3.5;
-
-/// Soft accent glow behind a focused item — the couch-distance "this is
-/// selected" cue that a thin ring alone doesn't carry on a big screen.
-const double _kFocusGlowBlur = 16;
-const double _kFocusGlowSpread = 1;
+import "focus_style.dart";
 
 /// Shared press feedback (§1.6 / §1.7): scales the child to
 /// `motion.pressScale` while pressed, over `motion.fast`. Used by buttons and
@@ -75,10 +64,11 @@ class _PressableScaleState extends State<PressableScale> {
     final AppTheme theme = context.appTheme;
     final BorderRadius radius =
         widget.focusBorderRadius ?? theme.radius.mdAll;
+    final bool focusedRing = _focused && widget.showFocusRing;
     // Pressed beats focused: an active press always reads as the press scale.
     final double scale = _pressed
         ? theme.motion.pressScale
-        : (_focused ? _kFocusedScale : 1.0);
+        : (_focused ? kFocusScale : 1.0);
 
     return FocusableActionDetector(
       enabled: widget.enabled,
@@ -107,32 +97,12 @@ class _PressableScaleState extends State<PressableScale> {
           curve: theme.motion.fastCurve,
           child: AnimatedContainer(
             duration: theme.motion.fast,
-            // A soft accent glow sits *behind* the child (outside its bounds via
-            // the shadow's blur/spread), reinforcing focus at couch distance.
-            // Only under directional focus, so touch on phones stays clean.
-            decoration: BoxDecoration(
-              borderRadius: radius,
-              boxShadow: _focused && widget.showFocusRing
-                  ? <BoxShadow>[
-                      BoxShadow(
-                        color: theme.colors.accentSubtle,
-                        blurRadius: _kFocusGlowBlur,
-                        spreadRadius: _kFocusGlowSpread,
-                      ),
-                    ]
-                  : const <BoxShadow>[],
-            ),
-            // `foregroundDecoration` overlays the ring without affecting
-            // layout, so focusing never shifts neighbouring items.
-            foregroundDecoration: BoxDecoration(
-              borderRadius: radius,
-              border: Border.all(
-                color: _focused && widget.showFocusRing
-                    ? theme.colors.accent
-                    : const Color(0x00000000),
-                width: _kFocusRingWidth,
-              ),
-            ),
+            // Float shadow + glow sit *behind* the child; the glass skin + ring
+            // sit *over* it via foregroundDecoration so focusing never shifts
+            // layout. Blur-free (see focus_style.dart). Directional focus only,
+            // so touch on phones stays clean.
+            decoration: focusFloat(theme, radius, focused: focusedRing),
+            foregroundDecoration: focusSkin(theme, radius, focused: focusedRing),
             child: widget.child,
           ),
         ),

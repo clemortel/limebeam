@@ -96,7 +96,9 @@ class _SideRail extends StatelessWidget {
     final AppTheme t = context.appTheme;
     return FocusTraversalGroup(
       child: Container(
-        width: _kRailWidth,
+        // The rail only renders on TV, so scale it with the TV token — the
+        // icon otherwise stays phone-sized next to the 1.3x-scaled label.
+        width: _kRailWidth * AppTheme.tvTokenScale,
         color: t.colors.bgSurface,
         padding: EdgeInsets.symmetric(
           horizontal: t.space.x3,
@@ -171,7 +173,7 @@ class _RailButton extends StatelessWidget {
             children: <Widget>[
               Icon(
                 selected ? item.activeIcon : item.icon,
-                size: _kRailIconSize,
+                size: _kRailIconSize * AppTheme.tvTokenScale,
                 color: color,
               ),
               SizedBox(width: t.space.x3),

@@ -212,7 +212,8 @@ class _SettingsNavTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
-    return Container(
+    final bool isTv = FormFactorScope.isTv(context);
+    final Widget tile = Container(
       margin: EdgeInsets.symmetric(horizontal: t.space.x4),
       decoration: BoxDecoration(
         color: t.colors.bgSurface,
@@ -220,7 +221,8 @@ class _SettingsNavTile extends StatelessWidget {
         border: Border.all(color: t.colors.borderSubtle),
       ),
       // Transparent Material so the ListTile's tap ripple stays visible over
-      // the colored container.
+      // the colored container (touch). On TV the tap is owned by IptvFocusable
+      // below so the accent glass ring shows instead of the Material ink.
       child: Material(
         type: MaterialType.transparency,
         child: ListTile(
@@ -230,9 +232,15 @@ class _SettingsNavTile extends StatelessWidget {
             style: t.typography.body.copyWith(color: t.colors.textPrimary),
           ),
           trailing: Icon(Icons.chevron_right, color: t.colors.textTertiary),
-          onTap: onTap,
+          onTap: isTv ? null : onTap,
         ),
       ),
+    );
+    if (!isTv) return tile;
+    return IptvFocusable(
+      onTap: onTap,
+      focusBorderRadius: t.radius.lgAll,
+      child: tile,
     );
   }
 }
