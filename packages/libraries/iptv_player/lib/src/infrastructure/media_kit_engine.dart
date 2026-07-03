@@ -15,6 +15,18 @@ import "../player_init.dart";
 /// seconds.
 const double _kMillisPerSecond = 1000;
 
+/// Renders the video texture at this fraction of the source resolution.
+/// A smaller texture cuts the per-frame GPU upload + composite cost, which on a
+/// weak TV GPU (Fire TV Stick PowerVR GE8300) can be what forces the decoder to
+/// drop frames on heavy live streams. Preserves aspect ratio (unlike a fixed
+/// width/height). 1.0 = native resolution, no change.
+///
+/// Verified on a Fire TV Stick 4K (2018): under hardware decode (hwdec) this
+/// had no measurable effect — media_kit takes the decoder's native-resolution
+/// surface, so scale only applies on the software-render fallback path. Left at
+/// 1.0 (no-op on real devices) as a documented lever for that path.
+const double _kVideoOutputScale = 1.0;
+
 /// libmpv-backed [PlaybackEngine]. Default on Android / desktop. Wraps the
 /// media_kit [Player] + [VideoController]; the media_kit types stay inside
 /// this file.
@@ -31,7 +43,8 @@ class MediaKitEngine implements PlaybackEngine {
     );
     if (kDebugMode) {
       _logSub = _player.stream.log.listen(
-        (PlayerLog log) => debugPrint("mpv[${log.level}] ${log.prefix}: ${log.text}"),
+        (PlayerLog log) =>
+            debugPrint("mpv[${log.level}] ${log.prefix}: ${log.text}"),
       );
     }
     // Emulators can't create a hardware GL context (black video), so fall back
@@ -40,6 +53,7 @@ class MediaKitEngine implements PlaybackEngine {
       _player,
       configuration: VideoControllerConfiguration(
         enableHardwareAcceleration: !playerSoftwareRenderingOnly,
+        scale: _kVideoOutputScale,
       ),
     );
     // Android-specific mpv tuning: hardware decode, audio driver, buffer and
@@ -135,7 +149,7 @@ class MediaKitEngine implements PlaybackEngine {
     await native.setProperty(
       "user-agent",
       "Mozilla/5.0 (Linux; Android 11) AppleWebKit/537.36"
-      " (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36",
+          " (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36",
     );
 
     // Sync video to audio clock (mpv default). display-resample was burning

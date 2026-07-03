@@ -15,29 +15,32 @@
 #   tool/build_firetv.sh bundle     # single app bundle (Play; not Amazon)
 #   IMPELLER=false tool/build_firetv.sh   # build with Impeller off (A/B)
 #
-# Flavor is production by default; override with FLAVOR=development.
+# Entrypoint is production by default; override with ENTRY=development. This
+# project uses separate main_*.dart entrypoints (-t), NOT Gradle product
+# flavors, so --flavor must not be passed.
 set -euo pipefail
 
 MODE="${1:-apk}"
-FLAVOR="${FLAVOR:-production}"
+ENTRY="${ENTRY:-production}"
 IMPELLER="${IMPELLER:-true}"
-TARGET="lib/main_${FLAVOR}.dart"
+TARGET="lib/main_${ENTRY}.dart"
 
-GRADLE_ARGS=(--release "--flavor=${FLAVOR}" "-t" "${TARGET}")
+BUILD_ARGS=(--release "-t" "${TARGET}")
 
-# Forward the Impeller toggle to Gradle (manifest placeholder). Flutter passes
-# unknown -P properties through to the Android build.
-GRADLE_ARGS+=("-PenableImpeller=${IMPELLER}")
+# Forward the Impeller toggle to Gradle's manifest placeholder. Not all Flutter
+# versions forward -P through `flutter build`; if the toggle appears ignored,
+# set `enableImpeller` directly in android/gradle.properties instead.
+BUILD_ARGS+=("--android-project-arg=enableImpeller=${IMPELLER}")
 
-echo "→ flavor=${FLAVOR}  impeller=${IMPELLER}  mode=${MODE}"
+echo "→ entry=${ENTRY}  impeller=${IMPELLER}  mode=${MODE}"
 
 case "${MODE}" in
   apk)
-    flutter build apk --split-per-abi "${GRADLE_ARGS[@]}"
+    flutter build apk --split-per-abi "${BUILD_ARGS[@]}"
     echo "APKs: build/app/outputs/flutter-apk/"
     ;;
   bundle)
-    flutter build appbundle "${GRADLE_ARGS[@]}"
+    flutter build appbundle "${BUILD_ARGS[@]}"
     echo "AAB: build/app/outputs/bundle/"
     ;;
   *)

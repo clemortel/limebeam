@@ -62,3 +62,20 @@ frames. Run it on **both** the 1st-gen Stick 4K (Impeller→GLES) and the 4K Max
 
 > Do the A/B **after** confirming the rebuild fixes above are in the build, so
 > the renderer comparison isn't confounded by Dart-side jank.
+
+## Verified results — Fire TV Stick 4K (2018, AFTMM, API 25, PowerVR GE8300)
+
+- After the rebuild fixes: **0 Flutter SLOW FRAMEs** during playback (overlay
+  hidden). The Dart/UI-thread jank is gone.
+- **VOD is smooth; live drops ~20–24 frames/s** — and the drop rate is the
+  **same at 4K and 1080p**, so it is *not* decode-bound. The discriminator is
+  frame rate: VOD ≈ 24/25 fps fits under this GPU's compositing ceiling; live
+  ≈ 50/60 fps does not.
+- **Impeller vs Skia is decisive**: Impeller ON ≈ 20 drops/s; Impeller OFF
+  (Skia) ≈ **272 drops/s** (~13× worse). **Keep Impeller ON** on this chip.
+- `_kVideoOutputScale` had no effect under `hwdec` (media_kit uses the decoder's
+  native surface); left at 1.0.
+- Conclusion: the residual live drops are this 2018 GPU's ceiling for pushing a
+  high-fps stream through the Flutter texture path. App-side levers are
+  exhausted; newer (arm64) Sticks won't hit this. Product mitigation: prefer an
+  HD/FHD channel variant over 4K on low-end devices.
