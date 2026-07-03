@@ -40,5 +40,9 @@ sealed class PlayerUiState with _$PlayerUiState {
     // Non-null for _kSeekFlashMs after a double-tap seek so the widget can
     // display the flash pill without owning any timer state.
     String? seekFlash,
+    // Current subtitle text to overlay in Flutter. Only the ExoPlayer engine
+    // populates this (its SurfaceView shows raw video); libmpv/AVPlayer burn
+    // subtitles into their own surface, leaving this empty.
+    @Default("") String subtitleCue,
   }) = _PlayerUiState;
 }

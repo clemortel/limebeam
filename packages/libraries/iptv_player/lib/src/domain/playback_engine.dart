@@ -42,6 +42,12 @@ abstract interface class PlaybackEngine {
   /// selection changes. Broadcast.
   Stream<SelectedTrackIds> get selectedTracks;
 
+  /// Current subtitle text to display, or empty string for none. Only engines
+  /// that do NOT render subtitles onto the video surface themselves emit here
+  /// (ExoPlayer, whose SurfaceView shows raw video); libmpv/AVPlayer burn
+  /// subtitles into their surface and emit an empty stream. Broadcast.
+  Stream<String> get subtitleCues;
+
   /// Current volume as a 0..100 percentage (matches media_kit's scale).
   double get volume;
 

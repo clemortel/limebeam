@@ -123,6 +123,10 @@ class AvPlayerEngine implements PlaybackEngine {
   @override
   Stream<SelectedTrackIds> get selectedTracks => _selected.stream;
 
+  // AVPlayer renders subtitles onto its own layer; nothing to overlay.
+  @override
+  Stream<String> get subtitleCues => const Stream<String>.empty();
+
   @override
   double get volume => _volume;
 

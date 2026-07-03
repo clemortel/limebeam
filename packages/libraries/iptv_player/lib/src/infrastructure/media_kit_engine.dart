@@ -102,6 +102,10 @@ class MediaKitEngine implements PlaybackEngine {
   Stream<SelectedTrackIds> get selectedTracks =>
       _player.stream.track.map(_mapSelected);
 
+  // libmpv renders subtitles onto its own surface, so nothing to overlay.
+  @override
+  Stream<String> get subtitleCues => const Stream<String>.empty();
+
   @override
   double get volume => _player.state.volume;
 

@@ -90,10 +90,9 @@ class PlaybackController extends _$PlaybackController {
 
   /// Optional total-watch-time sink (registered by iptv_settings) — feeds the
   /// rare Tip Jar prompt heuristic only.
-  final WatchTimeSink? _watchSink =
-      GetIt.instance.isRegistered<WatchTimeSink>()
-          ? GetIt.instance<WatchTimeSink>()
-          : null;
+  final WatchTimeSink? _watchSink = GetIt.instance.isRegistered<WatchTimeSink>()
+      ? GetIt.instance<WatchTimeSink>()
+      : null;
 
   /// Accrues real playback time while [_set] reports `playing == true`.
   final Stopwatch _watchClock = Stopwatch();
@@ -167,22 +166,30 @@ class PlaybackController extends _$PlaybackController {
     return q.items[state.queueIndex];
   }
 
-  /// Whether LIVE playback should use the native SurfaceView ExoPlayer engine:
-  /// Android TV only. Its hardware-overlay surface avoids the video-frame drops
-  /// the libmpv texture path suffers with high-fps live on weak TV GPUs. Phones
-  /// and all VOD keep media_kit.
-  bool _wantsNativeLive(bool isLive) =>
+  /// Set once ExoPlayer reports an error it can't recover from (e.g. a codec /
+  /// container it doesn't support). Forces the media_kit (libmpv) fallback for
+  /// the rest of the session so playback never dead-ends — libmpv plays almost
+  /// anything Xtream serves. Reset on each new [start].
+  bool _nativeEngineFailed = false;
+
+  /// Whether this device should use the native SurfaceView ExoPlayer engine:
+  /// Android TV only (its hardware-overlay surface avoids the video-frame drops
+  /// the libmpv texture path suffers on weak TV GPUs). Used for both live and
+  /// VOD on TV. Phones keep media_kit (their GPU handles the texture path, and
+  /// the SurfaceView would clash with the phone mini-player). Disabled once the
+  /// native engine has failed on unsupported media this session.
+  bool _wantsNativeEngine() =>
       defaultTargetPlatform == TargetPlatform.android &&
       playerIsTelevision &&
-      isLive;
+      !_nativeEngineFailed;
 
-  /// Builds the local engine for the given content. Default everywhere is
-  /// libmpv (media_kit), which decodes the MPEG-TS / MKV that Xtream serves.
-  /// Live on Android TV uses ExoPlayer (SurfaceView). On iOS we switch to the
-  /// native AVPlayer only while [_externalPlayback] (AirPlay) is active, since
-  /// libmpv renders to a texture and cannot AirPlay video.
-  PlaybackEngine _createEngine(bool isLive) {
-    if (_wantsNativeLive(isLive)) {
+  /// Builds the local engine. media_kit (libmpv) is the default and decodes the
+  /// MPEG-TS / MKV / odd codecs Xtream serves. Android TV uses ExoPlayer
+  /// (SurfaceView) unless it has failed this session ([_nativeEngineFailed]).
+  /// On iOS we switch to native AVPlayer only while [_externalPlayback]
+  /// (AirPlay) is active, since libmpv renders to a texture and cannot AirPlay.
+  PlaybackEngine _createEngine() {
+    if (_wantsNativeEngine()) {
       return ExoPlayerEngine();
     }
     if (defaultTargetPlatform == TargetPlatform.iOS && _externalPlayback) {
@@ -208,15 +215,18 @@ class PlaybackController extends _$PlaybackController {
   /// Begins (or replaces) playback with [queue].
   void start(PlaybackQueue queue) {
     _countdownTimer?.cancel();
-    final bool isLive = queue.current.isLive;
+    // New session: give ExoPlayer a fresh chance (a previous codec failure
+    // shouldn't stick to unrelated new content).
+    _nativeEngineFailed = false;
     // Reuse the existing engine only if it is still the right kind for this
-    // content (live→ExoPlayer vs everything-else→media_kit on TV). Otherwise
-    // tear it down and build the correct one — handles VOD↔live without stop().
+    // device (ExoPlayer on TV vs media_kit elsewhere). Otherwise tear it down
+    // and build the correct one — handles a leftover keepAlive engine of the
+    // wrong type without a stop() in between.
     final bool engineMatches =
-        _engine != null && (_engine is ExoPlayerEngine) == _wantsNativeLive(isLive);
+        _engine != null && (_engine is ExoPlayerEngine) == _wantsNativeEngine();
     if (!engineMatches) {
       _replaceEngineSubscriptions();
-      final PlaybackEngine engine = _createEngine(isLive);
+      final PlaybackEngine engine = _createEngine();
       _engine = engine;
       _listen(engine);
     }
@@ -265,7 +275,7 @@ class PlaybackController extends _$PlaybackController {
     _subscriptions.clear();
     await _engine?.dispose();
     if (_disposed) return;
-    final PlaybackEngine engine = _createEngine(state.isLive);
+    final PlaybackEngine engine = _createEngine();
     _engine = engine;
     _listen(engine);
     _set(
@@ -381,6 +391,15 @@ class PlaybackController extends _$PlaybackController {
           unawaited(_swapEngine());
           return;
         }
+        // ExoPlayer (Android TV) couldn't play this media — likely a codec /
+        // container it doesn't support. Fall back to media_kit (libmpv) for the
+        // rest of the session and re-open at the same position, so playback
+        // continues instead of dead-ending. libmpv plays what ExoPlayer can't.
+        if (_engine is ExoPlayerEngine && !_nativeEngineFailed) {
+          _nativeEngineFailed = true;
+          unawaited(_swapEngine());
+          return;
+        }
         _set(
           state.copyWith(
             error: const Failures.streamUnavailable(),
@@ -420,6 +439,14 @@ class PlaybackController extends _$PlaybackController {
             ),
           ),
         );
+      }),
+    );
+    _subscriptions.add(
+      // ExoPlayer emits subtitle text to overlay in Flutter (its SurfaceView
+      // shows raw video). Other engines emit nothing (empty stream).
+      engine.subtitleCues.listen((String text) {
+        if (isCasting) return;
+        _set(state.copyWith(subtitleCue: text));
       }),
     );
   }
@@ -594,7 +621,8 @@ class PlaybackController extends _$PlaybackController {
     final int position = state.position.inSeconds;
     final int duration = state.duration.inSeconds;
     if (duration <= 0) return;
-    if (!force && (position - _lastSavedSeconds).abs() < _kSaveIntervalSeconds) {
+    if (!force &&
+        (position - _lastSavedSeconds).abs() < _kSaveIntervalSeconds) {
       return;
     }
     _lastSavedSeconds = position;
@@ -724,8 +752,7 @@ class PlaybackController extends _$PlaybackController {
     if (state.queueIndex - 1 >= 0) playAt(state.queueIndex - 1);
   }
 
-  Future<void> setVolume(double volume) async =>
-      _engine?.setVolume(volume);
+  Future<void> setVolume(double volume) async => _engine?.setVolume(volume);
 
   void nudgeVolume(double deltaFraction) {
     final PlaybackEngine? engine = _engine;
@@ -758,14 +785,16 @@ class PlaybackController extends _$PlaybackController {
   }
 
   void setSubtitleDelay(int milliseconds) {
-    final int clamped = milliseconds.clamp(-_kMaxSyncOffsetMs, _kMaxSyncOffsetMs);
+    final int clamped =
+        milliseconds.clamp(-_kMaxSyncOffsetMs, _kMaxSyncOffsetMs);
     unawaited(_engine?.setSubtitleDelay(clamped));
     _set(state.copyWith(subtitleDelayMs: clamped));
     revealOverlay();
   }
 
   void setAudioDelay(int milliseconds) {
-    final int clamped = milliseconds.clamp(-_kMaxSyncOffsetMs, _kMaxSyncOffsetMs);
+    final int clamped =
+        milliseconds.clamp(-_kMaxSyncOffsetMs, _kMaxSyncOffsetMs);
     unawaited(_engine?.setAudioDelay(clamped));
     _set(state.copyWith(audioDelayMs: clamped));
     revealOverlay();

@@ -8,6 +8,9 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.TrackSelectionOverride
+import androidx.media3.common.Tracks
+import androidx.media3.common.text.CueGroup
 import androidx.media3.exoplayer.ExoPlayer
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
@@ -94,10 +97,16 @@ class ExoPlayerController private constructor(context: Context) :
                 if (volume != null) player.volume = volume.toFloat()
                 result.success(null)
             }
-            // v1: no track selection / sync offsets (the Dart side hides the UI
-            // via supportsSyncOffsets=false + empty track streams). Accepted for
-            // contract parity so a defensive call never crashes.
-            "setAudioTrack", "setSubtitleTrack",
+            "setAudioTrack" -> {
+                call.argument<String>("id")?.let { selectTrack(it, C.TRACK_TYPE_AUDIO) }
+                result.success(null)
+            }
+            "setSubtitleTrack" -> {
+                call.argument<String>("id")?.let { selectTrack(it, C.TRACK_TYPE_TEXT) }
+                result.success(null)
+            }
+            // No per-track sync offset in ExoPlayer, and subtitles are styled by
+            // the Flutter overlay — accepted for contract parity, no-op here.
             "setSubtitleDelay", "setAudioDelay", "applySubtitleStyle" ->
                 result.success(null)
             "dispose" -> { teardown(); result.success(null) }
@@ -145,6 +154,86 @@ class ExoPlayerController private constructor(context: Context) :
 
     override fun onPlayerError(error: PlaybackException) {
         emit(mapOf("event" to "error", "message" to (error.message ?: "Playback error")))
+    }
+
+    // MARK: Tracks
+
+    override fun onTracksChanged(tracks: Tracks) {
+        val audio = mutableListOf<Map<String, Any?>>()
+        val subtitle = mutableListOf<Map<String, Any?>>()
+        var selectedAudioId: String? = null
+        // Text defaults to "no" (off) unless a text track is actually selected,
+        // matching the Dart "no" sentinel for subtitles-off.
+        var selectedSubtitleId: String? = "no"
+
+        tracks.groups.forEachIndexed { groupIndex, group ->
+            for (trackIndex in 0 until group.length) {
+                val format = group.getTrackFormat(trackIndex)
+                val id = "$groupIndex.$trackIndex"
+                val entry = mapOf(
+                    "id" to id,
+                    "title" to format.label,
+                    "language" to format.language,
+                    "isDefault" to
+                        ((format.selectionFlags and C.SELECTION_FLAG_DEFAULT) != 0),
+                )
+                when (group.type) {
+                    C.TRACK_TYPE_AUDIO -> {
+                        audio.add(entry)
+                        if (group.isTrackSelected(trackIndex)) selectedAudioId = id
+                    }
+                    C.TRACK_TYPE_TEXT -> {
+                        subtitle.add(entry)
+                        if (group.isTrackSelected(trackIndex)) selectedSubtitleId = id
+                    }
+                }
+            }
+        }
+        emit(mapOf("event" to "tracks", "audio" to audio, "subtitle" to subtitle))
+        emit(
+            mapOf(
+                "event" to "selectedTracks",
+                "audioId" to selectedAudioId,
+                "subtitleId" to selectedSubtitleId,
+            ),
+        )
+    }
+
+    /** Selects a track by "group.track" id, or the "no"/"auto" sentinels. */
+    private fun selectTrack(id: String, type: Int) {
+        val params = player.trackSelectionParameters.buildUpon()
+        when (id) {
+            "no" -> params.setTrackTypeDisabled(type, true).clearOverridesOfType(type)
+            "auto" -> params.setTrackTypeDisabled(type, false).clearOverridesOfType(type)
+            else -> {
+                val parts = id.split(".")
+                val groupIndex = parts.getOrNull(0)?.toIntOrNull()
+                val trackIndex = parts.getOrNull(1)?.toIntOrNull()
+                val groups = player.currentTracks.groups
+                if (groupIndex != null && trackIndex != null &&
+                    groupIndex < groups.size
+                ) {
+                    params.setTrackTypeDisabled(type, false)
+                        .setOverrideForType(
+                            TrackSelectionOverride(
+                                groups[groupIndex].mediaTrackGroup,
+                                trackIndex,
+                            ),
+                        )
+                }
+            }
+        }
+        player.trackSelectionParameters = params.build()
+    }
+
+    // MARK: Subtitles
+
+    override fun onCues(cueGroup: CueGroup) {
+        val text = cueGroup.cues
+            .mapNotNull { it.text?.toString() }
+            .joinToString("\n")
+            .trim()
+        emit(mapOf("event" to "cues", "text" to text))
     }
 
     // MARK: Events

@@ -47,6 +47,7 @@ const Color _kPillBg = Color(0xCC000000);
 
 /// Width of the TV side panel (tracks / queue picker).
 const double _kTvPanelWidth = 320;
+
 /// Slide-in / slide-out duration for the TV side panel.
 const Duration _kTvPanelDuration = Duration(milliseconds: 220);
 
@@ -325,10 +326,7 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
     final PlaybackRequest? request = controller.currentRequest;
     final Widget? videoView = controller.buildVideoView();
 
-    if (!vm.active ||
-        queue == null ||
-        request == null ||
-        videoView == null) {
+    if (!vm.active || queue == null || request == null || videoView == null) {
       return const Scaffold(backgroundColor: _kPlayerBackground);
     }
 
@@ -437,6 +435,11 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
                 // (avoids a spinner stacked behind the play glyph).
                 if (vm.buffering && vm.error == null && !vm.overlayVisible)
                   const IgnorePointer(child: Center(child: _Buffering())),
+
+                // Subtitle text for engines that don't burn subs into their own
+                // surface (ExoPlayer). Inert otherwise (empty cue). Above the
+                // video, below the controls so a shown HUD sits on top.
+                const _SubtitleOverlay(),
 
                 // Controls — above gestures; pointer-ignored + faded when hidden.
                 // Empty areas pass through to the gesture surface (tap to
@@ -552,6 +555,54 @@ class _Buffering extends StatelessWidget {
       CircularProgressIndicator(color: context.appTheme.colors.accent);
 }
 
+/// Renders the current subtitle text for engines that don't paint subtitles
+/// onto their own surface (ExoPlayer on Android TV). Watches only [subtitleCue]
+/// so it rebuilds only when the caption changes; empty cue → nothing (so it is
+/// inert for libmpv/AVPlayer, which burn subtitles into their video surface).
+class _SubtitleOverlay extends ConsumerWidget {
+  const _SubtitleOverlay();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final String cue = ref.watch(
+      playbackControllerProvider.select((PlayerUiState s) => s.subtitleCue),
+    );
+    if (cue.isEmpty) return const SizedBox.shrink();
+    final AppTheme t = context.appTheme;
+    return IgnorePointer(
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: Padding(
+          padding: EdgeInsets.only(
+            bottom: t.space.x10,
+            left: t.space.x6,
+            right: t.space.x6,
+          ),
+          child: DecoratedBox(
+            decoration: const BoxDecoration(color: _kPillBg),
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: t.space.x3,
+                vertical: t.space.x1,
+              ),
+              child: Text(
+                cue,
+                textAlign: TextAlign.center,
+                style: t.typography.bodyStrong.copyWith(
+                  color: t.colors.textPrimary,
+                  shadows: const <Shadow>[
+                    Shadow(blurRadius: 4, color: Color(0xFF000000)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Fades the controls in/out and, crucially, **unmounts** them once the
 /// fade-out completes so the (state-watching) [_Controls] subtree stops
 /// rebuilding while hidden. Ignores pointers whenever not visible so empty taps
@@ -637,6 +688,7 @@ class _Controls extends ConsumerWidget {
   final bool isLandscape;
   final VoidCallback onToggleFullscreen;
   final VoidCallback onMinimize;
+
   /// Non-null on TV: opens the side panel instead of a bottom sheet.
   final VoidCallback? onShowTracksPanel;
 
@@ -790,6 +842,7 @@ class _CenterControls extends StatelessWidget {
   final PlayerUiState state;
   final PlaybackQueue queue;
   final PlaybackController controller;
+
   /// Receives focus when the overlay becomes visible on TV.
   final FocusNode playFocusNode;
 
@@ -863,6 +916,7 @@ class _BottomBar extends StatelessWidget {
   final PlaybackController controller;
   final bool isLandscape;
   final VoidCallback onToggleFullscreen;
+
   /// Non-null on TV: opens the side panel instead of a bottom sheet.
   final VoidCallback? onShowTracksPanel;
 
@@ -1057,7 +1111,8 @@ class _TrackSectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
     return Padding(
-      padding: EdgeInsets.fromLTRB(t.space.x4, t.space.x3, t.space.x4, t.space.x1),
+      padding:
+          EdgeInsets.fromLTRB(t.space.x4, t.space.x3, t.space.x4, t.space.x1),
       child: Text(
         label,
         style: t.typography.caption.copyWith(color: t.colors.textTertiary),
@@ -1392,7 +1447,11 @@ class _CastingOverlay extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Icon(Icons.cast_connected, size: _kPlayButtonSize, color: t.colors.accent),
+          Icon(
+            Icons.cast_connected,
+            size: _kPlayButtonSize,
+            color: t.colors.accent,
+          ),
           SizedBox(height: t.space.x4),
           Text(
             AppLocalizations.of(context).castingOn,
@@ -1737,44 +1796,44 @@ class _TvSidePanel extends ConsumerWidget {
             child: ListView(
               padding: EdgeInsets.symmetric(vertical: t.space.x4),
               children: <Widget>[
-              if (tracks.audio.isNotEmpty) ...<Widget>[
-                _TvPanelHeader(label: l.playerAudio),
-                for (int i = 0; i < tracks.audio.length; i++)
+                if (tracks.audio.isNotEmpty) ...<Widget>[
+                  _TvPanelHeader(label: l.playerAudio),
+                  for (int i = 0; i < tracks.audio.length; i++)
+                    _TvTrackItem(
+                      label: _trackLabel(tracks.audio[i], l),
+                      selected: tracks.audio[i].id == tracks.selectedAudioId,
+                      autofocus: i == 0 && visible,
+                      onTap: () {
+                        controller.selectAudioTrack(tracks.audio[i].id);
+                        onClose();
+                      },
+                    ),
+                ],
+                if (tracks.subtitle.isNotEmpty) ...<Widget>[
+                  _TvPanelHeader(label: l.playerSubtitles),
                   _TvTrackItem(
-                    label: _trackLabel(tracks.audio[i], l),
-                    selected: tracks.audio[i].id == tracks.selectedAudioId,
-                    autofocus: i == 0 && visible,
+                    label: l.playerSubtitlesOff,
+                    selected: !tracks.hasSubtitleOn,
+                    autofocus: tracks.audio.isEmpty && visible,
                     onTap: () {
-                      controller.selectAudioTrack(tracks.audio[i].id);
+                      controller.selectSubtitleTrack(MediaTrack.noneId);
                       onClose();
                     },
                   ),
+                  for (final MediaTrack track in tracks.subtitle)
+                    _TvTrackItem(
+                      label: _trackLabel(track, l),
+                      selected: track.id == tracks.selectedSubtitleId,
+                      onTap: () {
+                        controller.selectSubtitleTrack(track.id);
+                        onClose();
+                      },
+                    ),
+                ],
               ],
-              if (tracks.subtitle.isNotEmpty) ...<Widget>[
-                _TvPanelHeader(label: l.playerSubtitles),
-                _TvTrackItem(
-                  label: l.playerSubtitlesOff,
-                  selected: !tracks.hasSubtitleOn,
-                  autofocus: tracks.audio.isEmpty && visible,
-                  onTap: () {
-                    controller.selectSubtitleTrack(MediaTrack.noneId);
-                    onClose();
-                  },
-                ),
-                for (final MediaTrack track in tracks.subtitle)
-                  _TvTrackItem(
-                    label: _trackLabel(track, l),
-                    selected: track.id == tracks.selectedSubtitleId,
-                    onTap: () {
-                      controller.selectSubtitleTrack(track.id);
-                      onClose();
-                    },
-                  ),
-              ],
-            ],
+            ),
           ),
         ),
-      ),
       ),
     );
   }
@@ -1792,7 +1851,8 @@ class _TvPanelHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
     return Padding(
-      padding: EdgeInsets.fromLTRB(t.space.x4, t.space.x3, t.space.x4, t.space.x1),
+      padding:
+          EdgeInsets.fromLTRB(t.space.x4, t.space.x3, t.space.x4, t.space.x1),
       child: Text(
         label,
         style: t.typography.caption.copyWith(color: t.colors.textTertiary),
@@ -1838,8 +1898,7 @@ class _TvTrackItem extends StatelessWidget {
                 ),
               ),
             ),
-            if (selected)
-              Icon(Icons.check, size: 18, color: t.colors.accent),
+            if (selected) Icon(Icons.check, size: 18, color: t.colors.accent),
           ],
         ),
       ),
