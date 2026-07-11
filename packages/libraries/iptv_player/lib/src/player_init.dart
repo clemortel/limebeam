@@ -25,10 +25,16 @@ void setPlayerTelevision({required bool isTelevision}) {
   _isTelevision = isTelevision;
 }
 
-/// Initializes the media_kit engine + detects emulators. Call once at startup
-/// (bootstrap, awaited) before any [PlayerView] is shown. Keeps the engine
-/// import behind the package boundary.
+bool _playerInitialized = false;
+
+/// Initializes the media_kit engine + detects emulators. Idempotent. Called
+/// from bootstrap AFTER the first frame (the native library load can take
+/// seconds on weak TV hardware and must stay off the startup critical path),
+/// and long before any [PlayerView] is shown. Keeps the engine import behind
+/// the package boundary.
 Future<void> ensurePlayerInitialized() async {
+  if (_playerInitialized) return;
+  _playerInitialized = true;
   MediaKit.ensureInitialized();
   if (defaultTargetPlatform == TargetPlatform.android) {
     try {

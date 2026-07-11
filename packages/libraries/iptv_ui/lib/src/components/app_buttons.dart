@@ -219,6 +219,8 @@ class AppIconButton extends StatelessWidget {
     required this.onPressed,
     this.active = false,
     this.semanticLabel,
+    this.focusNode,
+    this.autofocus = false,
     super.key,
   });
 
@@ -226,6 +228,11 @@ class AppIconButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final bool active;
   final String? semanticLabel;
+
+  /// Optional external focus node — lets a screen drive D-pad focus onto this
+  /// button explicitly (e.g. the TV player's ordered up/down navigation).
+  final FocusNode? focusNode;
+  final bool autofocus;
 
   @override
   Widget build(BuildContext context) {
@@ -235,6 +242,8 @@ class AppIconButton extends StatelessWidget {
       opacity: enabled ? 1 : _kDisabledOpacity,
       child: PressableScale(
         enabled: enabled,
+        focusNode: focusNode,
+        autofocus: autofocus,
         onTap: onPressed,
         child: Container(
           width: _kIconButtonSize,

@@ -44,7 +44,7 @@ class FavoritesRepository implements IFavoritesRepository, WatchProgressSink {
   @override
   Future<Either<Failures, IList<WatchSession>>> getSessions() async {
     try {
-      final List<WatchSession> list = _readSessions()
+      final List<WatchSession> list = (await _readSessions())
         ..sort(
           (WatchSession a, WatchSession b) =>
               b.updatedAtMillis.compareTo(a.updatedAtMillis),
@@ -62,7 +62,7 @@ class FavoritesRepository implements IFavoritesRepository, WatchProgressSink {
   ) async {
     try {
       final String key = "${kind.name}_$id";
-      final List<WatchSession> list = _readSessions()
+      final List<WatchSession> list = (await _readSessions())
         ..removeWhere((WatchSession s) => s.key == key);
       await _writeSessions(list);
       return right(unit);
@@ -74,7 +74,7 @@ class FavoritesRepository implements IFavoritesRepository, WatchProgressSink {
   @override
   Future<Either<Failures, IList<Favorite>>> getFavorites() async {
     try {
-      final List<Favorite> list = _readFavorites()
+      final List<Favorite> list = (await _readFavorites())
         ..sort(
           (Favorite a, Favorite b) =>
               b.addedAtMillis.compareTo(a.addedAtMillis),
@@ -88,7 +88,7 @@ class FavoritesRepository implements IFavoritesRepository, WatchProgressSink {
   @override
   Future<Either<Failures, bool>> toggleFavorite(Favorite favorite) async {
     try {
-      final List<Favorite> list = _readFavorites();
+      final List<Favorite> list = await _readFavorites();
       final bool wasFavorite = list.any((Favorite f) => f.key == favorite.key);
       list.removeWhere((Favorite f) => f.key == favorite.key);
       if (!wasFavorite) {
@@ -115,6 +115,7 @@ class FavoritesRepository implements IFavoritesRepository, WatchProgressSink {
     required int durationSeconds,
     String? subtitle,
     String? posterUrl,
+    String? seriesId,
   }) async {
     // Best-effort: a failed progress save must never break playback.
     try {
@@ -123,7 +124,7 @@ class FavoritesRepository implements IFavoritesRepository, WatchProgressSink {
         orElse: () => ContentKind.movie,
       );
       final String key = "${kindEnum.name}_$id";
-      final List<WatchSession> list = _readSessions()
+      final List<WatchSession> list = (await _readSessions())
         ..removeWhere((WatchSession s) => s.key == key);
 
       final double fraction =
@@ -142,6 +143,7 @@ class FavoritesRepository implements IFavoritesRepository, WatchProgressSink {
             updatedAtMillis: DateTime.now().millisecondsSinceEpoch,
             subtitle: subtitle,
             posterUrl: posterUrl,
+            seriesId: seriesId,
           ),
         );
       }
@@ -151,8 +153,8 @@ class FavoritesRepository implements IFavoritesRepository, WatchProgressSink {
     }
   }
 
-  List<WatchSession> _readSessions() {
-    final String? raw = _cache.read(_sessionsKey);
+  Future<List<WatchSession>> _readSessions() async {
+    final String? raw = await _cache.read(_sessionsKey);
     if (raw == null || raw.isEmpty) return <WatchSession>[];
     final List<dynamic> decoded = jsonDecode(raw) as List<dynamic>;
     return decoded
@@ -169,8 +171,8 @@ class FavoritesRepository implements IFavoritesRepository, WatchProgressSink {
         ),
       );
 
-  List<Favorite> _readFavorites() {
-    final String? raw = _cache.read(_favoritesKey);
+  Future<List<Favorite>> _readFavorites() async {
+    final String? raw = await _cache.read(_favoritesKey);
     if (raw == null || raw.isEmpty) return <Favorite>[];
     final List<dynamic> decoded = jsonDecode(raw) as List<dynamic>;
     return decoded

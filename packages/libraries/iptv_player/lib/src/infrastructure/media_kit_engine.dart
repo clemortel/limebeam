@@ -226,12 +226,23 @@ class MediaKitEngine implements PlaybackEngine {
   /// the video layer so overlay/HUD repaints never invalidate the texture.
   Widget? _view;
 
+  /// Drives the video `fit` so [setFill] can flip fit↔fill by rebuilding only
+  /// the inner `Video`, not the cached outer widget.
+  final ValueNotifier<BoxFit> _fit = ValueNotifier<BoxFit>(BoxFit.contain);
+
+  @override
+  Future<void> setFill(bool fill) async =>
+      _fit.value = fill ? BoxFit.cover : BoxFit.contain;
+
   @override
   Widget buildView() => _view ??= RepaintBoundary(
-        child: Video(
-          controller: _videoController,
-          controls: null,
-          fit: BoxFit.contain,
+        child: ValueListenableBuilder<BoxFit>(
+          valueListenable: _fit,
+          builder: (BuildContext context, BoxFit fit, _) => Video(
+            controller: _videoController,
+            controls: null,
+            fit: fit,
+          ),
         ),
       );
 

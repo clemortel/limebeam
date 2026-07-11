@@ -184,10 +184,10 @@ class SourceRepository implements ISourceRepository {
 
   @override
   Future<IList<Source>> getSources() async {
-    final List<String> ids = _readIndex();
+    final List<String> ids = await _readIndex();
     final List<Source> sources = <Source>[];
     for (final String id in ids) {
-      final String? raw = _cache.read(_metaKey(id));
+      final String? raw = await _cache.read(_metaKey(id));
       if (raw == null) continue;
       sources.add(Source.fromJson(jsonDecode(raw) as Map<String, dynamic>));
     }
@@ -197,7 +197,7 @@ class SourceRepository implements ISourceRepository {
   @override
   Future<Either<Failures, Unit>> deleteSource(String id) async {
     try {
-      final List<String> ids = _readIndex()..remove(id);
+      final List<String> ids = (await _readIndex())..remove(id);
       await _writeIndex(ids);
       await _cache.delete(_metaKey(id));
       await _cache.delete(_cfgKey(id));
@@ -226,7 +226,7 @@ class SourceRepository implements ISourceRepository {
 
   @override
   Future<void> hydrateOnLaunch() async {
-    final String? activeId = _cache.read(_kActiveKey);
+    final String? activeId = await _cache.read(_kActiveKey);
     developer.log("hydrateOnLaunch activeId=$activeId", name: "iptv.auth");
     if (activeId == null) return;
     final SourceConfig? config = await _readConfig(activeId);
@@ -246,7 +246,7 @@ class SourceRepository implements ISourceRepository {
     required String username,
     required String password,
   }) async {
-    final List<String> ids = _readIndex();
+    final List<String> ids = await _readIndex();
     if (!ids.contains(source.id)) {
       ids.add(source.id);
       await _writeIndex(ids);
@@ -268,7 +268,7 @@ class SourceRepository implements ISourceRepository {
     required String url,
     String? epgUrl,
   }) async {
-    final List<String> ids = _readIndex();
+    final List<String> ids = await _readIndex();
     if (!ids.contains(source.id)) {
       ids.add(source.id);
       await _writeIndex(ids);
@@ -285,7 +285,7 @@ class SourceRepository implements ISourceRepository {
   }
 
   Future<void> _persistDemo(Source source) async {
-    final List<String> ids = _readIndex();
+    final List<String> ids = await _readIndex();
     if (!ids.contains(source.id)) {
       ids.add(source.id);
       await _writeIndex(ids);
@@ -302,8 +302,8 @@ class SourceRepository implements ISourceRepository {
     _activeStore.set(sourceId: id, config: config);
   }
 
-  List<String> _readIndex() {
-    final String? raw = _cache.read(_kIndexKey);
+  Future<List<String>> _readIndex() async {
+    final String? raw = await _cache.read(_kIndexKey);
     if (raw == null) return <String>[];
     return (jsonDecode(raw) as List<dynamic>).cast<String>();
   }
@@ -315,7 +315,7 @@ class SourceRepository implements ISourceRepository {
   /// (password). Missing password falls back to empty so cached content still
   /// loads after a Keychain wipe.
   Future<SourceConfig?> _readConfig(String id) async {
-    final String? raw = _cache.read(_cfgKey(id));
+    final String? raw = await _cache.read(_cfgKey(id));
     if (raw == null) return null;
     final Map<String, dynamic> json = jsonDecode(raw) as Map<String, dynamic>;
     if (json["type"] == "xtream") {

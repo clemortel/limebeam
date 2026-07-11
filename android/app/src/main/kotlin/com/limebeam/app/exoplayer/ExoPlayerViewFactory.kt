@@ -30,6 +30,14 @@ class ExoPlayerPlatformView(context: Context) : PlatformView {
         // base surface so the video is visible; Flutter's overlay layer (the
         // controls) still composites on top.
         surfaceView.setZOrderMediaOverlay(true)
+        // Never let the video surface take D-pad focus, or the remote can't
+        // reach the Flutter transport controls (play/CC/seek).
+        surfaceView.isFocusable = false
+        surfaceView.isFocusableInTouchMode = false
+        // Keep the screen awake while the video surface is on screen. The
+        // SurfaceView engine bypasses media_kit (which managed its own
+        // wakelock), so without this the Fire TV dims and sleeps mid-playback.
+        surfaceView.keepScreenOn = true
         ExoPlayerController.shared(context).player.setVideoSurfaceView(surfaceView)
     }
 

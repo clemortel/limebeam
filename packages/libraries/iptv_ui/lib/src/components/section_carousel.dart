@@ -1,3 +1,4 @@
+import "package:dpad/dpad.dart";
 import "package:flutter/material.dart" show Icons;
 import "package:flutter/widgets.dart";
 
@@ -77,16 +78,23 @@ class SectionCarousel extends StatelessWidget {
           ),
         ),
         SizedBox(height: t.space.x2),
-        SizedBox(
-          height: height,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: EdgeInsets.symmetric(horizontal: t.space.x4),
-            itemCount: itemCount,
-            separatorBuilder: (BuildContext c, int i) =>
-                SizedBox(width: t.space.x3),
-            itemBuilder: (BuildContext c, int i) =>
-                SizedBox(width: itemExtent, child: itemBuilder(c, i)),
+        // Each rail is its own D-pad region: horizontal moves stay inside it
+        // (the policy lazy-scrolls to reveal the next card instead of the beam
+        // escaping diagonally to the row above), while the default `leave`
+        // edges still let ▲/▼ cross rails and ◀ at the first card reach the
+        // navigation rail.
+        DpadRegion(
+          child: SizedBox(
+            height: height,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: EdgeInsets.symmetric(horizontal: t.space.x4),
+              itemCount: itemCount,
+              separatorBuilder: (BuildContext c, int i) =>
+                  SizedBox(width: t.space.x3),
+              itemBuilder: (BuildContext c, int i) =>
+                  SizedBox(width: itemExtent, child: itemBuilder(c, i)),
+            ),
           ),
         ),
       ],

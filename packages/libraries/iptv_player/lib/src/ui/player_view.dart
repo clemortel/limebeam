@@ -1,3 +1,5 @@
+import "dart:async" show Timer;
+
 import "package:fast_immutable_collections/fast_immutable_collections.dart";
 import "package:flutter/foundation.dart";
 import "package:flutter/material.dart";
@@ -65,6 +67,7 @@ typedef _PlayerVm = ({
   bool buffering,
   bool isLive,
   bool canScrub,
+  bool scrubbing,
   CastDevice? castDevice,
   Failures? error,
   String? seekFlash,
@@ -97,8 +100,18 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
   // lands on the play/pause button (Apple TV behaviour).
   final FocusNode _playFocusNode = FocusNode(debugLabel: "player-play");
 
+  // The other two D-pad stops. Up/Down on TV walks play → seek → CC
+  // deterministically (see [_moveTvFocus]) rather than trusting the beam, which
+  // proved unable to land on these widgets reliably.
+  final FocusNode _seekFocusNode = FocusNode(debugLabel: "player-seek");
+  final FocusNode _ccFocusNode = FocusNode(debugLabel: "player-cc");
+
   // TV side panel (tracks picker). Never shown on touch devices.
   bool _tvPanelVisible = false;
+
+  // Device class, cached from the inherited scope. On TV there is no
+  // mini-player, so popping the player stops playback rather than docking it.
+  bool _isTv = false;
 
   // Captured in [initState] so [dispose] never touches `ref` (which is invalid
   // once the element is defunct). The controller is an app-scoped keepAlive
@@ -117,17 +130,32 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _isTv = FormFactorScope.isTv(context);
+  }
+
+  @override
   void dispose() {
     _tvFocusNode.dispose();
     _playFocusNode.dispose();
-    // Popped (minimized) → show the floating window, keep playing. Deferred to
-    // the next frame: mutating the provider this widget watches *during*
-    // dispose would notify our own now-defunct element (markNeedsBuild on a
-    // defunct Element). Runs after this element is fully unmounted.
+    _seekFocusNode.dispose();
+    _ccFocusNode.dispose();
+    // Deferred to the next frame: mutating the provider this widget watches
+    // *during* dispose would notify our own now-defunct element. Runs after
+    // this element is fully unmounted.
     final PlaybackController controller = _controller;
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => controller.setExpanded(false),
-    );
+    final bool wasTv = _isTv;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (wasTv) {
+        // TV has no docked mini-player, so leaving the full-screen player must
+        // stop playback — otherwise audio keeps going in the background menu.
+        controller.stop();
+      } else {
+        // Phone: dock into the floating mini-player and keep playing.
+        controller.setExpanded(false);
+      }
+    });
     SystemChrome.setEnabledSystemUIMode(
       SystemUiMode.edgeToEdge,
       overlays: SystemUiOverlay.values,
@@ -183,6 +211,27 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
     }
   }
 
+  /// Walks the overlay's D-pad stops in order — play → seek → CC — moving
+  /// focus one step. Only mounted controls participate, so absent ones (no seek
+  /// bar on live, no CC without tracks) are skipped. Deterministic on purpose:
+  /// dpad's geometric beam wouldn't reliably land on these specific widgets.
+  void _moveTvFocus({required bool forward}) {
+    final List<FocusNode> stops = <FocusNode>[
+      _playFocusNode,
+      _seekFocusNode,
+      _ccFocusNode,
+    ].where((FocusNode n) => n.context != null && n.canRequestFocus).toList();
+    if (stops.isEmpty) return;
+    final int current = stops.indexWhere((FocusNode n) => n.hasFocus);
+    if (current < 0) {
+      stops.first.requestFocus();
+      return;
+    }
+    final int next =
+        (current + (forward ? 1 : -1)).clamp(0, stops.length - 1);
+    stops[next].requestFocus();
+  }
+
   /// Maps remote/D-pad keys to playback on TV. When the overlay is visible the
   /// directional keys are left to the focus system (so the on-screen buttons
   /// are reachable); when it is hidden the remote drives transport directly.
@@ -197,6 +246,28 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
     }
     final bool canScrub = vm.canScrub;
     final LogicalKeyboardKey key = event.logicalKey;
+
+    // A playback error shows a modal overlay. The remote must ONLY Retry (OK)
+    // or exit (Back) — every other key is swallowed so it can't leak to the
+    // player behind the overlay (which is why "Retry" used to instead toggle
+    // play/pause or zap to the next channel focused underneath it).
+    if (vm.error != null) {
+      if (key == LogicalKeyboardKey.escape ||
+          key == LogicalKeyboardKey.goBack ||
+          key == LogicalKeyboardKey.browserBack) {
+        Navigator.of(context).maybePop();
+        return KeyEventResult.handled;
+      }
+      if (key == LogicalKeyboardKey.select ||
+          key == LogicalKeyboardKey.enter ||
+          key == LogicalKeyboardKey.numpadEnter ||
+          key == LogicalKeyboardKey.gameButtonA ||
+          key == LogicalKeyboardKey.space) {
+        controller.retry();
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.handled;
+    }
 
     // TV side panel open: Back/Escape closes it before any other key handling.
     if (_tvPanelVisible &&
@@ -254,6 +325,29 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
         return KeyEventResult.handled;
       }
       controller.pokeOverlay();
+      // While the track panel is open, its own FocusScope owns navigation.
+      if (!_tvPanelVisible) {
+        // ◀/▶ from elsewhere jumps onto the seek bar so scrubbing happens in
+        // one place (preview cursor + commit); the bar then owns ◀/▶ itself.
+        if (canScrub &&
+            !_seekFocusNode.hasFocus &&
+            (key == LogicalKeyboardKey.arrowLeft ||
+                key == LogicalKeyboardKey.arrowRight)) {
+          _seekFocusNode.requestFocus();
+          return KeyEventResult.handled;
+        }
+        // ▲/▼ walk the ordered stops play → seek → CC (deterministic).
+        if (key == LogicalKeyboardKey.arrowUp) {
+          _moveTvFocus(forward: false);
+          return KeyEventResult.handled;
+        }
+        if (key == LogicalKeyboardKey.arrowDown) {
+          _moveTvFocus(forward: true);
+          return KeyEventResult.handled;
+        }
+      }
+      // OK/Select (and anything else) → focus system activates the focused
+      // control (play/pause, open CC panel).
       return KeyEventResult.ignored;
     }
 
@@ -314,6 +408,7 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
           buffering: s.buffering,
           isLive: s.isLive,
           canScrub: !s.isLive && s.duration > Duration.zero,
+          scrubbing: s.scrubbing,
           castDevice: s.castDevice,
           error: s.error,
           seekFlash: s.seekFlash,
@@ -350,8 +445,10 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
               (_) => _playFocusNode.requestFocus(),
             );
           } else {
+            // Hidden: close any panel and leave focus on the current control —
+            // the full-screen key interceptor drives transport while hidden.
+            // (The interceptor is no longer focusable, so don't focus it.)
             setState(() => _tvPanelVisible = false);
-            _tvFocusNode.requestFocus();
           }
         },
       );
@@ -450,15 +547,21 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
                 _ControlsLayer(
                   visible: vm.overlayVisible,
                   duration: t.motion.base,
-                  // Live on TV uses the SurfaceView engine (video off the app
-                  // GPU) → keep controls mounted for an instant HUD reveal.
-                  keepMounted: isTv && vm.isLive,
+                  // On TV all playback uses the SurfaceView engine (video off
+                  // the app GPU), so keep the controls mounted: their D-pad
+                  // focus nodes stay attached (the remote can always reach
+                  // play/CC/seek) and the HUD reveals instantly. Unmounting is
+                  // only for the touch/texture path, where hidden rebuilds cost.
+                  keepMounted: isTv,
                   builder: (BuildContext context) => _Controls(
                     request: request,
                     queue: queue,
                     controller: controller,
                     playFocusNode: _playFocusNode,
+                    seekFocusNode: _seekFocusNode,
+                    ccFocusNode: _ccFocusNode,
                     isLandscape: _landscape,
+                    scrubbing: vm.scrubbing,
                     onToggleFullscreen: _toggleFullscreen,
                     onMinimize: () => Navigator.of(context).maybePop(),
                     onShowTracksPanel: isTv
@@ -513,6 +616,7 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
                   _ErrorOverlay(
                     failure: vm.error!,
                     onRetry: controller.retry,
+                    isTv: isTv,
                   ),
               ],
             ),
@@ -521,7 +625,16 @@ class _PlayerViewState extends ConsumerState<PlayerView> {
           if (!isTv) return gestureLayer;
           return Focus(
             focusNode: _tvFocusNode,
-            autofocus: true,
+            // Pure key interceptor: it must NEVER hold focus or be a traversal
+            // target. dpad owns focus (the play button is the screen's one
+            // `autofocus`, and dpad's beam moves between the controls). Because
+            // this node wraps the whole player, its onKeyEvent still fires for
+            // the focused control's key events — so transport keys work — while
+            // canRequestFocus:false stops it from stealing focus (which left the
+            // remote dead) and skipTraversal keeps the beam off this
+            // full-screen rect.
+            canRequestFocus: false,
+            skipTraversal: true,
             onKeyEvent: (FocusNode node, KeyEvent event) =>
                 _handleTvKey(event, vm, controller, queue),
             child: gestureLayer,
@@ -665,17 +778,23 @@ class _ControlsLayerState extends State<_ControlsLayer> {
   }
 }
 
-/// The transport overlay (scrim + top/center/bottom bars). A [ConsumerWidget]
-/// that watches the live [PlayerUiState] itself: it is only mounted while the
-/// overlay is visible (see [_ControlsLayer]), so the playhead ticks it depends
-/// on rebuild only these bars, never the whole player.
-class _Controls extends ConsumerWidget {
+/// The transport overlay (scrim + top/center/bottom bars). A plain
+/// [StatelessWidget]: it does NOT watch player state, so the gradient scrim and
+/// layout never rebuild on playhead ticks. Each bar is its own [ConsumerWidget]
+/// watching only the narrow slice it needs, and the playhead (position /
+/// duration) only rebuilds the small [_SeekSection] leaf. This keeps the UI
+/// thread free during playback (the whole-tree 4 Hz rebuild otherwise starves
+/// key input and ANRs on weak Fire TV hardware).
+class _Controls extends StatelessWidget {
   const _Controls({
     required this.request,
     required this.queue,
     required this.controller,
     required this.playFocusNode,
+    required this.seekFocusNode,
+    required this.ccFocusNode,
     required this.isLandscape,
+    required this.scrubbing,
     required this.onToggleFullscreen,
     required this.onMinimize,
     this.onShowTracksPanel,
@@ -685,7 +804,13 @@ class _Controls extends ConsumerWidget {
   final PlaybackQueue queue;
   final PlaybackController controller;
   final FocusNode playFocusNode;
+  final FocusNode seekFocusNode;
+  final FocusNode ccFocusNode;
   final bool isLandscape;
+
+  /// While true the user is holding to scrub — fade the top bar + centre
+  /// controls so the video shows behind the seek bar.
+  final bool scrubbing;
   final VoidCallback onToggleFullscreen;
   final VoidCallback onMinimize;
 
@@ -693,8 +818,7 @@ class _Controls extends ConsumerWidget {
   final VoidCallback? onShowTracksPanel;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final PlayerUiState state = ref.watch(playbackControllerProvider);
+  Widget build(BuildContext context) {
     final bool isTv = FormFactorScope.isTv(context);
     return DecoratedBox(
       decoration: const BoxDecoration(
@@ -715,26 +839,39 @@ class _Controls extends ConsumerWidget {
             ),
             child: Column(
               children: <Widget>[
-                _TopBar(
-                  request: request,
-                  isLive: state.isLive,
-                  onMinimize: onMinimize,
+                // Chrome fades out while scrubbing (kept in the tree at opacity
+                // 0 + ignored so focus nodes stay attached and layout is
+                // stable); the seek bar below remains fully visible.
+                AnimatedOpacity(
+                  opacity: scrubbing ? 0 : 1,
+                  duration: context.appTheme.motion.fast,
+                  child: IgnorePointer(
+                    ignoring: scrubbing,
+                    child: _TopBar(request: request, onMinimize: onMinimize),
+                  ),
                 ),
                 Expanded(
-                  child: Center(
-                    child: _CenterControls(
-                      state: state,
-                      queue: queue,
-                      controller: controller,
-                      playFocusNode: playFocusNode,
+                  child: AnimatedOpacity(
+                    opacity: scrubbing ? 0 : 1,
+                    duration: context.appTheme.motion.fast,
+                    child: IgnorePointer(
+                      ignoring: scrubbing,
+                      child: Center(
+                        child: _CenterControls(
+                          queue: queue,
+                          controller: controller,
+                          playFocusNode: playFocusNode,
+                        ),
+                      ),
                     ),
                   ),
                 ),
                 _BottomBar(
-                  state: state,
                   request: request,
                   queue: queue,
                   controller: controller,
+                  seekFocusNode: seekFocusNode,
+                  ccFocusNode: ccFocusNode,
                   isLandscape: isLandscape,
                   onToggleFullscreen: onToggleFullscreen,
                   onShowTracksPanel: onShowTracksPanel,
@@ -748,20 +885,19 @@ class _Controls extends ConsumerWidget {
   }
 }
 
-class _TopBar extends StatelessWidget {
-  const _TopBar({
-    required this.request,
-    required this.isLive,
-    required this.onMinimize,
-  });
+class _TopBar extends ConsumerWidget {
+  const _TopBar({required this.request, required this.onMinimize});
 
   final PlaybackRequest request;
-  final bool isLive;
   final VoidCallback onMinimize;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final AppTheme t = context.appTheme;
+    // Only the live badge depends on state; watch just that.
+    final bool isLive = ref.watch(
+      playbackControllerProvider.select((PlayerUiState s) => s.isLive),
+    );
     return Padding(
       padding:
           EdgeInsets.symmetric(horizontal: t.space.x2, vertical: t.space.x1),
@@ -831,15 +967,13 @@ class _LiveBadge extends StatelessWidget {
   }
 }
 
-class _CenterControls extends StatelessWidget {
+class _CenterControls extends ConsumerWidget {
   const _CenterControls({
-    required this.state,
     required this.queue,
     required this.controller,
     required this.playFocusNode,
   });
 
-  final PlayerUiState state;
   final PlaybackQueue queue;
   final PlaybackController controller;
 
@@ -847,9 +981,20 @@ class _CenterControls extends StatelessWidget {
   final FocusNode playFocusNode;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final AppTheme t = context.appTheme;
     final bool hasSiblings = queue.hasSiblings;
+    // Watch only the transport fields — never position/duration, so the play
+    // glyph doesn't rebuild on every playhead tick.
+    final ({bool playing, bool buffering, int queueIndex}) state = ref.watch(
+      playbackControllerProvider.select(
+        (PlayerUiState s) => (
+          playing: s.playing,
+          buffering: s.buffering,
+          queueIndex: s.queueIndex,
+        ),
+      ),
+    );
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
@@ -866,6 +1011,10 @@ class _CenterControls extends StatelessWidget {
         // (the buffering spinner just swaps in as its child).
         PressableScale(
           focusNode: playFocusNode,
+          // dpad's "one autofocus per screen": the primary action anchors the
+          // remote when the player opens, so focus is never null (a null focus
+          // is a dead remote). dpad's beam moves off it to the other controls.
+          autofocus: true,
           onTap: controller.playOrPause,
           focusBorderRadius: t.radius.fullAll,
           child: SizedBox(
@@ -899,21 +1048,23 @@ class _CenterControls extends StatelessWidget {
   }
 }
 
-class _BottomBar extends StatelessWidget {
+class _BottomBar extends ConsumerWidget {
   const _BottomBar({
-    required this.state,
     required this.request,
     required this.queue,
     required this.controller,
+    required this.seekFocusNode,
+    required this.ccFocusNode,
     required this.isLandscape,
     required this.onToggleFullscreen,
     this.onShowTracksPanel,
   });
 
-  final PlayerUiState state;
   final PlaybackRequest request;
   final PlaybackQueue queue;
   final PlaybackController controller;
+  final FocusNode seekFocusNode;
+  final FocusNode ccFocusNode;
   final bool isLandscape;
   final VoidCallback onToggleFullscreen;
 
@@ -921,48 +1072,42 @@ class _BottomBar extends StatelessWidget {
   final VoidCallback? onShowTracksPanel;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final AppTheme t = context.appTheme;
     final bool isTv = FormFactorScope.isTv(context);
     final AppLocalizations l = AppLocalizations.of(context);
+    // Position/duration are consumed by the [_SeekSection] leaf below — not
+    // here — so this bar doesn't rebuild on every playhead tick.
+    final ({bool isLive, PlayerTracks tracks, int queueIndex, bool videoFill})
+        state = ref.watch(
+      playbackControllerProvider.select(
+        (PlayerUiState s) => (
+          isLive: s.isLive,
+          tracks: s.tracks,
+          queueIndex: s.queueIndex,
+          videoFill: s.videoFill,
+        ),
+      ),
+    );
     return Padding(
       padding:
           EdgeInsets.symmetric(horizontal: t.space.x4, vertical: t.space.x2),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          if (!state.isLive) ...<Widget>[
-            _SeekBar(
-              position: state.position,
-              duration: state.duration,
-              onSeek: controller.seekTo,
+          if (!state.isLive)
+            _SeekSection(
+              controller: controller,
               isTv: isTv,
-              onSeekBackward: controller.seekBackward,
-              onSeekForward: controller.seekForward,
+              focusNode: seekFocusNode,
             ),
-            Row(
-              children: <Widget>[
-                Text(
-                  _formatDuration(state.position),
-                  style: t.typography.caption
-                      .copyWith(color: t.colors.textSecondary),
-                ),
-                const Spacer(),
-                Text(
-                  _formatDuration(state.duration),
-                  style: t.typography.caption
-                      .copyWith(color: t.colors.textSecondary),
-                ),
-              ],
-            ),
-          ],
           Row(
             children: <Widget>[
               if (queue.hasSiblings)
                 // PressableScale wrapper gives the TV focus ring to the queue
                 // button (TextButton.icon has no focus ring affordance).
                 PressableScale(
-                  onTap: () => _showQueue(context),
+                  onTap: () => _showQueue(context, state.queueIndex),
                   focusBorderRadius: t.radius.smAll,
                   child: Padding(
                     padding: EdgeInsets.symmetric(
@@ -993,10 +1138,21 @@ class _BottomBar extends StatelessWidget {
                       ? Icons.closed_caption
                       : Icons.closed_caption_outlined,
                   active: state.tracks.hasSubtitleOn,
+                  focusNode: ccFocusNode,
                   onPressed: () => _showTracks(context),
                 ),
               const _PipButton(),
               _CastButton(controller: controller),
+              // Zoom-to-fill toggle (YouTube/Netflix): crop the video to cover
+              // the screen instead of letterboxing. The main way to "go
+              // fullscreen" on TV, where the orientation toggle is meaningless.
+              AppIconButton(
+                icon: state.videoFill
+                    ? Icons.fullscreen_exit
+                    : Icons.aspect_ratio,
+                active: state.videoFill,
+                onPressed: controller.toggleVideoFill,
+              ),
               // No orientation toggle on TV — it is already full-screen
               // landscape and has no portrait mode.
               if (!isTv)
@@ -1011,14 +1167,14 @@ class _BottomBar extends StatelessWidget {
     );
   }
 
-  void _showQueue(BuildContext context) {
+  void _showQueue(BuildContext context, int currentIndex) {
     final AppLocalizations l = AppLocalizations.of(context);
     AppBottomSheet.show<void>(
       context,
       title: request.isLive ? l.playerChannels : l.playerEpisodes,
       child: _QueueList(
         queue: queue,
-        currentIndex: state.queueIndex,
+        currentIndex: currentIndex,
         onSelect: (int index) {
           controller.playAt(index);
           Navigator.of(context).maybePop();
@@ -1207,24 +1363,98 @@ class _SyncRow extends StatelessWidget {
   }
 }
 
+/// Scrubber + time labels. A leaf [ConsumerWidget] that watches ONLY the
+/// playhead (position/duration), so the ~4 Hz updates rebuild just this small
+/// subtree — never the whole controls tree (which starved the UI thread and
+/// ANR'd on weak Fire TV hardware). VOD only (live has no seek bar).
+class _SeekSection extends ConsumerWidget {
+  const _SeekSection({
+    required this.controller,
+    required this.isTv,
+    required this.focusNode,
+  });
+
+  final PlaybackController controller;
+  final bool isTv;
+  final FocusNode focusNode;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final AppTheme t = context.appTheme;
+    final ({Duration position, Duration duration}) vm = ref.watch(
+      playbackControllerProvider.select(
+        (PlayerUiState s) => (position: s.position, duration: s.duration),
+      ),
+    );
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        _SeekBar(
+          position: vm.position,
+          duration: vm.duration,
+          onSeek: controller.seekTo,
+          isTv: isTv,
+          focusNode: focusNode,
+          onScrubbing: (bool active) =>
+              controller.setScrubbing(active: active),
+        ),
+        Row(
+          children: <Widget>[
+            Text(
+              _formatDuration(vm.position),
+              style:
+                  t.typography.caption.copyWith(color: t.colors.textSecondary),
+            ),
+            const Spacer(),
+            Text(
+              _formatDuration(vm.duration),
+              style:
+                  t.typography.caption.copyWith(color: t.colors.textSecondary),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// Base step per ◀/▶ press while scrubbing on TV. Holding accelerates: each
+/// key-repeat adds a step multiplier so a long press travels far, matching
+/// how TV players fast-forward the longer the button is held.
+const int _kTvScrubStepMs = 10000;
+
+/// Cap on the hold-acceleration multiplier (base step × this at most).
+const int _kMaxScrubMultiplier = 12;
+
+/// Idle delay after the last ◀/▶ press before the pending scrub is committed.
+const Duration _kScrubCommitDelay = Duration(milliseconds: 700);
+
 class _SeekBar extends StatefulWidget {
   const _SeekBar({
     required this.position,
     required this.duration,
     required this.onSeek,
     this.isTv = false,
-    this.onSeekBackward,
-    this.onSeekForward,
+    this.focusNode,
+    this.onScrubbing,
   });
 
   final Duration position;
   final Duration duration;
   final void Function(Duration target) onSeek;
 
-  /// On TV the bar becomes a focusable D-pad scrubber (◀/▶, hold to repeat).
+  /// On TV the bar becomes a focusable D-pad scrubber: ◀/▶ move a *preview*
+  /// cursor without seeking; the jump is committed on OK or after a short
+  /// idle delay (so you pick the exact spot instead of stepping ±10s live).
   final bool isTv;
-  final VoidCallback? onSeekBackward;
-  final VoidCallback? onSeekForward;
+
+  /// External node so the player's ordered up/down navigation can focus the
+  /// bar directly (the beam couldn't reliably reach it).
+  final FocusNode? focusNode;
+
+  /// Fired with `true` when a preview scrub begins and `false` when it commits,
+  /// so the player can fade the chrome and pin the overlay open meanwhile.
+  final ValueChanged<bool>? onScrubbing;
 
   @override
   State<_SeekBar> createState() => _SeekBarState();
@@ -1232,32 +1462,93 @@ class _SeekBar extends StatefulWidget {
 
 class _SeekBarState extends State<_SeekBar> {
   double? _dragValue;
+  // Preview position selected with the remote, not yet committed.
+  double? _pendingMs;
+  Timer? _commitTimer;
   bool _focused = false;
+  // Consecutive ◀/▶ repeats in the current hold — drives acceleration.
+  int _repeat = 0;
+
+  @override
+  void dispose() {
+    _commitTimer?.cancel();
+    super.dispose();
+  }
+
+  double get _maxMs =>
+      widget.duration.inMilliseconds.toDouble().clamp(1, double.infinity);
+
+  /// Moves the preview cursor by an accelerating step and (re)arms the
+  /// idle-commit timer. [repeat] is true for held-key auto-repeat events.
+  void _scrubBy({required bool forward, required bool repeat}) {
+    if (repeat) {
+      _repeat++;
+    } else {
+      _repeat = 0;
+    }
+    // Grow the step every few repeats, capped, so a held button ramps up.
+    final int multiplier = (1 + _repeat ~/ 3).clamp(1, _kMaxScrubMultiplier);
+    final int deltaMs = _kTvScrubStepMs * multiplier * (forward ? 1 : -1);
+    final double base =
+        _pendingMs ?? widget.position.inMilliseconds.toDouble();
+    final bool starting = _pendingMs == null;
+    setState(() => _pendingMs = (base + deltaMs).clamp(0, _maxMs));
+    if (starting) widget.onScrubbing?.call(true);
+    _commitTimer?.cancel();
+    _commitTimer = Timer(_kScrubCommitDelay, _commit);
+  }
+
+  /// Applies the pending preview position as a real seek.
+  void _commit() {
+    _commitTimer?.cancel();
+    _repeat = 0;
+    final double? ms = _pendingMs;
+    if (ms == null) return;
+    widget.onSeek(Duration(milliseconds: ms.round()));
+    widget.onScrubbing?.call(false);
+    if (mounted) setState(() => _pendingMs = null);
+  }
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
-    // ◀/▶ scrub and are consumed so focus stays on the bar (hold = fast seek);
-    // up/down/OK fall through to traversal so the user can leave the bar.
-    if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-      widget.onSeekBackward?.call();
+    final bool repeat = event is KeyRepeatEvent;
+    final LogicalKeyboardKey key = event.logicalKey;
+    // ◀/▶ move the preview cursor and are consumed so focus stays on the bar.
+    if (key == LogicalKeyboardKey.arrowLeft) {
+      _scrubBy(forward: false, repeat: repeat);
       return KeyEventResult.handled;
     }
-    if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
-      widget.onSeekForward?.call();
+    if (key == LogicalKeyboardKey.arrowRight) {
+      _scrubBy(forward: true, repeat: repeat);
       return KeyEventResult.handled;
     }
+    // OK/Select commits the pending jump immediately (skip the idle wait).
+    if (key == LogicalKeyboardKey.select ||
+        key == LogicalKeyboardKey.enter ||
+        key == LogicalKeyboardKey.numpadEnter ||
+        key == LogicalKeyboardKey.gameButtonA ||
+        key == LogicalKeyboardKey.space) {
+      if (_pendingMs != null) {
+        _commit();
+        return KeyEventResult.handled;
+      }
+      return KeyEventResult.ignored;
+    }
+    // Leaving the bar (▲/▼) commits any pending jump first, then lets the
+    // focus system move away.
+    if (_pendingMs != null) _commit();
     return KeyEventResult.ignored;
   }
 
   @override
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
-    final double max =
-        widget.duration.inMilliseconds.toDouble().clamp(1, double.infinity);
+    final double max = _maxMs;
     final double current =
-        (_dragValue ?? widget.position.inMilliseconds.toDouble()).clamp(0, max);
+        (_pendingMs ?? _dragValue ?? widget.position.inMilliseconds.toDouble())
+            .clamp(0, max);
     final Widget slider = SliderTheme(
       data: SliderTheme.of(context).copyWith(
         activeTrackColor: t.colors.accent,
@@ -1278,16 +1569,47 @@ class _SeekBarState extends State<_SeekBar> {
 
     if (!widget.isTv) return slider;
 
+    // A time bubble above the thumb shows the target while previewing so the
+    // user sees exactly where the jump will land before committing.
+    final Widget bar = Stack(
+      clipBehavior: Clip.none,
+      children: <Widget>[
+        ExcludeFocus(child: slider),
+        if (_pendingMs != null)
+          Positioned.fill(
+            child: LayoutBuilder(
+              builder: (BuildContext context, BoxConstraints c) {
+                final double fraction = max <= 0 ? 0 : (_pendingMs! / max);
+                return Align(
+                  alignment: Alignment(fraction * 2 - 1, -1.8),
+                  child: _Pill(
+                    text: _formatDuration(
+                      Duration(milliseconds: _pendingMs!.round()),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+      ],
+    );
+
     // The Material Slider's own focus is excluded so the remote's ◀/▶ aren't
     // double-handled; our Focus owns the keys and the glass focus ring.
     return Focus(
-      onFocusChange: (bool f) => setState(() => _focused = f),
+      debugLabel: "player-seek",
+      focusNode: widget.focusNode,
+      onFocusChange: (bool f) {
+        setState(() => _focused = f);
+        // Losing focus commits any pending jump so it isn't dropped silently.
+        if (!f && _pendingMs != null) _commit();
+      },
       onKeyEvent: _onKey,
       child: AnimatedContainer(
         duration: t.motion.fast,
         decoration: focusFloat(t, t.radius.smAll, focused: _focused),
         foregroundDecoration: focusSkin(t, t.radius.smAll, focused: _focused),
-        child: ExcludeFocus(child: slider),
+        child: bar,
       ),
     );
   }
@@ -1704,39 +2026,51 @@ class _NextEpisodeCard extends StatelessWidget {
 }
 
 class _ErrorOverlay extends StatelessWidget {
-  const _ErrorOverlay({required this.failure, required this.onRetry});
+  const _ErrorOverlay({
+    required this.failure,
+    required this.onRetry,
+    this.isTv = false,
+  });
 
   final Failures failure;
   final VoidCallback onRetry;
+  final bool isTv;
 
   @override
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
-    return ColoredBox(
-      color: _kPillBg,
-      child: SafeArea(
-        child: Stack(
-          children: <Widget>[
-            Align(
-              alignment: Alignment.topLeft,
-              child: IconButton(
-                icon: Icon(Icons.arrow_back, color: t.colors.textPrimary),
-                onPressed: () => Navigator.of(context).maybePop(),
-              ),
-            ),
-            Center(
-              child: EmptyState(
-                icon: Icons.error_outline,
-                title: AppLocalizations.of(context).playerError,
-                message: failure.localized(AppLocalizations.of(context)),
-                action: PrimaryButton(
-                  label: AppLocalizations.of(context).commonRetry,
-                  expand: false,
-                  onPressed: onRetry,
+    // Opaque backdrop so the paused player never shows through; a FocusScope
+    // with the Retry button autofocused keeps the remote's focus ring on the
+    // overlay (transport keys are already swallowed upstream in _handleTvKey).
+    return FocusScope(
+      autofocus: isTv,
+      child: ColoredBox(
+        color: _kPillBg,
+        child: SafeArea(
+          child: Stack(
+            children: <Widget>[
+              Align(
+                alignment: Alignment.topLeft,
+                child: IconButton(
+                  icon: Icon(Icons.arrow_back, color: t.colors.textPrimary),
+                  onPressed: () => Navigator.of(context).maybePop(),
                 ),
               ),
-            ),
-          ],
+              Center(
+                child: EmptyState(
+                  icon: Icons.error_outline,
+                  title: AppLocalizations.of(context).playerError,
+                  message: failure.localized(AppLocalizations.of(context)),
+                  action: PrimaryButton(
+                    label: AppLocalizations.of(context).commonRetry,
+                    expand: false,
+                    autofocus: isTv,
+                    onPressed: onRetry,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1785,55 +2119,59 @@ class _TvSidePanel extends ConsumerWidget {
       bottom: 0,
       right: visible ? 0 : -_kTvPanelWidth,
       width: _kTvPanelWidth,
-      // When closed the panel is parked off-screen but still in the tree (for
-      // the slide animation); ExcludeFocus keeps the D-pad from wandering into
-      // its off-screen rows — the "phantom options past the right edge" bug.
-      child: ExcludeFocus(
-        excluding: !visible,
-        child: ColoredBox(
-          color: const Color(0xEE0A0A0A),
-          child: SafeArea(
-            child: ListView(
-              padding: EdgeInsets.symmetric(vertical: t.space.x4),
-              children: <Widget>[
-                if (tracks.audio.isNotEmpty) ...<Widget>[
-                  _TvPanelHeader(label: l.playerAudio),
-                  for (int i = 0; i < tracks.audio.length; i++)
-                    _TvTrackItem(
-                      label: _trackLabel(tracks.audio[i], l),
-                      selected: tracks.audio[i].id == tracks.selectedAudioId,
-                      autofocus: i == 0 && visible,
-                      onTap: () {
-                        controller.selectAudioTrack(tracks.audio[i].id);
-                        onClose();
-                      },
-                    ),
-                ],
-                if (tracks.subtitle.isNotEmpty) ...<Widget>[
-                  _TvPanelHeader(label: l.playerSubtitles),
-                  _TvTrackItem(
-                    label: l.playerSubtitlesOff,
-                    selected: !tracks.hasSubtitleOn,
-                    autofocus: tracks.audio.isEmpty && visible,
-                    onTap: () {
-                      controller.selectSubtitleTrack(MediaTrack.noneId);
-                      onClose();
-                    },
+      child: ColoredBox(
+        color: const Color(0xEE0A0A0A),
+        // Build the rows ONLY while open. An always-mounted list never re-fires
+        // `autofocus` when it slides in, so the D-pad never entered the panel.
+        // Building on open makes the first row's autofocus fire; the FocusScope
+        // contains traversal to the panel (no wandering into the controls
+        // behind it), and closing returns focus to the play button.
+        child: visible
+            ? FocusScope(
+                child: SafeArea(
+                  child: ListView(
+                    padding: EdgeInsets.symmetric(vertical: t.space.x4),
+                    children: <Widget>[
+                      if (tracks.audio.isNotEmpty) ...<Widget>[
+                        _TvPanelHeader(label: l.playerAudio),
+                        for (int i = 0; i < tracks.audio.length; i++)
+                          _TvTrackItem(
+                            label: _trackLabel(tracks.audio[i], l),
+                            selected:
+                                tracks.audio[i].id == tracks.selectedAudioId,
+                            autofocus: i == 0,
+                            onTap: () {
+                              controller.selectAudioTrack(tracks.audio[i].id);
+                              onClose();
+                            },
+                          ),
+                      ],
+                      if (tracks.subtitle.isNotEmpty) ...<Widget>[
+                        _TvPanelHeader(label: l.playerSubtitles),
+                        _TvTrackItem(
+                          label: l.playerSubtitlesOff,
+                          selected: !tracks.hasSubtitleOn,
+                          autofocus: tracks.audio.isEmpty,
+                          onTap: () {
+                            controller.selectSubtitleTrack(MediaTrack.noneId);
+                            onClose();
+                          },
+                        ),
+                        for (final MediaTrack track in tracks.subtitle)
+                          _TvTrackItem(
+                            label: _trackLabel(track, l),
+                            selected: track.id == tracks.selectedSubtitleId,
+                            onTap: () {
+                              controller.selectSubtitleTrack(track.id);
+                              onClose();
+                            },
+                          ),
+                      ],
+                    ],
                   ),
-                  for (final MediaTrack track in tracks.subtitle)
-                    _TvTrackItem(
-                      label: _trackLabel(track, l),
-                      selected: track.id == tracks.selectedSubtitleId,
-                      onTap: () {
-                        controller.selectSubtitleTrack(track.id);
-                        onClose();
-                      },
-                    ),
-                ],
-              ],
-            ),
-          ),
-        ),
+                ),
+              )
+            : const SizedBox.expand(),
       ),
     );
   }

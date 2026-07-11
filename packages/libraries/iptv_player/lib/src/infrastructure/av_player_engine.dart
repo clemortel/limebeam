@@ -194,6 +194,11 @@ class AvPlayerEngine implements PlaybackEngine {
         "backgroundOpacity": style.backgroundOpacity,
       });
 
+  // Zoom-to-fill isn't wired for the AVPlayer (AirPlay) path; accepted for
+  // contract parity.
+  @override
+  Future<void> setFill(bool fill) async {}
+
   /// Built once and reused; the RepaintBoundary isolates the platform view so
   /// overlay repaints never invalidate the AVPlayer surface.
   Widget? _view;

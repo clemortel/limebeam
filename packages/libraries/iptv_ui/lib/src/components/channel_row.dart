@@ -22,12 +22,16 @@ class ChannelRow extends StatelessWidget {
     this.isFavorite = false,
     this.autofocus = false,
     this.onToggleFavorite,
+    this.onFocusChange,
     super.key,
   });
 
   final String name;
   final String? logoUrl;
   final VoidCallback onTap;
+
+  /// Notified when D-pad focus enters/leaves the row (TV live preview dwell).
+  final ValueChanged<bool>? onFocusChange;
 
   /// Current programme title; null shows "Programme indisponible".
   final String? nowPlaying;
@@ -47,6 +51,7 @@ class ChannelRow extends StatelessWidget {
       child: PressableScale(
         onTap: onTap,
         autofocus: autofocus,
+        onFocusChange: onFocusChange,
         child: Container(
           color: t.colors.bgSurface,
           padding: EdgeInsets.symmetric(

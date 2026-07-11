@@ -213,6 +213,10 @@ class ExoPlayerEngine implements PlaybackEngine {
         "backgroundOpacity": style.backgroundOpacity,
       });
 
+  @override
+  Future<void> setFill(bool fill) =>
+      _kControl.invokeMethod<void>("setFill", <String, dynamic>{"fill": fill});
+
   /// Built once and reused. Uses **hybrid composition**
   /// ([PlatformViewsService.initExpensiveAndroidView]) so the SurfaceView is a
   /// real view in the hierarchy composited by SurfaceFlinger — the whole point

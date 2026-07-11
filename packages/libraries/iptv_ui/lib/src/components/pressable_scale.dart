@@ -21,6 +21,7 @@ class PressableScale extends StatefulWidget {
     this.focusNode,
     this.showFocusRing = true,
     this.focusBorderRadius,
+    this.onFocusChange,
     super.key,
   });
 
@@ -28,6 +29,10 @@ class PressableScale extends StatefulWidget {
   final VoidCallback? onTap;
   final VoidCallback? onLongPress;
   final bool enabled;
+
+  /// Notified when directional (D-pad) focus lands on or leaves this item —
+  /// used by the TV live list to drive the dwell-triggered video preview.
+  final ValueChanged<bool>? onFocusChange;
 
   /// Requests focus on first build — anchor the remote on the primary item of
   /// a screen (e.g. the first poster) so the user always has a starting point.
@@ -57,6 +62,7 @@ class _PressableScaleState extends State<PressableScale> {
 
   void _handleHighlight(bool value) {
     setState(() => _focused = value);
+    widget.onFocusChange?.call(value);
   }
 
   @override

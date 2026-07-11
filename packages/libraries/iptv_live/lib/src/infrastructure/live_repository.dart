@@ -65,7 +65,7 @@ class LiveRepository implements ILiveRepository {
   @override
   Future<Either<Failures, IList<Channel>>> getChannels() async {
     try {
-      final String? raw = _cache.read(_streamsKey);
+      final String? raw = await _cache.read(_streamsKey);
       if (raw == null) return right(const IListConst<Channel>(<Channel>[]));
       final List<Channel> channels = await runParse(parseChannels, raw);
       return right(channels.toIList());
@@ -77,7 +77,7 @@ class LiveRepository implements ILiveRepository {
   @override
   Future<Either<Failures, IList<LiveCategory>>> getCategories() async {
     try {
-      final String? raw = _cache.read(_categoriesKey);
+      final String? raw = await _cache.read(_categoriesKey);
       if (raw == null) return right(const IListConst<LiveCategory>(<LiveCategory>[]));
       final List<LiveCategory> categories =
           await runParse(parseLiveCategories, raw);

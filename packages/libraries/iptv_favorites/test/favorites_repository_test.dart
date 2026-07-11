@@ -15,13 +15,16 @@ class _FakeCache implements CacheStore {
   Future<void> write(String key, String value) async => _store[key] = value;
 
   @override
-  String? read(String key) => _store[key];
+  Future<String?> read(String key) async => _store[key];
 
   @override
   Future<void> delete(String key) async => _store.remove(key);
 
   @override
   Future<void> clear() async => _store.clear();
+
+  @override
+  Future<void> compact() async {}
 }
 
 void main() {

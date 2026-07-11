@@ -95,6 +95,14 @@ class MainActivity : FlutterActivity() {
         )
     }
 
+    override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        super.cleanUpFlutterEngine(flutterEngine)
+        // Engine is being torn down (app quit): fully release the shared
+        // ExoPlayer and drop the singleton so a relaunch builds a fresh one.
+        // Reusing a released player across engine lifecycles crashes.
+        ExoPlayerController.releaseShared()
+    }
+
     // ── MediaSession ─────────────────────────────────────────────────────────
 
     private fun setupMediaSession() {

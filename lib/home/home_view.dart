@@ -65,10 +65,14 @@ class HomeView extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: t.colors.bgBase,
-      appBar: AppBar(
-        backgroundColor: t.colors.bgBase,
-        title: Text(l.tabHome, style: t.typography.h1),
-      ),
+      // On TV the side rail already names the section, so the big page title is
+      // redundant — drop it and give the content the full height.
+      appBar: FormFactorScope.isTv(context)
+          ? null
+          : AppBar(
+              backgroundColor: t.colors.bgBase,
+              title: Text(l.tabHome, style: t.typography.h1),
+            ),
       body: everythingEmpty && loading
           ? const _HomeSkeleton()
           : everythingEmpty

@@ -44,5 +44,12 @@ sealed class PlayerUiState with _$PlayerUiState {
     // populates this (its SurfaceView shows raw video); libmpv/AVPlayer burn
     // subtitles into their own surface, leaving this empty.
     @Default("") String subtitleCue,
+    // True while the user is holding ◀/▶ to scrub on TV. The chrome (top bar +
+    // centre controls) fades so the video is visible behind the scrub bar, and
+    // the auto-hide timer is suspended.
+    @Default(false) bool scrubbing,
+    // Zoom-to-fill toggle (YouTube/Netflix style): false = fit (letterbox),
+    // true = fill (crop to cover the screen).
+    @Default(false) bool videoFill,
   }) = _PlayerUiState;
 }

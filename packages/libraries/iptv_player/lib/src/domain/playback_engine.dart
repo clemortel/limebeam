@@ -86,6 +86,11 @@ abstract interface class PlaybackEngine {
   /// Applies subtitle appearance to the engine's renderer.
   Future<void> applySubtitleStyle(SubtitleStyle style);
 
+  /// Toggles video scaling between fit (letterbox, whole frame visible) and
+  /// fill (zoom to cover the surface, cropping the edges) — the YouTube /
+  /// Netflix "zoom to fill" behaviour. Defaults to fit.
+  Future<void> setFill(bool fill);
+
   /// The video surface widget for this engine (media_kit `Video` or the iOS
   /// AVPlayer platform view).
   Widget buildView();

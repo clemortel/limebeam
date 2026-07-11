@@ -16,5 +16,7 @@ abstract interface class WatchProgressSink {
     required int durationSeconds,
     String? subtitle,
     String? posterUrl,
+    // For episodes: parent series id, so resume can rebuild the season queue.
+    String? seriesId,
   });
 }

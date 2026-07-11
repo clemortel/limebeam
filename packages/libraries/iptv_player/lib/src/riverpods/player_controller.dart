@@ -60,6 +60,19 @@ const int _kMaxSyncOffsetMs = 10000;
 /// (open/seek) always emits so the bar snaps immediately.
 const Duration _kPositionEmitInterval = Duration(milliseconds: 250);
 
+/// If playback stays buffering (never starts / stalls) this long without a
+/// single playing frame, surface the retryable error overlay instead of an
+/// endless spinner. Covers dead/slow Xtream streams and the case where a
+/// network-timed-out ExoPlayer falls back to media_kit, which then buffers the
+/// same unreachable URL forever.
+const Duration _kBufferTimeout = Duration(seconds: 25);
+
+/// Shorter stall budget for the first ExoPlayer attempt: some containers/codecs
+/// (e.g. MPEG-4 Part 2 / odd audio) neither play nor raise an error on the Fire
+/// TV decoder — ExoPlayer just hangs. Fall back to media_kit (libmpv decodes
+/// far more) quickly instead of making the user wait the full timeout.
+const Duration _kExoStallTimeout = Duration(seconds: 12);
+
 /// App-scoped playback engine (keepAlive): playback **survives** popping the
 /// full-screen player, which is what powers the docked mini-player. Call
 /// [start] to (re)play a queue; [stop] tears the engine down. The concrete
@@ -74,6 +87,7 @@ class PlaybackController extends _$PlaybackController {
   Timer? _hideTimer;
   Timer? _countdownTimer;
   Timer? _flashTimer;
+  Timer? _bufferWatchdog;
   bool _disposed = false;
   int _lastSavedSeconds = 0;
 
@@ -278,6 +292,8 @@ class PlaybackController extends _$PlaybackController {
     final PlaybackEngine engine = _createEngine();
     _engine = engine;
     _listen(engine);
+    // Carry the zoom-to-fill preference across the engine swap.
+    if (state.videoFill) unawaited(engine.setFill(true));
     _set(
       state.copyWith(
         buffering: true,
@@ -287,10 +303,43 @@ class PlaybackController extends _$PlaybackController {
     await _openIndex(state.queueIndex, resumeAt);
   }
 
+  /// Arms the stall watchdog: after [_kBufferTimeout] with no playing frame,
+  /// replace the endless spinner with the retryable error overlay.
+  void _armBufferWatchdog() {
+    _bufferWatchdog?.cancel();
+    // ExoPlayer's first attempt gets the shorter budget so a silent decoder
+    // stall falls back to media_kit fast; media_kit (or a retry) gets the full
+    // timeout before the error surfaces.
+    final bool exoFirstTry = _engine is ExoPlayerEngine && !_nativeEngineFailed;
+    _bufferWatchdog = Timer(exoFirstTry ? _kExoStallTimeout : _kBufferTimeout,
+        () {
+      if (_disposed || isCasting || state.playing) return;
+      // ExoPlayer stalled with no error (unsupported codec/container it neither
+      // plays nor rejects) — swap to media_kit before giving up.
+      if (_engine is ExoPlayerEngine && !_nativeEngineFailed) {
+        _nativeEngineFailed = true;
+        unawaited(_swapEngine());
+        return;
+      }
+      _set(
+        state.copyWith(
+          error: const Failures.streamUnavailable(),
+          buffering: false,
+        ),
+      );
+    });
+  }
+
+  void _cancelBufferWatchdog() {
+    _bufferWatchdog?.cancel();
+    _bufferWatchdog = null;
+  }
+
   /// Stops playback and releases the engine (mini-player close).
   Future<void> stop() async {
     _accrueWatchTime(resume: false);
     _maybeSaveProgress(force: true);
+    _cancelBufferWatchdog();
     _hideTimer?.cancel();
     _countdownTimer?.cancel();
     _flashTimer?.cancel();
@@ -341,12 +390,20 @@ class PlaybackController extends _$PlaybackController {
     _subscriptions.add(
       engine.playing.listen((bool p) {
         if (isCasting) return;
+        // A playing frame means the stream is alive — clear the stall watchdog.
+        if (p) _cancelBufferWatchdog();
         _set(state.copyWith(playing: p, error: p ? null : state.error));
         // Keep the native MediaSession in sync so the OS knows whether the
         // pause was intentional (prevents Fire TV auto-resume after ~3 s).
         unawaited(_mediaSession.setPlaying(playing: p));
         if (p) {
           _watchClock.start();
+          // Begin the auto-hide countdown from the moment playback actually
+          // starts. On a slow-starting stream the initial timer (armed at
+          // open) fires while still buffering — playing was false, so it did
+          // nothing — and the controls used to hang on screen until the user
+          // interacted. Re-arm here so they fade ~4 s after the first frame.
+          if (state.overlayVisible) _restartHideTimer();
         } else {
           _accrueWatchTime(resume: false);
           _maybeSaveProgress(force: true);
@@ -357,6 +414,13 @@ class PlaybackController extends _$PlaybackController {
       engine.buffering.listen((bool b) {
         if (isCasting) return;
         _set(state.copyWith(buffering: b));
+        // Arm the stall watchdog while buffering; a playing frame or the buffer
+        // clearing disarms it.
+        if (b && !state.playing) {
+          _armBufferWatchdog();
+        } else {
+          _cancelBufferWatchdog();
+        }
       }),
     );
     _subscriptions.add(
@@ -400,6 +464,7 @@ class PlaybackController extends _$PlaybackController {
           unawaited(_swapEngine());
           return;
         }
+        _cancelBufferWatchdog();
         _set(
           state.copyWith(
             error: const Failures.streamUnavailable(),
@@ -511,6 +576,9 @@ class PlaybackController extends _$PlaybackController {
         audioDelayMs: 0,
       ),
     );
+    // Start the stall watchdog: if this URL never yields a playing frame,
+    // surface the retryable error instead of buffering forever.
+    _armBufferWatchdog();
     if (engine.supportsSyncOffsets) {
       unawaited(engine.setSubtitleDelay(0));
       unawaited(engine.setAudioDelay(0));
@@ -636,6 +704,7 @@ class PlaybackController extends _$PlaybackController {
         durationSeconds: duration,
         subtitle: request.subtitle,
         posterUrl: request.posterUrl,
+        seriesId: request.seriesId,
       ),
     );
   }
@@ -677,6 +746,27 @@ class PlaybackController extends _$PlaybackController {
   void hideOverlay() {
     _hideTimer?.cancel();
     if (state.overlayVisible) _set(state.copyWith(overlayVisible: false));
+  }
+
+  /// Toggles zoom-to-fill (YouTube/Netflix style): fit (letterbox) ↔ fill
+  /// (crop to cover the screen). Applied to the current engine immediately.
+  void toggleVideoFill() {
+    final bool next = !state.videoFill;
+    _set(state.copyWith(videoFill: next));
+    unawaited(_engine?.setFill(next));
+  }
+
+  /// Enters/leaves scrubbing mode (holding ◀/▶ on the seek bar). While active
+  /// the chrome fades and the overlay is pinned open; leaving restarts the
+  /// auto-hide countdown.
+  void setScrubbing({required bool active}) {
+    if (state.scrubbing == active) return;
+    _set(state.copyWith(scrubbing: active));
+    if (active) {
+      _hideTimer?.cancel();
+    } else {
+      _restartHideTimer();
+    }
   }
 
   void playOrPause() {
@@ -928,6 +1018,7 @@ class PlaybackController extends _$PlaybackController {
   Future<void> _release() async {
     _disposed = true;
     _accrueWatchTime(resume: false);
+    _bufferWatchdog?.cancel();
     _hideTimer?.cancel();
     _countdownTimer?.cancel();
     _castPollTimer?.cancel();

@@ -27,6 +27,9 @@ sealed class PlaybackRequest with _$PlaybackRequest {
     String? externalUrl,
     @Default("") String containerExtension,
     @Default(Duration.zero) Duration startAt,
+    // For episodes: parent series id, forwarded to the progress sink so a
+    // continue-watching resume can rebuild the season queue.
+    String? seriesId,
   }) = _PlaybackRequest;
 
   /// Live streams are non-DVR: no scrubbing, "● DIRECT" badge only.

@@ -67,7 +67,7 @@ class VodRepository implements IVodRepository {
   @override
   Future<Either<Failures, IList<Movie>>> getMovies() async {
     try {
-      final String? raw = _cache.read(_streamsKey);
+      final String? raw = await _cache.read(_streamsKey);
       if (raw == null) return right(const IListConst<Movie>(<Movie>[]));
       final List<Movie> movies = await runParse(parseMovies, raw);
       return right(movies.toIList());
@@ -79,7 +79,7 @@ class VodRepository implements IVodRepository {
   @override
   Future<Either<Failures, IList<VodCategory>>> getCategories() async {
     try {
-      final String? raw = _cache.read(_categoriesKey);
+      final String? raw = await _cache.read(_categoriesKey);
       if (raw == null) return right(const IListConst<VodCategory>(<VodCategory>[]));
       final List<VodCategory> categories =
           await runParse(parseVodCategories, raw);

@@ -49,7 +49,7 @@ class SeriesDetailScreen extends ConsumerWidget {
     return SeriesDetailView(
       series: series,
       onPlayEpisode: (Season season, Episode episode) =>
-          ref.openEpisode(context, season, episode),
+          ref.openEpisode(context, series.id, season, episode),
       actions: <Widget>[
         FavoriteButton(
           favorite: Favorite(

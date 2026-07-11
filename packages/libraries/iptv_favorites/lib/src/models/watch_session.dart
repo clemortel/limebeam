@@ -23,6 +23,9 @@ sealed class WatchSession with _$WatchSession {
     required int updatedAtMillis,
     String? subtitle,
     String? posterUrl,
+    // For episodes: the parent series id, so resume can rebuild the whole
+    // season queue (next/previous episode) instead of a lone item.
+    String? seriesId,
   }) = _WatchSession;
 
   factory WatchSession.fromJson(Map<String, dynamic> json) =>

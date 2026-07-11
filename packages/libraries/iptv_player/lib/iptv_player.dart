@@ -13,4 +13,5 @@ export "src/domain/subtitle_style.dart";
 export "src/player_init.dart";
 export "src/riverpods/player_controller.dart";
 export "src/riverpods/player_ui_state.dart";
+export "src/ui/live_preview.dart";
 export "src/ui/player_view.dart";

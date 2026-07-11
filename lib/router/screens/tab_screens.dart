@@ -2,25 +2,26 @@ import "package:auto_route/auto_route.dart";
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart"
     hide AsyncData, AsyncError, AsyncLoading, AsyncValue;
+import "package:iptv_api/iptv_api.dart";
 import "package:iptv_auth/iptv_auth.dart";
 import "package:iptv_donations/iptv_donations.dart";
 import "package:iptv_favorites/iptv_favorites.dart";
 import "package:iptv_l10n/iptv_l10n.dart";
 import "package:iptv_live/iptv_live.dart";
+import "package:iptv_player/iptv_player.dart";
 import "package:iptv_series/iptv_series.dart";
 import "package:iptv_settings/iptv_settings.dart";
 import "package:iptv_ui/iptv_ui.dart";
 import "package:iptv_vod/iptv_vod.dart";
 
+import "../../browse/genre_browse_view.dart";
 import "../../donations/tip_prompt.dart";
 import "../../home/home_view.dart";
-import "../../perf_log.dart";
 import "../../player_launch.dart";
 import "../../search/search_view.dart";
 import "../../settings/about_view.dart";
 import "../router.gr.dart";
 
-// TEMP: marks which tab is building so a SLOW FRAME can be attributed.
 /// Accueil — dashboard (§4.2).
 @RoutePage()
 class HomeTabScreen extends ConsumerStatefulWidget {
@@ -43,7 +44,6 @@ class _HomeTabScreenState extends ConsumerState<HomeTabScreen> {
 
   @override
   Widget build(BuildContext context) {
-    perfLog("HomeTabScreen.build");
     return HomeView(
       onOpenChannel: (Channel c) => ref.openChannel(context, c),
       onOpenMovie: (Movie m) =>
@@ -55,80 +55,110 @@ class _HomeTabScreenState extends ConsumerState<HomeTabScreen> {
   }
 }
 
-/// TV — live channels (§4.3.1).
+/// TV — live channels (§4.3.1). On TV, drives the dwell video preview: the
+/// focused channel's stream is fed to a persistent [LivePreview] after a short
+/// dwell, and the preview is stopped when a channel is opened full-screen.
 @RoutePage()
-class LiveTabScreen extends ConsumerWidget {
+class LiveTabScreen extends ConsumerStatefulWidget {
   const LiveTabScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    perfLog("LiveTabScreen.build");
+  ConsumerState<LiveTabScreen> createState() => _LiveTabScreenState();
+}
+
+class _LiveTabScreenState extends ConsumerState<LiveTabScreen> {
+  String? _previewUrl;
+
+  /// Builds the live URL for the dwelled channel (null clears the preview).
+  void _onDwell(Channel? channel) {
+    final IPlaylistSource? source = ref.read(activePlaylistSourceProvider);
+    final String? url = (channel == null || source == null)
+        ? null
+        : source.buildLiveUrl(channel.streamId);
+    if (url != _previewUrl) setState(() => _previewUrl = url);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isTv = FormFactorScope.isTv(context);
     return LiveChannelsView(
-      onOpenChannel: (Channel channel) => ref.openChannel(context, channel),
+      onOpenChannel: (Channel channel) {
+        // Stop the preview before the full-screen player takes over so two
+        // decoders don't run at once on the weak TV hardware.
+        if (_previewUrl != null) setState(() => _previewUrl = null);
+        ref.openChannel(context, channel);
+      },
       hideAdult: ref.watch(adultHiddenProvider),
+      preview: isTv ? LivePreview(url: _previewUrl) : null,
+      onChannelDwell: isTv ? _onDwell : null,
     );
   }
 }
 
-/// Films & Séries (§4.4): inner Films/Séries segmented toggle.
+/// Films (§4.4). TV browses by genre rows (Netflix-style); phone/tablet keep
+/// the category-chip grid.
 @RoutePage()
-class BrowseTabScreen extends ConsumerStatefulWidget {
-  const BrowseTabScreen({super.key});
+class FilmsTabScreen extends ConsumerWidget {
+  const FilmsTabScreen({super.key});
 
   @override
-  ConsumerState<BrowseTabScreen> createState() => _BrowseTabScreenState();
-}
-
-class _BrowseTabScreenState extends ConsumerState<BrowseTabScreen> {
-  int _segment = 0; // 0 = Films, 1 = Séries
-
-  @override
-  Widget build(BuildContext context) {
-    perfLog("BrowseTabScreen.build");
+  Widget build(BuildContext context, WidgetRef ref) {
     final AppTheme t = context.appTheme;
     final AppLocalizations l = AppLocalizations.of(context);
     final bool hideAdult = ref.watch(adultHiddenProvider);
+    if (FormFactorScope.isTv(context)) {
+      return GenreBrowseView(
+        kind: BrowseKind.films,
+        hideAdult: hideAdult,
+        onOpenMovie: (Movie m) =>
+            context.router.root.push(MovieDetailRoute(movie: m)),
+      );
+    }
     return Scaffold(
       backgroundColor: t.colors.bgBase,
       appBar: AppBar(
         backgroundColor: t.colors.bgBase,
-        title: Text(l.tabBrowse, style: t.typography.h1),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(48),
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: t.space.x4,
-              vertical: t.space.x2,
-            ),
-            child: Row(
-              children: <Widget>[
-                FilterChipX(
-                  label: l.browseMovies,
-                  selected: _segment == 0,
-                  onTap: () => setState(() => _segment = 0),
-                ),
-                SizedBox(width: t.space.x2),
-                FilterChipX(
-                  label: l.browseSeries,
-                  selected: _segment == 1,
-                  onTap: () => setState(() => _segment = 1),
-                ),
-              ],
-            ),
-          ),
-        ),
+        title: Text(l.browseMovies, style: t.typography.h1),
       ),
-      body: _segment == 0
-          ? VodGridView(
-              hideAdult: hideAdult,
-              onOpenMovie: (Movie m) =>
-                  context.router.root.push(MovieDetailRoute(movie: m)),
-            )
-          : SeriesGridView(
-              hideAdult: hideAdult,
-              onOpenSeries: (Series s) =>
-                  context.router.root.push(SeriesDetailRoute(series: s)),
-            ),
+      body: VodGridView(
+        hideAdult: hideAdult,
+        onOpenMovie: (Movie m) =>
+            context.router.root.push(MovieDetailRoute(movie: m)),
+      ),
+    );
+  }
+}
+
+/// Séries (§4.4) — its own destination. TV browses by genre rows; phone/tablet
+/// keep the category-chip grid.
+@RoutePage()
+class SeriesTabScreen extends ConsumerWidget {
+  const SeriesTabScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final AppTheme t = context.appTheme;
+    final AppLocalizations l = AppLocalizations.of(context);
+    final bool hideAdult = ref.watch(adultHiddenProvider);
+    if (FormFactorScope.isTv(context)) {
+      return GenreBrowseView(
+        kind: BrowseKind.series,
+        hideAdult: hideAdult,
+        onOpenSeries: (Series s) =>
+            context.router.root.push(SeriesDetailRoute(series: s)),
+      );
+    }
+    return Scaffold(
+      backgroundColor: t.colors.bgBase,
+      appBar: AppBar(
+        backgroundColor: t.colors.bgBase,
+        title: Text(l.browseSeries, style: t.typography.h1),
+      ),
+      body: SeriesGridView(
+        hideAdult: hideAdult,
+        onOpenSeries: (Series s) =>
+            context.router.root.push(SeriesDetailRoute(series: s)),
+      ),
     );
   }
 }
@@ -140,7 +170,6 @@ class SearchTabScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    perfLog("SearchTabScreen.build");
     return SearchView(
       onOpenChannel: (Channel c) => ref.openChannel(context, c),
       onOpenMovie: (Movie m) =>
@@ -162,10 +191,13 @@ class SettingsTabScreen extends StatelessWidget {
     final AppLocalizations l = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: t.colors.bgBase,
-      appBar: AppBar(
-        backgroundColor: t.colors.bgBase,
-        title: Text(l.tabSettings, style: t.typography.h1),
-      ),
+      // TV: the rail labels the section; skip the redundant big title.
+      appBar: FormFactorScope.isTv(context)
+          ? null
+          : AppBar(
+              backgroundColor: t.colors.bgBase,
+              title: Text(l.tabSettings, style: t.typography.h1),
+            ),
       body: ListView(
         // Clear the floating glass nav bar (bottom inset set by the shell).
         padding: EdgeInsets.only(

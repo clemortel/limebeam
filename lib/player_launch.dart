@@ -1,4 +1,5 @@
 import "package:auto_route/auto_route.dart";
+import "package:dartz/dartz.dart" hide IList, IMap, ISet;
 import "package:fast_immutable_collections/fast_immutable_collections.dart";
 import "package:flutter/widgets.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart"
@@ -15,6 +16,11 @@ import "package:iptv_ui/iptv_ui.dart";
 import "package:iptv_vod/iptv_vod.dart";
 
 import "router/router.gr.dart";
+
+/// When a resume point is within this many seconds of the end, resuming an
+/// episode starts the *next* episode instead (the current one is effectively
+/// watched).
+const int _kResumeNextThresholdSeconds = 120;
 
 /// Builds playback queues from the active source and pushes the player.
 ///
@@ -82,47 +88,84 @@ extension PlayerLaunch on WidgetRef {
 
   /// Plays the tapped episode; the queue is the whole season so the in-player
   /// mini-list can move to the next/previous episode.
-  void openEpisode(BuildContext context, Season season, Episode episode) {
+  void openEpisode(
+    BuildContext context,
+    String seriesId,
+    Season season,
+    Episode episode,
+  ) {
     final IPlaylistSource? source = read(activePlaylistSourceProvider);
     if (source == null) {
       _toastUnavailable(context);
       return;
     }
-    final IList<PlaybackRequest> items = season.episodes
-        .map(
-          (Episode e) => PlaybackRequest(
-            contentId: e.id,
-            kind: PlaybackKind.episode,
-            title: e.title,
-            subtitle: "S${e.season} · E${e.episodeNum}",
-            containerExtension: e.containerExtension,
-            url: source.buildSeriesUrl(e.id, e.containerExtension),
-            startAt: _resumeFor(ContentKind.episode, e.id),
-          ),
-        )
-        .toIList();
     final int index =
         season.episodes.indexWhere((Episode e) => e.id == episode.id);
-    final int start = index < 0 ? 0 : index;
     final AppPreferences prefs = read(appPreferencesProvider);
     _pushVod(
       context,
       PlaybackQueue(
-        items: items,
-        index: start,
+        items: _seasonQueue(source, seriesId, season),
+        index: index < 0 ? 0 : index,
         autoplayNext: prefs.autoplayNext,
         gesturesEnabled: prefs.playerGestures,
       ),
     );
   }
 
-  /// Resumes a continue-watching entry: rebuilds the URL + start offset.
-  void openSession(BuildContext context, WatchSession session) {
+  /// Resumes a continue-watching entry. For an episode this rebuilds the whole
+  /// season queue (so next/previous work in the player) and, when the saved
+  /// point is within [_kResumeNextThresholdSeconds] of the end, starts the
+  /// *next* episode instead. Falls back to a single-item resume when the season
+  /// can't be fetched (or the entry is a movie / a legacy session with no
+  /// seriesId).
+  Future<void> openSession(BuildContext context, WatchSession session) async {
     final IPlaylistSource? source = read(activePlaylistSourceProvider);
     if (source == null) {
       _toastUnavailable(context);
       return;
     }
+    final AppPreferences prefs = read(appPreferencesProvider);
+
+    if (session.kind == ContentKind.episode && session.seriesId != null) {
+      final Either<Failures, SeriesDetail> result =
+          await read(seriesRepositoryProvider).getSeriesInfo(session.seriesId!);
+      if (!context.mounted) return;
+      final SeriesDetail? detail =
+          result.fold((Failures _) => null, (SeriesDetail d) => d);
+      Season? season;
+      for (final Season s
+          in detail?.seasons ?? const IListConst<Season>(<Season>[])) {
+        if (s.episodes.any((Episode e) => e.id == session.id)) {
+          season = s;
+          break;
+        }
+      }
+      if (season != null) {
+        final int current =
+            season.episodes.indexWhere((Episode e) => e.id == session.id);
+        // Near the end → start the next episode (if any) fresh.
+        final bool nearEnd = session.durationSeconds > 0 &&
+            session.positionSeconds >=
+                session.durationSeconds - _kResumeNextThresholdSeconds;
+        final bool hasNext = current >= 0 &&
+            current < season.episodes.length - 1;
+        final int index =
+            (nearEnd && hasNext) ? current + 1 : (current < 0 ? 0 : current);
+        _pushVod(
+          context,
+          PlaybackQueue(
+            items: _seasonQueue(source, session.seriesId!, season),
+            index: index,
+            autoplayNext: prefs.autoplayNext,
+            gesturesEnabled: prefs.playerGestures,
+          ),
+        );
+        return;
+      }
+    }
+
+    // Movie, or episode whose season couldn't be resolved: single-item resume.
     final String url = switch (session.kind) {
       ContentKind.episode =>
         source.buildSeriesUrl(session.id, session.containerExtension),
@@ -137,14 +180,38 @@ extension PlayerLaunch on WidgetRef {
       subtitle: session.subtitle,
       posterUrl: session.posterUrl,
       containerExtension: session.containerExtension,
+      seriesId: session.seriesId,
       url: url,
       startAt: Duration(seconds: session.positionSeconds),
     );
-    final AppPreferences prefs = read(appPreferencesProvider);
+    if (!context.mounted) return;
     _pushVod(
       context,
       PlaybackQueue.single(request, gesturesEnabled: prefs.playerGestures),
     );
+  }
+
+  /// Builds the playable queue for a whole [season], each item carrying its own
+  /// saved resume offset and the parent [seriesId].
+  IList<PlaybackRequest> _seasonQueue(
+    IPlaylistSource source,
+    String seriesId,
+    Season season,
+  ) {
+    return season.episodes
+        .map(
+          (Episode e) => PlaybackRequest(
+            contentId: e.id,
+            kind: PlaybackKind.episode,
+            title: e.title,
+            subtitle: "S${e.season} · E${e.episodeNum}",
+            containerExtension: e.containerExtension,
+            seriesId: seriesId,
+            url: source.buildSeriesUrl(e.id, e.containerExtension),
+            startAt: _resumeFor(ContentKind.episode, e.id),
+          ),
+        )
+        .toIList();
   }
 
   /// The channels currently visible in the TV tab (selected category, or all).

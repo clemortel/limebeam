@@ -69,7 +69,7 @@ class SeriesRepository implements ISeriesRepository {
   @override
   Future<Either<Failures, IList<Series>>> getSeries() async {
     try {
-      final String? raw = _cache.read(_seriesKey);
+      final String? raw = await _cache.read(_seriesKey);
       if (raw == null) return right(const IListConst<Series>(<Series>[]));
       final List<Series> series = await runParse(parseSeries, raw);
       return right(series.toIList());
@@ -81,7 +81,7 @@ class SeriesRepository implements ISeriesRepository {
   @override
   Future<Either<Failures, IList<SeriesCategory>>> getCategories() async {
     try {
-      final String? raw = _cache.read(_categoriesKey);
+      final String? raw = await _cache.read(_categoriesKey);
       if (raw == null) return right(const IListConst<SeriesCategory>(<SeriesCategory>[]));
       final List<SeriesCategory> categories =
           await runParse(parseSeriesCategories, raw);

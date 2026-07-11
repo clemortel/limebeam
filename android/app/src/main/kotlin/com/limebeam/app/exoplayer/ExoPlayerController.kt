@@ -43,13 +43,43 @@ class ExoPlayerController private constructor(context: Context) :
                     .also { instance = it }
             }
 
-        /** Wires the control + event channels, mirroring the iOS register(). */
+        /**
+         * Wires the control + event channels. The ExoPlayer is built LAZILY on
+         * first use (playback start), never at app startup — building it eagerly
+         * for every launch (even phones / non-TV) added memory + main-thread
+         * work at the most sensitive moment and caused startup ANRs on the
+         * memory-constrained Fire TV Stick.
+         */
         fun register(messenger: BinaryMessenger, context: Context) {
-            val controller = shared(context)
+            val appContext = context.applicationContext
             MethodChannel(messenger, "limebeam/exoplayer")
-                .setMethodCallHandler { call, result -> controller.handle(call, result) }
+                .setMethodCallHandler { call, result ->
+                    shared(appContext).handle(call, result)
+                }
             EventChannel(messenger, "limebeam/exoplayer/events")
-                .setStreamHandler(controller)
+                .setStreamHandler(object : EventChannel.StreamHandler {
+                    override fun onListen(
+                        arguments: Any?,
+                        events: EventChannel.EventSink?,
+                    ) = shared(appContext).onListen(arguments, events)
+
+                    // Don't build a player just to cancel a subscription.
+                    override fun onCancel(arguments: Any?) =
+                        instance?.onCancel(arguments) ?: Unit
+                })
+        }
+
+        /**
+         * Fully releases the shared player and drops the singleton. Called when
+         * the FlutterEngine is torn down (app quit) so a relaunch builds a fresh
+         * player — reusing a released/stale ExoPlayer across engine lifecycles
+         * crashes when a new SurfaceView binds to it.
+         */
+        fun releaseShared() {
+            synchronized(this) {
+                instance?.release()
+                instance = null
+            }
         }
     }
 
@@ -109,6 +139,16 @@ class ExoPlayerController private constructor(context: Context) :
             // the Flutter overlay — accepted for contract parity, no-op here.
             "setSubtitleDelay", "setAudioDelay", "applySubtitleStyle" ->
                 result.success(null)
+            // Zoom-to-fill (crop) vs fit (letterbox), YouTube/Netflix style.
+            "setFill" -> {
+                val fill = call.argument<Boolean>("fill") ?: false
+                player.videoScalingMode = if (fill) {
+                    C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
+                } else {
+                    C.VIDEO_SCALING_MODE_SCALE_TO_FIT
+                }
+                result.success(null)
+            }
             "dispose" -> { teardown(); result.success(null) }
             else -> result.notImplemented()
         }
@@ -129,6 +169,13 @@ class ExoPlayerController private constructor(context: Context) :
         handler.removeCallbacks(positionTick)
         player.stop()
         player.clearMediaItems()
+    }
+
+    /** Fully releases native resources; the singleton must not be used after. */
+    private fun release() {
+        handler.removeCallbacks(positionTick)
+        eventSink = null
+        player.release()
     }
 
     // MARK: Player.Listener

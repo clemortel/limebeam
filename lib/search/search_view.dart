@@ -7,11 +7,16 @@ import "package:iptv_series/iptv_series.dart";
 import "package:iptv_ui/iptv_ui.dart";
 import "package:iptv_vod/iptv_vod.dart";
 
-import "../perf_log.dart";
 import "search_notifier.dart";
 
 const double _kPosterWidth = 120;
 const double _kPosterRailHeight = 235;
+const double _kChannelTileWidth = 220;
+const double _kChannelRailHeight = 150;
+
+/// Magnifies fixed carousel dimensions on TV (matches the Home rails).
+double _railDim(BuildContext context, double value) =>
+    FormFactorScope.isTv(context) ? value * AppTheme.tvTokenScale : value;
 
 /// Recherche (§4): unified search across live / VOD / series, grouped by type.
 class SearchView extends ConsumerStatefulWidget {
@@ -41,22 +46,20 @@ class _SearchViewState extends ConsumerState<SearchView> {
 
   @override
   Widget build(BuildContext context) {
-    perfLog("SearchView.build START");
     final AppTheme t = context.appTheme;
     final String query = ref.watch(searchQueryProvider);
     final SearchResults results = ref.watch(searchResultsProvider);
-    perfLog("SearchView.build providers read (query='$query')");
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => perfLog("SearchView FRAME PAINTED"),
-    );
 
     final AppLocalizations l = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: t.colors.bgBase,
-      appBar: AppBar(
-        backgroundColor: t.colors.bgBase,
-        title: Text(l.searchTitle, style: t.typography.h1),
-      ),
+      // TV: the rail labels the section; skip the redundant big title.
+      appBar: FormFactorScope.isTv(context)
+          ? null
+          : AppBar(
+              backgroundColor: t.colors.bgBase,
+              title: Text(l.searchTitle, style: t.typography.h1),
+            ),
       body: Column(
         children: <Widget>[
           Padding(
@@ -129,18 +132,44 @@ class _SearchBody extends StatelessWidget {
           SliverToBoxAdapter(
             child: _GroupHeader(label: "Chaînes (${results.channels.length})"),
           ),
-          SliverList.builder(
-            itemCount: results.channels.length,
-            itemBuilder: (BuildContext c, int i) {
-              final Channel channel = results.channels[i];
-              return ChannelRow(
-                name: channel.name,
-                logoUrl: channel.logoUrl,
-                isLive: true,
-                onTap: () => onOpenChannel?.call(channel),
-              );
-            },
-          ),
+          // TV shows channel hits as a horizontal tile rail (not full-width
+          // rows) so they read like the film/series result rails. Phone keeps
+          // the compact list rows.
+          if (FormFactorScope.isTv(context))
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: _railDim(context, _kChannelRailHeight),
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: EdgeInsets.symmetric(horizontal: t.space.x4),
+                  itemCount: results.channels.length,
+                  separatorBuilder: (BuildContext c, int i) =>
+                      SizedBox(width: t.space.x3),
+                  itemBuilder: (BuildContext c, int i) {
+                    final Channel channel = results.channels[i];
+                    return LiveTile(
+                      channelName: channel.name,
+                      thumbnailUrl: channel.logoUrl,
+                      width: _railDim(context, _kChannelTileWidth),
+                      onTap: () => onOpenChannel?.call(channel),
+                    );
+                  },
+                ),
+              ),
+            )
+          else
+            SliverList.builder(
+              itemCount: results.channels.length,
+              itemBuilder: (BuildContext c, int i) {
+                final Channel channel = results.channels[i];
+                return ChannelRow(
+                  name: channel.name,
+                  logoUrl: channel.logoUrl,
+                  isLive: true,
+                  onTap: () => onOpenChannel?.call(channel),
+                );
+              },
+            ),
         ],
         if (results.movies.isNotEmpty) ...<Widget>[
           SliverToBoxAdapter(
@@ -224,7 +253,7 @@ class _PosterRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
     return SizedBox(
-      height: _kPosterRailHeight,
+      height: _railDim(context, _kPosterRailHeight),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: EdgeInsets.symmetric(horizontal: t.space.x4),
@@ -232,7 +261,7 @@ class _PosterRow extends StatelessWidget {
         separatorBuilder: (BuildContext c, int i) =>
             SizedBox(width: t.space.x3),
         itemBuilder: (BuildContext c, int i) =>
-            SizedBox(width: _kPosterWidth, child: builder(i)),
+            SizedBox(width: _railDim(context, _kPosterWidth), child: builder(i)),
       ),
     );
   }
