@@ -93,6 +93,9 @@ class BackgroundDownloaderGateway implements DownloadGateway {
       case TaskStatusUpdate():
         _events.add(GatewayEvent(id, _mapStatus(update.status)));
       case TaskProgressUpdate():
+        // Negative values are terminal sentinels sent after the status
+        // update, which already carries the truth.
+        if (update.progress < 0) return;
         _events.add(GatewayEvent(id, GatewayStatus.running, update.progress));
     }
   }

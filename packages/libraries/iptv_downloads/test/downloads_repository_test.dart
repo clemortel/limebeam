@@ -173,6 +173,16 @@ void main() {
     expect(ok.getOrElse(() => ""), startsWith("file://"));
   });
 
+  test("a late tick never reopens a finished record", () async {
+    await repo.enqueue(<DownloadRequest>[_request("a")].toIList());
+    gateway.controller
+      ..add(const GatewayEvent("a", GatewayStatus.completed))
+      ..add(const GatewayEvent("a", GatewayStatus.running, 1));
+    await _settle();
+    final IList<DownloadRecord> list = await repo.watch().first;
+    expect(list.single.phase, const DownloadPhase.completed());
+  });
+
   test("no stored record contains the URL", () async {
     await repo.enqueue(<DownloadRequest>[_request("a")].toIList());
     gateway.controller.add(const GatewayEvent("a", GatewayStatus.completed));

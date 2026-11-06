@@ -113,6 +113,12 @@ class DownloadsRepository implements IDownloadsRepository {
     if (record == null) return;
     switch (event.status) {
       case GatewayStatus.running:
+        // A late tick never reopens a finished record: a restart goes
+        // through enqueue, which resets the phase first.
+        if (record.phase is DownloadCompleted ||
+            record.phase is DownloadFailed) {
+          return;
+        }
         if (record.phase is! DownloadRunning) {
           await _setPhase(
             event.contentId,
