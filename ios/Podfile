@@ -1,6 +1,6 @@
 # media_kit needs iOS 13+; the Google Cast SDK (flutter_chrome_cast) needs 14+,
 # so the higher floor wins.
-platform :ios, '15.0'
+platform :ios, '16.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
