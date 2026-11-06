@@ -16,6 +16,7 @@ import "package:iptv_settings/iptv_settings.dart";
 import "package:iptv_ui/iptv_ui.dart";
 import "package:iptv_vod/iptv_vod.dart";
 
+import "offline_queue.dart";
 import "router/router.gr.dart";
 
 /// When a resume point is within this many seconds of the end, resuming an
@@ -29,11 +30,72 @@ const int _kResumeNextThresholdSeconds = 120;
 /// translating a Channel/Movie/Episode into a queue + stream URL happens here,
 /// including resuming from a saved [WatchSession].
 extension PlayerLaunch on WidgetRef {
-  /// Plays a downloaded episode with no network.
+  /// Plays a downloaded episode with no network. The queue is the downloaded
+  /// part of its season, so next/previous and autoplay work offline.
   Future<void> openDownloadedEpisode(
     BuildContext context,
     DownloadRecord record,
-  ) async {}
+  ) async {
+    final IDownloadsRepository repository = read(downloadsRepositoryProvider);
+    final IList<DownloadRecord> season =
+        offlineSeasonRecords(_downloadRecords(), record);
+    // Resolved per launch, never cached: the iOS container path changes.
+    final List<Either<Failures, String>> urls = await Future.wait(
+      season.map(repository.localUrlFor),
+    );
+    if (!context.mounted) return;
+    final List<PlaybackRequest> items = <PlaybackRequest>[];
+    int index = 0;
+    for (int i = 0; i < season.length; i++) {
+      final DownloadRecord r = season[i];
+      final String? url = urls[i].fold((Failures _) => null, (String u) => u);
+      if (url == null) continue;
+      if (r.contentId == record.contentId) index = items.length;
+      items.add(_downloadedRequest(r, url));
+    }
+    final bool tappedPlayable =
+        items.any((PlaybackRequest i) => i.contentId == record.contentId);
+    if (!tappedPlayable) {
+      _toastDownloadUnavailable(context);
+      return;
+    }
+    final AppPreferences prefs = read(appPreferencesProvider);
+    _pushVod(
+      context,
+      PlaybackQueue(
+        items: items.toIList(),
+        index: index,
+        autoplayNext: true,
+        gesturesEnabled: prefs.playerGestures,
+      ),
+    );
+  }
+
+  PlaybackRequest _downloadedRequest(DownloadRecord r, String url) {
+    return PlaybackRequest(
+      contentId: r.contentId,
+      kind: PlaybackKind.episode,
+      title: r.title,
+      subtitle: "S${r.seasonNumber} · E${r.episodeNumber}",
+      posterUrl: r.seriesCoverUrl.isEmpty ? null : r.seriesCoverUrl,
+      containerExtension: r.containerExtension,
+      seriesId: r.seriesId,
+      url: url,
+      startAt: _resumeFor(ContentKind.episode, r.contentId),
+    );
+  }
+
+  /// Every known download, or empty while the list is still loading.
+  IList<DownloadRecord> _downloadRecords() {
+    final AsyncState<IList<DownloadRecord>> state = read(downloadsProvider);
+    return switch (state) {
+      AsyncSuccess<IList<DownloadRecord>>(
+        :final IList<DownloadRecord> data,
+      ) =>
+        data,
+      _ => const IListConst<DownloadRecord>(<DownloadRecord>[]),
+    };
+  }
 
   /// Plays the tapped channel; the queue is the visible category so the
   /// in-player mini-list can zap between channels.
@@ -95,12 +157,12 @@ extension PlayerLaunch on WidgetRef {
 
   /// Plays the tapped episode; the queue is the whole season so the in-player
   /// mini-list can move to the next/previous episode.
-  void openEpisode(
+  Future<void> openEpisode(
     BuildContext context,
     String seriesId,
     Season season,
     Episode episode,
-  ) {
+  ) async {
     final IPlaylistSource? source = read(activePlaylistSourceProvider);
     if (source == null) {
       _toastUnavailable(context);
@@ -109,10 +171,23 @@ extension PlayerLaunch on WidgetRef {
     final int index =
         season.episodes.indexWhere((Episode e) => e.id == episode.id);
     final AppPreferences prefs = read(appPreferencesProvider);
+    IList<PlaybackRequest> items = _seasonQueue(source, seriesId, season);
+    final DownloadRecord? local =
+        completedDownloadFor(_downloadRecords(), episode.id);
+    if (local != null && index >= 0) {
+      final Either<Failures, String> localUrl =
+          await read(downloadsRepositoryProvider).localUrlFor(local);
+      if (!context.mounted) return;
+      // A bad local path must never block playback: keep the online URL.
+      final String? url = localUrl.fold((Failures _) => null, (String u) => u);
+      if (url != null) {
+        items = items.replace(index, items[index].copyWith(url: url));
+      }
+    }
     _pushVod(
       context,
       PlaybackQueue(
-        items: _seasonQueue(source, seriesId, season),
+        items: items,
         index: index < 0 ? 0 : index,
         autoplayNext: prefs.autoplayNext,
         gesturesEnabled: prefs.playerGestures,
@@ -127,6 +202,16 @@ extension PlayerLaunch on WidgetRef {
   /// can't be fetched (or the entry is a movie / a legacy session with no
   /// seriesId).
   Future<void> openSession(BuildContext context, WatchSession session) async {
+    // Offline first: a downloaded episode needs neither the source nor
+    // getSeriesInfo, both of which fail in airplane mode.
+    if (session.kind == ContentKind.episode) {
+      final DownloadRecord? local =
+          completedDownloadFor(_downloadRecords(), session.id);
+      if (local != null) {
+        await openDownloadedEpisode(context, local);
+        return;
+      }
+    }
     final IPlaylistSource? source = read(activePlaylistSourceProvider);
     if (source == null) {
       _toastUnavailable(context);
@@ -274,6 +359,14 @@ extension PlayerLaunch on WidgetRef {
           (_) => read(watchSessionsProvider.notifier).refresh(),
         );
   }
+}
+
+void _toastDownloadUnavailable(BuildContext context) {
+  AppToast.show(
+    context,
+    message: "Téléchargement indisponible",
+    kind: ToastKind.error,
+  );
 }
 
 void _toastUnavailable(BuildContext context) {
