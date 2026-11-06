@@ -38,7 +38,7 @@ extension PlayerLaunch on WidgetRef {
   ) async {
     final IDownloadsRepository repository = read(downloadsRepositoryProvider);
     final IList<DownloadRecord> season =
-        offlineSeasonRecords(_downloadRecords(), record);
+        offlineSeasonRecords(await _downloadRecords(), record);
     // Resolved per launch, never cached: the iOS container path changes.
     final List<Either<Failures, String>> urls = await Future.wait(
       season.map(repository.localUrlFor),
@@ -85,17 +85,11 @@ extension PlayerLaunch on WidgetRef {
     );
   }
 
-  /// Every known download, or empty while the list is still loading.
-  IList<DownloadRecord> _downloadRecords() {
-    final AsyncState<IList<DownloadRecord>> state = read(downloadsProvider);
-    return switch (state) {
-      AsyncSuccess<IList<DownloadRecord>>(
-        :final IList<DownloadRecord> data,
-      ) =>
-        data,
-      _ => const IListConst<DownloadRecord>(<DownloadRecord>[]),
-    };
-  }
+  /// Every known download. Trap: read from the repository, because
+  /// [downloadsProvider] is still loading on a cold start and "Continue
+  /// watching" would then go to the network in airplane mode.
+  Future<IList<DownloadRecord>> _downloadRecords() =>
+      read(downloadsRepositoryProvider).watch().first;
 
   /// Plays the tapped channel; the queue is the visible category so the
   /// in-player mini-list can zap between channels.
@@ -173,7 +167,8 @@ extension PlayerLaunch on WidgetRef {
     final AppPreferences prefs = read(appPreferencesProvider);
     IList<PlaybackRequest> items = _seasonQueue(source, seriesId, season);
     final DownloadRecord? local =
-        completedDownloadFor(_downloadRecords(), episode.id);
+        completedDownloadFor(await _downloadRecords(), episode.id);
+    if (!context.mounted) return;
     if (local != null && index >= 0) {
       final Either<Failures, String> localUrl =
           await read(downloadsRepositoryProvider).localUrlFor(local);
@@ -206,7 +201,8 @@ extension PlayerLaunch on WidgetRef {
     // getSeriesInfo, both of which fail in airplane mode.
     if (session.kind == ContentKind.episode) {
       final DownloadRecord? local =
-          completedDownloadFor(_downloadRecords(), session.id);
+          completedDownloadFor(await _downloadRecords(), session.id);
+      if (!context.mounted) return;
       if (local != null) {
         await openDownloadedEpisode(context, local);
         return;
