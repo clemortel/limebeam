@@ -146,7 +146,8 @@ class PlaybackController extends _$PlaybackController {
   bool get isCasting => state.castDevice != null;
 
   /// Whether casting is supported on this build (repository registered).
-  bool get canCast => _castRepo != null;
+  bool get canCast =>
+      _castRepo != null && !(currentRequest?.isLocal ?? false);
 
   static const MediaSessionService _mediaSession = MediaSessionService();
 
@@ -272,6 +273,8 @@ class PlaybackController extends _$PlaybackController {
   /// owns playback (that path manages its own handoff).
   Future<void> _onAirPlayChanged(bool active) async {
     if (_disposed || isCasting || active == _externalPlayback) return;
+    // A local file cannot be handed to AVPlayer/AirPlay; keep libmpv.
+    if (currentRequest?.isLocal ?? false) return;
     _externalPlayback = active;
     if (_engine == null) return;
     await _swapEngine();
@@ -919,7 +922,7 @@ class PlaybackController extends _$PlaybackController {
   /// remote playback at the current position. The overlay then drives the TV.
   Future<void> castTo(CastDevice device) async {
     final PlaybackRequest? request = currentRequest;
-    if (_castRepo == null || request == null) return;
+    if (_castRepo == null || request == null || request.isLocal) return;
     final Duration startAt = state.isLive ? Duration.zero : state.position;
     await _engine?.pause();
     _accrueWatchTime(resume: false);
