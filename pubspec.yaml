@@ -24,6 +24,7 @@ workspace:
   - packages/libraries/iptv_favorites
   - packages/libraries/iptv_settings
   - packages/libraries/iptv_donations
+  - packages/libraries/iptv_downloads
   - packages/parts/iptv_home_part
   - packages/parts/iptv_player_part
   - packages/parts/iptv_settings_part
@@ -92,6 +93,8 @@ dependencies:
     path: packages/libraries/iptv_settings
   iptv_donations:
     path: packages/libraries/iptv_donations
+  iptv_downloads:
+    path: packages/libraries/iptv_downloads
 
   # Workspace packages — parts
   iptv_home_part:

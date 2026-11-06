@@ -7,6 +7,7 @@ import "package:flutter_riverpod/flutter_riverpod.dart"
 import "package:iptv_api/iptv_api.dart";
 import "package:iptv_auth/iptv_auth.dart";
 import "package:iptv_core/iptv_core.dart";
+import "package:iptv_downloads/iptv_downloads.dart";
 import "package:iptv_favorites/iptv_favorites.dart";
 import "package:iptv_live/iptv_live.dart";
 import "package:iptv_player/iptv_player.dart";
@@ -28,6 +29,12 @@ const int _kResumeNextThresholdSeconds = 120;
 /// translating a Channel/Movie/Episode into a queue + stream URL happens here,
 /// including resuming from a saved [WatchSession].
 extension PlayerLaunch on WidgetRef {
+  /// Plays a downloaded episode with no network.
+  Future<void> openDownloadedEpisode(
+    BuildContext context,
+    DownloadRecord record,
+  ) async {}
+
   /// Plays the tapped channel; the queue is the visible category so the
   /// in-player mini-list can zap between channels.
   void openChannel(BuildContext context, Channel channel) {
