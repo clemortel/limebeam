@@ -573,4 +573,62 @@ class AppLocalizationsEn extends AppLocalizations {
   String nextEpisodeIn(int seconds) {
     return 'Next episode in ${seconds}s';
   }
+
+  @override
+  String get downloadsTitle => 'Downloads';
+
+  @override
+  String get downloadsSeasonAction => 'Download season';
+
+  @override
+  String downloadsSeasonProgress(int done, int total) {
+    return '$done/$total';
+  }
+
+  @override
+  String get downloadsSeasonDone => 'Season downloaded';
+
+  @override
+  String get downloadsEpisodeDownload => 'Download episode';
+
+  @override
+  String get downloadsEpisodeQueued => 'Download queued';
+
+  @override
+  String downloadsEpisodeRunning(int percent) {
+    return 'Downloading, $percent%';
+  }
+
+  @override
+  String get downloadsEpisodeDone => 'Episode downloaded';
+
+  @override
+  String get downloadsEpisodeRetry => 'Retry download';
+
+  @override
+  String get downloadsRemove => 'Delete';
+
+  @override
+  String get downloadsRemoveTitle => 'Delete this download?';
+
+  @override
+  String get downloadsRemoveMessage =>
+      'The episode will no longer be available offline.';
+
+  @override
+  String get downloadsEmptyTitle => 'No downloads';
+
+  @override
+  String get downloadsEmptyMessage =>
+      'Download episodes from a series page to watch them without a connection.';
+
+  @override
+  String downloadsSeasonHeader(int n) {
+    return 'Season $n';
+  }
+
+  @override
+  String downloadsPlayEpisode(String title) {
+    return 'Play $title';
+  }
 }

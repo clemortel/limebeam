@@ -1171,6 +1171,102 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Épisode suivant dans {seconds}s'**
   String nextEpisodeIn(int seconds);
+
+  /// No description provided for @downloadsTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Téléchargements'**
+  String get downloadsTitle;
+
+  /// No description provided for @downloadsSeasonAction.
+  ///
+  /// In fr, this message translates to:
+  /// **'Télécharger la saison'**
+  String get downloadsSeasonAction;
+
+  /// No description provided for @downloadsSeasonProgress.
+  ///
+  /// In fr, this message translates to:
+  /// **'{done}/{total}'**
+  String downloadsSeasonProgress(int done, int total);
+
+  /// No description provided for @downloadsSeasonDone.
+  ///
+  /// In fr, this message translates to:
+  /// **'Saison téléchargée'**
+  String get downloadsSeasonDone;
+
+  /// No description provided for @downloadsEpisodeDownload.
+  ///
+  /// In fr, this message translates to:
+  /// **'Télécharger l\'épisode'**
+  String get downloadsEpisodeDownload;
+
+  /// No description provided for @downloadsEpisodeQueued.
+  ///
+  /// In fr, this message translates to:
+  /// **'Téléchargement en attente'**
+  String get downloadsEpisodeQueued;
+
+  /// No description provided for @downloadsEpisodeRunning.
+  ///
+  /// In fr, this message translates to:
+  /// **'Téléchargement en cours, {percent} %'**
+  String downloadsEpisodeRunning(int percent);
+
+  /// No description provided for @downloadsEpisodeDone.
+  ///
+  /// In fr, this message translates to:
+  /// **'Épisode téléchargé'**
+  String get downloadsEpisodeDone;
+
+  /// No description provided for @downloadsEpisodeRetry.
+  ///
+  /// In fr, this message translates to:
+  /// **'Réessayer le téléchargement'**
+  String get downloadsEpisodeRetry;
+
+  /// No description provided for @downloadsRemove.
+  ///
+  /// In fr, this message translates to:
+  /// **'Supprimer'**
+  String get downloadsRemove;
+
+  /// No description provided for @downloadsRemoveTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Supprimer le téléchargement ?'**
+  String get downloadsRemoveTitle;
+
+  /// No description provided for @downloadsRemoveMessage.
+  ///
+  /// In fr, this message translates to:
+  /// **'L\'épisode ne sera plus disponible hors connexion.'**
+  String get downloadsRemoveMessage;
+
+  /// No description provided for @downloadsEmptyTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucun téléchargement'**
+  String get downloadsEmptyTitle;
+
+  /// No description provided for @downloadsEmptyMessage.
+  ///
+  /// In fr, this message translates to:
+  /// **'Téléchargez des épisodes depuis une fiche série pour les regarder sans connexion.'**
+  String get downloadsEmptyMessage;
+
+  /// No description provided for @downloadsSeasonHeader.
+  ///
+  /// In fr, this message translates to:
+  /// **'Saison {n}'**
+  String downloadsSeasonHeader(int n);
+
+  /// No description provided for @downloadsPlayEpisode.
+  ///
+  /// In fr, this message translates to:
+  /// **'Lire {title}'**
+  String downloadsPlayEpisode(String title);
 }
 
 class _AppLocalizationsDelegate

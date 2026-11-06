@@ -153,6 +153,13 @@ class SeriesTabScreen extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: t.colors.bgBase,
         title: Text(l.browseSeries, style: t.typography.h1),
+        actions: <Widget>[
+          IconButton(
+            tooltip: l.downloadsTitle,
+            icon: const Icon(Icons.download_for_offline_outlined),
+            onPressed: () => context.router.root.push(const DownloadsRoute()),
+          ),
+        ],
       ),
       body: SeriesGridView(
         hideAdult: hideAdult,
@@ -210,6 +217,14 @@ class SettingsTabScreen extends StatelessWidget {
             label: l.settingsSources,
             onTap: () => context.router.root.push(const SourcesRoute()),
           ),
+          if (!FormFactorScope.isTv(context)) ...<Widget>[
+            SizedBox(height: t.space.x4),
+            _SettingsNavTile(
+              icon: Icons.download_for_offline_outlined,
+              label: l.downloadsTitle,
+              onTap: () => context.router.root.push(const DownloadsRoute()),
+            ),
+          ],
           SizedBox(height: t.space.x4),
           const SettingsView(),
           SizedBox(height: t.space.x4),
