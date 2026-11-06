@@ -123,6 +123,10 @@ dev_dependencies:
   melos: ^7.4.0
 
 flutter:
+  # Pods stay the source of truth: the SwiftPM migration resolves GoogleCast
+  # against a higher iOS minimum and breaks the archive.
+  config:
+    enable-swift-package-manager: false
   uses-material-design: true
 
 # LimeBeam launcher icon (iOS + Android). Regenerate with:
