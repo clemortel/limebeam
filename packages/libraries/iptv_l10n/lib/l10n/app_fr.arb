@@ -226,5 +226,52 @@
         "type": "int"
       }
     }
+  },
+  "downloadsTitle": "Téléchargements",
+  "downloadsSeasonAction": "Télécharger la saison",
+  "downloadsSeasonProgress": "{done}/{total}",
+  "@downloadsSeasonProgress": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "downloadsSeasonDone": "Saison téléchargée",
+  "downloadsEpisodeDownload": "Télécharger l'épisode",
+  "downloadsEpisodeQueued": "Téléchargement en attente",
+  "downloadsEpisodeRunning": "Téléchargement en cours, {percent} %",
+  "@downloadsEpisodeRunning": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "downloadsEpisodeDone": "Épisode téléchargé",
+  "downloadsEpisodeRetry": "Réessayer le téléchargement",
+  "downloadsRemove": "Supprimer",
+  "downloadsRemoveTitle": "Supprimer le téléchargement ?",
+  "downloadsRemoveMessage": "L'épisode ne sera plus disponible hors connexion.",
+  "downloadsEmptyTitle": "Aucun téléchargement",
+  "downloadsEmptyMessage": "Téléchargez des épisodes depuis une fiche série pour les regarder sans connexion.",
+  "downloadsSeasonHeader": "Saison {n}",
+  "@downloadsSeasonHeader": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "downloadsPlayEpisode": "Lire {title}",
+  "@downloadsPlayEpisode": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
   }
 }

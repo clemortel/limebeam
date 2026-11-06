@@ -580,4 +580,62 @@ class AppLocalizationsFr extends AppLocalizations {
   String nextEpisodeIn(int seconds) {
     return 'Épisode suivant dans ${seconds}s';
   }
+
+  @override
+  String get downloadsTitle => 'Téléchargements';
+
+  @override
+  String get downloadsSeasonAction => 'Télécharger la saison';
+
+  @override
+  String downloadsSeasonProgress(int done, int total) {
+    return '$done/$total';
+  }
+
+  @override
+  String get downloadsSeasonDone => 'Saison téléchargée';
+
+  @override
+  String get downloadsEpisodeDownload => 'Télécharger l\'épisode';
+
+  @override
+  String get downloadsEpisodeQueued => 'Téléchargement en attente';
+
+  @override
+  String downloadsEpisodeRunning(int percent) {
+    return 'Téléchargement en cours, $percent %';
+  }
+
+  @override
+  String get downloadsEpisodeDone => 'Épisode téléchargé';
+
+  @override
+  String get downloadsEpisodeRetry => 'Réessayer le téléchargement';
+
+  @override
+  String get downloadsRemove => 'Supprimer';
+
+  @override
+  String get downloadsRemoveTitle => 'Supprimer le téléchargement ?';
+
+  @override
+  String get downloadsRemoveMessage =>
+      'L\'épisode ne sera plus disponible hors connexion.';
+
+  @override
+  String get downloadsEmptyTitle => 'Aucun téléchargement';
+
+  @override
+  String get downloadsEmptyMessage =>
+      'Téléchargez des épisodes depuis une fiche série pour les regarder sans connexion.';
+
+  @override
+  String downloadsSeasonHeader(int n) {
+    return 'Saison $n';
+  }
+
+  @override
+  String downloadsPlayEpisode(String title) {
+    return 'Lire $title';
+  }
 }

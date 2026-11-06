@@ -8,3 +8,6 @@ export "src/models/download_phase.dart";
 export "src/models/download_record.dart";
 export "src/models/download_request.dart";
 export "src/riverpods/providers.dart";
+export "src/ui/downloads_view.dart";
+export "src/ui/episode_download_button.dart";
+export "src/ui/season_download_button.dart";
