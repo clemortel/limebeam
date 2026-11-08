@@ -167,7 +167,8 @@ class SeriesRepository implements ISeriesRepository {
       return seriesDetailFromJson(
         jsonDecode(raw) as Map<String, dynamic>,
       );
-    } on Object {
+    } on Object catch (error) {
+      developer.log("series info cache read failed: $error", name: "iptv.series");
       // A stale/corrupt/unreadable entry must never block a live fetch.
       return null;
     }
@@ -217,7 +218,7 @@ Map<String, dynamic> seriesDetailToJson(SeriesDetail d) => <String, dynamic>{
 
 SeriesDetail seriesDetailFromJson(Map<String, dynamic> m) => SeriesDetail(
       plot: m["plot"] as String,
-      coverUrl: m["cover"] as String?,
+      coverUrl: SeriesDetail.safeHttpUrl(m["cover"]),
       seasons: (m["seasons"] as List<dynamic>)
           .map((dynamic raw) {
             final Map<String, dynamic> s = raw as Map<String, dynamic>;

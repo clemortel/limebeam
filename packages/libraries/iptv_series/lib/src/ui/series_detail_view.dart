@@ -557,7 +557,7 @@ class _EpisodeRow extends StatelessWidget {
             if (showThumbnail && episode.posterUrl != null)
               _EpisodeThumb(url: episode.posterUrl!)
             else
-              const _EpisodePlayIcon(),
+              _EpisodePlayIcon(alignToThumb: showThumbnail),
             SizedBox(width: t.space.x3),
             Expanded(
               child: Column(
@@ -587,15 +587,24 @@ class _EpisodeRow extends StatelessWidget {
 }
 
 class _EpisodePlayIcon extends StatelessWidget {
-  const _EpisodePlayIcon();
+  const _EpisodePlayIcon({required this.alignToThumb});
+
+  /// Thumbnails are on: take the thumbnail's width so rows without a poster
+  /// keep their text aligned with the others.
+  final bool alignToThumb;
 
   @override
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
-    return Icon(
+    final Icon icon = Icon(
       Icons.play_circle_outline,
       color: t.colors.accent,
       size: _kEpisodePlayIconSize,
+    );
+    if (!alignToThumb) return icon;
+    return SizedBox(
+      width: _kEpisodeThumbWidth,
+      child: Center(child: icon),
     );
   }
 }
@@ -612,7 +621,7 @@ class _EpisodeThumb extends StatelessWidget {
     final AppTheme t = context.appTheme;
     final Widget fallback = ColoredBox(
       color: t.colors.bgElevated,
-      child: const Center(child: _EpisodePlayIcon()),
+      child: const Center(child: _EpisodePlayIcon(alignToThumb: false)),
     );
     return SizedBox(
       width: _kEpisodeThumbWidth,

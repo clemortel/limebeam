@@ -60,10 +60,9 @@ sealed class SeriesDetail with _$SeriesDetail {
 
     seasons.sort((Season a, Season b) => a.number.compareTo(b.number));
 
-    final String cover = "${info["cover"] ?? ""}";
     return SeriesDetail(
       plot: "${info["plot"] ?? ""}",
-      coverUrl: cover.isEmpty ? null : cover,
+      coverUrl: safeHttpUrl(info["cover"]),
       seasons: seasons.toIList(),
     );
   }

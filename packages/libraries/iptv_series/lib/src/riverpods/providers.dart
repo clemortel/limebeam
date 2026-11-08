@@ -53,14 +53,10 @@ class SeriesDetailNotifier extends _$SeriesDetailNotifier {
     if (!ref.mounted) return;
     state = result.fold(
       // A failed refresh must not wipe a detail the user is already reading.
-      // Only an unreachable network makes the kept sheet "offline"; a 5xx
-      // or auth failure keeps it without the pill.
+      // The offline rule (fromCache) lives in the repository only: a Left
+      // here is a 5xx/auth failure (or no cache) and keeps the sheet as is.
       (Failures failure) => shown != null
-          ? AsyncState<SeriesDetail>.success(
-              failure is NetworkError
-                  ? shown.copyWith(fromCache: true)
-                  : shown,
-            )
+          ? AsyncState<SeriesDetail>.success(shown)
           : AsyncState<SeriesDetail>.error(failure),
       (SeriesDetail detail) => AsyncState<SeriesDetail>.success(detail),
     );

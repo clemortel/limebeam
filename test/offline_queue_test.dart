@@ -1,7 +1,9 @@
 import "package:fast_immutable_collections/fast_immutable_collections.dart";
 import "package:flutter_test/flutter_test.dart";
 import "package:green_iptv/offline_queue.dart";
+import "package:iptv_core/iptv_core.dart";
 import "package:iptv_downloads/iptv_downloads.dart";
+import "package:iptv_series/iptv_series.dart";
 
 DownloadRecord _record(
   String id, {
@@ -25,6 +27,62 @@ DownloadRecord _record(
     );
 
 void main() {
+  group("isServedFromCache", () {
+    const SeriesDetail live = SeriesDetail(seasons: IListConst<Season>(<Season>[]));
+
+    test("is true only for a successful cached sheet", () {
+      expect(
+        isServedFromCache(
+          AsyncState<SeriesDetail>.success(live.copyWith(fromCache: true)),
+        ),
+        isTrue,
+      );
+      expect(
+        isServedFromCache(const AsyncState<SeriesDetail>.success(live)),
+        isFalse,
+      );
+      expect(
+        isServedFromCache(const AsyncState<SeriesDetail>.loading()),
+        isFalse,
+      );
+    });
+  });
+
+  test("an offline queue holds only downloaded episodes, in order", () {
+    final DownloadRecord e2 = _record("b", episode: 2);
+    final IList<DownloadRecord> all = <DownloadRecord>[
+      _record("d", episode: 4),
+      e2,
+      _record("c", episode: 3, phase: const DownloadPhase.queued()),
+    ].toIList();
+
+    final List<int> numbers = offlineSeasonRecords(all, e2)
+        .map((DownloadRecord r) => r.episodeNumber)
+        .toList();
+
+    expect(numbers, <int>[2, 4]);
+  });
+
+  test("near the end with the next episode not downloaded resumes local", () {
+    final DownloadRecord e2 = _record("b", episode: 2);
+    final IList<DownloadRecord> season = offlineSeasonRecords(
+      <DownloadRecord>[e2, _record("d", episode: 4)].toIList(),
+      e2,
+    );
+
+    final ({DownloadRecord record, bool fromStart}) target =
+        offlineResumeTarget(
+      season: season,
+      current: e2,
+      positionSeconds: 995,
+      durationSeconds: 1000,
+      thresholdSeconds: 30,
+    );
+
+    expect(target.record.contentId, "b");
+    expect(target.fromStart, isFalse);
+  });
+
   test("keeps completed same-season records sorted by episode", () {
     final DownloadRecord tapped = _record("b", episode: 2);
     final IList<DownloadRecord> all = <DownloadRecord>[
