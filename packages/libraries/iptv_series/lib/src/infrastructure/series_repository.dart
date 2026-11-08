@@ -21,9 +21,10 @@ abstract interface class ISeriesRepository {
 
   Future<Either<Failures, IList<SeriesCategory>>> getCategories();
 
-  /// Seasons + episodes for one series. Every success is written to the
-  /// cache; a network failure serves the cached copy (`fromCache: true`)
-  /// when one exists, otherwise the failure.
+  /// Seasons + episodes for one series. A success with seasons is written
+  /// to the cache. A network failure, or a success without seasons
+  /// (captive portal, auth:0), serves the cached copy (`fromCache: true`)
+  /// when one exists; otherwise the failure, or the empty detail.
   Future<Either<Failures, SeriesDetail>> getSeriesInfo(String seriesId);
 
   /// The cached detail without touching the network, or `none()`.
@@ -133,9 +134,13 @@ class SeriesRepository implements ISeriesRepository {
             "episodes=$episodes episodesType=${map["episodes"].runtimeType}",
             name: "iptv.series",
           );
-          // An empty sheet (captive portal, auth:0) must not replace a
-          // good cached one.
-          if (detail.seasons.isNotEmpty) await _writeCached(key, detail);
+          if (detail.seasons.isEmpty) {
+            // An empty sheet must neither replace nor hide a good cached one.
+            final SeriesDetail? cached = await _readCached(key);
+            if (cached != null) return right(cached.copyWith(fromCache: true));
+            return right(detail);
+          }
+          await _writeCached(key, detail);
           return right(detail);
         },
       );
@@ -231,7 +236,7 @@ SeriesDetail seriesDetailFromJson(Map<String, dynamic> m) => SeriesDetail(
                       containerExtension: e["ext"] as String,
                       plot: e["plot"] as String,
                       duration: e["duration"] as String,
-                      posterUrl: e["poster"] as String?,
+                      posterUrl: SeriesDetail.safeHttpUrl(e["poster"]),
                     );
                   })
                   .toIList(),

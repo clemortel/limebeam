@@ -16,8 +16,9 @@ sealed class SeriesDetail with _$SeriesDetail {
     String? coverUrl,
     required IList<Season> seasons,
 
-    /// True when this came from the on-disk cache because the network was
-    /// unreachable. Never persisted: a cached read stores `false`.
+    /// True when this is the on-disk copy because the network was
+    /// unreachable or answered with an empty sheet. Never persisted.
+    /// Other refresh failures (5xx, auth) do not set it.
     @Default(false) bool fromCache,
   }) = _SeriesDetail;
 
@@ -86,8 +87,19 @@ sealed class SeriesDetail with _$SeriesDetail {
       containerExtension: "${e["container_extension"] ?? "mp4"}",
       plot: "${epInfo["plot"] ?? ""}",
       duration: "${epInfo["duration"] ?? ""}",
-      posterUrl: _nonEmpty(epInfo["movie_image"]),
+      posterUrl: safeHttpUrl(epInfo["movie_image"]),
     );
+  }
+
+  /// Provider-supplied image URL, or null unless it is http(s) with a host:
+  /// it is cached and handed to the image loader, so nothing else passes.
+  static String? safeHttpUrl(dynamic value) {
+    final String? raw = _nonEmpty(value);
+    if (raw == null) return null;
+    final Uri? uri = Uri.tryParse(raw);
+    if (uri == null) return null;
+    final bool http = uri.scheme == "http" || uri.scheme == "https";
+    return http && uri.host.isNotEmpty ? raw : null;
   }
 
   /// Null for absent/blank values (providers send "" instead of omitting).

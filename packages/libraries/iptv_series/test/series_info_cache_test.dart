@@ -1,3 +1,4 @@
+import "dart:async";
 import "dart:convert";
 import "dart:io";
 
@@ -47,6 +48,9 @@ class _FakeHttp implements HttpService {
   /// Runs while a request is in flight (e.g. to switch the active source).
   void Function()? onGet;
 
+  /// When set, a request waits for it before answering.
+  Completer<void>? gate;
+
   @override
   Future<dynamic> get(
     String path, {
@@ -54,6 +58,7 @@ class _FakeHttp implements HttpService {
     Map<String, String>? headers,
   }) async {
     onGet?.call();
+    if (gate != null) await gate!.future;
     if (error != null) throw error!;
     return payload;
   }
@@ -91,6 +96,8 @@ const Map<String, dynamic> _payload = <String, dynamic>{
     ],
   },
 };
+
+void _ignore(AsyncState<SeriesDetail>? _, AsyncState<SeriesDetail> __) {}
 
 void main() {
   late _MemoryCache cache;
@@ -243,6 +250,31 @@ void main() {
       expect(served.seasons.first.episodes.first.title, "New");
     });
 
+    test("should serve the cached sheet when the response has no seasons",
+        () async {
+      await repository.getSeriesInfo("42");
+      http.payload = <String, dynamic>{};
+
+      final SeriesDetail detail =
+          (await repository.getSeriesInfo("42")).getOrElse(
+        () => throw StateError("expected cached detail"),
+      );
+
+      expect(detail.seasons, isNotEmpty);
+      expect(detail.fromCache, isTrue);
+    });
+
+    test("should return the empty detail when nothing is cached", () async {
+      http.payload = <String, dynamic>{};
+
+      final SeriesDetail detail =
+          (await repository.getSeriesInfo("42")).getOrElse(
+        () => throw StateError("expected detail"),
+      );
+
+      expect(detail.seasons, isEmpty);
+    });
+
     test("should treat a corrupt cache entry as a miss", () async {
       cache.data["series_info_src1_42"] = "{not json";
       http.error = const SocketException("offline");
@@ -251,6 +283,16 @@ void main() {
           await repository.getSeriesInfo("42");
 
       expect(result.isLeft(), isTrue);
+    });
+  });
+
+  group("safeHttpUrl", () {
+    test("should accept http(s) with a host only", () {
+      expect(SeriesDetail.safeHttpUrl("https://i/e.jpg"), "https://i/e.jpg");
+      expect(SeriesDetail.safeHttpUrl("file:///etc/passwd"), isNull);
+      expect(SeriesDetail.safeHttpUrl("javascript:alert(1)"), isNull);
+      expect(SeriesDetail.safeHttpUrl("http:///x.jpg"), isNull);
+      expect(SeriesDetail.safeHttpUrl("  "), isNull);
     });
   });
 
@@ -306,7 +348,7 @@ void main() {
       http.error = const SocketException("offline");
 
       final ProviderContainer container = makeContainer();
-      container.listen(seriesDetailProvider("42"), (_, __) {});
+      container.listen(seriesDetailProvider("42"), (AsyncState<SeriesDetail>? _, AsyncState<SeriesDetail> __) {});
       await settle();
       await settle();
 
@@ -320,7 +362,7 @@ void main() {
       await repository.getSeriesInfo("42");
 
       final ProviderContainer container = makeContainer();
-      container.listen(seriesDetailProvider("42"), (_, __) {});
+      container.listen(seriesDetailProvider("42"), (AsyncState<SeriesDetail>? _, AsyncState<SeriesDetail> __) {});
       await settle();
       await settle();
 
@@ -333,7 +375,7 @@ void main() {
       http.error = const SocketException("offline");
 
       final ProviderContainer container = makeContainer();
-      container.listen(seriesDetailProvider("42"), (_, __) {});
+      container.listen(seriesDetailProvider("42"), (AsyncState<SeriesDetail>? _, AsyncState<SeriesDetail> __) {});
       await settle();
       await settle();
 
@@ -343,13 +385,13 @@ void main() {
       );
     });
 
-    test("should flag the kept sheet as cached when a refresh fails",
+    test("should flag the kept sheet as cached when the network is down",
         () async {
       await repository.getSeriesInfo("42");
-      http.error = const HttpStatusException(503);
+      http.error = const SocketException("offline");
 
       final ProviderContainer container = makeContainer();
-      container.listen(seriesDetailProvider("42"), (_, __) {});
+      container.listen(seriesDetailProvider("42"), (AsyncState<SeriesDetail>? _, AsyncState<SeriesDetail> __) {});
       await settle();
       await settle();
 
@@ -358,13 +400,67 @@ void main() {
       expect((state as AsyncSuccess<SeriesDetail>).data.fromCache, isTrue);
     });
 
+    test("should not flag the kept sheet on a server error", () async {
+      await repository.getSeriesInfo("42");
+      http.error = const HttpStatusException(503);
+
+      final ProviderContainer container = makeContainer();
+      container.listen(seriesDetailProvider("42"), _ignore);
+      await settle();
+      await settle();
+
+      final AsyncState<SeriesDetail> state =
+          container.read(seriesDetailProvider("42"));
+      expect((state as AsyncSuccess<SeriesDetail>).data.fromCache, isFalse);
+    });
+
+    test("should emit the cached sheet when the network answers empty",
+        () async {
+      await repository.getSeriesInfo("42");
+      http.payload = <String, dynamic>{};
+
+      final ProviderContainer container = makeContainer();
+      container.listen(seriesDetailProvider("42"), _ignore);
+      await settle();
+      await settle();
+
+      final SeriesDetail shown = (container.read(seriesDetailProvider("42"))
+              as AsyncSuccess<SeriesDetail>)
+          .data;
+      expect(shown.seasons, isNotEmpty);
+      expect(shown.fromCache, isTrue);
+    });
+
+    test("should emit the cached detail before the network completes",
+        () async {
+      await repository.getSeriesInfo("42");
+      http.gate = Completer<void>();
+
+      final ProviderContainer container = makeContainer();
+      container.listen(seriesDetailProvider("42"), _ignore);
+      await settle();
+      await settle();
+
+      expect(
+        container.read(seriesDetailProvider("42")),
+        isA<AsyncSuccess<SeriesDetail>>(),
+      );
+      http.gate!.complete();
+      await settle();
+      await settle();
+      expect(
+        container.read(seriesDetailProvider("42")),
+        isA<AsyncSuccess<SeriesDetail>>(),
+      );
+    });
+
     test("should keep the cached detail when a refresh hits a server error",
         () async {
       await repository.getSeriesInfo("42");
       http.error = const HttpStatusException(503);
 
       final ProviderContainer container = makeContainer();
-      container.listen(seriesDetailProvider("42"), (_, __) {});
+      container.listen(seriesDetailProvider("42"), (AsyncState<SeriesDetail>? _, AsyncState<SeriesDetail> __) {});
       await settle();
       await settle();
 
