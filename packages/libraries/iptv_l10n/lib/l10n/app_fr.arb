@@ -301,5 +301,13 @@
   "downloadsUnavailable": "Téléchargement indisponible",
   "downloadsEnqueueFailed": "Impossible de lancer le téléchargement.",
   "downloadsRemoveFailed": "Impossible de supprimer le téléchargement.",
-  "sourceUnavailable": "Source indisponible"
+  "sourceUnavailable": "Source indisponible",
+  "downloadsStorageTotal": "{size} au total, toutes sources",
+  "@downloadsStorageTotal": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  }
 }

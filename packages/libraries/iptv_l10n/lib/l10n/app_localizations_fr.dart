@@ -688,4 +688,9 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get sourceUnavailable => 'Source indisponible';
+
+  @override
+  String downloadsStorageTotal(String size) {
+    return '$size au total, toutes sources';
+  }
 }

@@ -46,9 +46,10 @@ class DownloadsNotifier extends _$DownloadsNotifier {
     );
   }
 
-  Future<void> remove(String contentId) async {
+  /// [key] is `DownloadRecord.key`.
+  Future<void> remove(String key) async {
     final Either<Failures, Unit> result =
-        await ref.read(downloadsRepositoryProvider).remove(contentId);
+        await ref.read(downloadsRepositoryProvider).remove(key);
     result.fold(
       (Failures _) => ref
           .read(downloadFailuresProvider.notifier)
@@ -57,11 +58,11 @@ class DownloadsNotifier extends _$DownloadsNotifier {
     );
   }
 
-  Future<void> pause(String contentId) =>
-      _run(() => ref.read(downloadsRepositoryProvider).pause(contentId));
+  Future<void> pause(String key) =>
+      _run(() => ref.read(downloadsRepositoryProvider).pause(key));
 
-  Future<void> resume(String contentId) =>
-      _run(() => ref.read(downloadsRepositoryProvider).resume(contentId));
+  Future<void> resume(String key) =>
+      _run(() => ref.read(downloadsRepositoryProvider).resume(key));
 
   Future<void> _run(Future<Either<Failures, Unit>> Function() action) async {
     // A refused pause or resume leaves the phase untouched, which is what
@@ -76,7 +77,7 @@ class DownloadsNotifier extends _$DownloadsNotifier {
 @riverpod
 class DownloadStorageNotifier extends _$DownloadStorageNotifier {
   @override
-  AsyncState<DownloadStorageInfo> build() {
+  AsyncState<DownloadStorageInfo> build(String? sourceId) {
     // Phases only: a progress tick must not re-scan the disk each second.
     ref.listen<AsyncState<IList<DownloadRecord>>>(
       downloadsProvider,
@@ -98,7 +99,7 @@ class DownloadStorageNotifier extends _$DownloadStorageNotifier {
         ) =>
           data
               .map(
-                (DownloadRecord r) => "${r.contentId}:${r.phase.runtimeType}",
+                (DownloadRecord r) => "${r.key}:${r.phase.runtimeType}",
               )
               .join(","),
         _ => "",
@@ -106,7 +107,7 @@ class DownloadStorageNotifier extends _$DownloadStorageNotifier {
 
   Future<void> _load() async {
     final Either<Failures, DownloadStorageInfo> result =
-        await ref.read(downloadsRepositoryProvider).storageInfo();
+        await ref.read(downloadsRepositoryProvider).storageInfo(sourceId);
     if (!ref.mounted) return;
     state = result.fold(
       (Failures failure) => AsyncState<DownloadStorageInfo>.error(failure),

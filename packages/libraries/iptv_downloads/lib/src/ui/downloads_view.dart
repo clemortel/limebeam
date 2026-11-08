@@ -31,14 +31,19 @@ class DownloadsView extends ConsumerWidget {
   const DownloadsView({
     required this.onPlay,
     required this.onRetry,
+    required this.sourceId,
     super.key,
   });
 
   final void Function(DownloadRecord record) onPlay;
 
-  /// A failed record cannot restart from here: its URL is not stored, so the
-  /// app layer rebuilds it from the active source.
+  /// A failed record cannot restart from here: its URL is not stored, so
+  /// the app layer rebuilds it from the record's own source.
   final void Function(DownloadRecord record) onRetry;
+
+  /// The active playlist source: only its downloads are listed. Null when
+  /// none is connected.
+  final String? sourceId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -65,9 +70,9 @@ class DownloadsView extends ConsumerWidget {
             ),
           ),
         AsyncSuccess<IList<DownloadRecord>>(
-          :final IList<DownloadRecord> data,
+          data: final IList<DownloadRecord> all,
         ) =>
-          data.isEmpty
+          recordsOfSource(all, sourceId).isEmpty
               ? Center(
                   child: EmptyState(
                     icon: Icons.download_for_offline_outlined,
@@ -76,15 +81,16 @@ class DownloadsView extends ConsumerWidget {
                   ),
                 )
               : _DownloadsList(
-                  groups: groupDownloads(data),
+                  groups: groupDownloads(recordsOfSource(all, sourceId)),
+                  sourceId: sourceId,
                   onPlay: onPlay,
                   onRetry: onRetry,
-                  onPause: (String id) =>
-                      ref.read(downloadsProvider.notifier).pause(id),
-                  onResume: (String id) =>
-                      ref.read(downloadsProvider.notifier).resume(id),
-                  onRemove: (String id) =>
-                      ref.read(downloadsProvider.notifier).remove(id),
+                  onPause: (String key) =>
+                      ref.read(downloadsProvider.notifier).pause(key),
+                  onResume: (String key) =>
+                      ref.read(downloadsProvider.notifier).resume(key),
+                  onRemove: (String key) =>
+                      ref.read(downloadsProvider.notifier).remove(key),
                 ),
       },
     );
@@ -94,6 +100,7 @@ class DownloadsView extends ConsumerWidget {
 class _DownloadsList extends StatelessWidget {
   const _DownloadsList({
     required this.groups,
+    required this.sourceId,
     required this.onPlay,
     required this.onRetry,
     required this.onPause,
@@ -102,11 +109,12 @@ class _DownloadsList extends StatelessWidget {
   });
 
   final IList<DownloadSeriesGroup> groups;
+  final String? sourceId;
   final void Function(DownloadRecord record) onPlay;
   final void Function(DownloadRecord record) onRetry;
-  final void Function(String contentId) onPause;
-  final void Function(String contentId) onResume;
-  final void Function(String contentId) onRemove;
+  final void Function(String key) onPause;
+  final void Function(String key) onResume;
+  final void Function(String key) onRemove;
 
   @override
   Widget build(BuildContext context) {
@@ -118,7 +126,7 @@ class _DownloadsList extends StatelessWidget {
         bottom: t.space.x8 + MediaQuery.paddingOf(context).bottom,
       ),
       children: <Widget>[
-        const _StorageHeader(),
+        _StorageHeader(sourceId: sourceId),
         for (final DownloadSeriesGroup group in groups) ...<Widget>[
           _SeriesHeader(group: group),
           for (final DownloadSeasonGroup season in group.seasons) ...<Widget>[
@@ -128,9 +136,9 @@ class _DownloadsList extends StatelessWidget {
                 record: record,
                 onPlay: () => onPlay(record),
                 onRetry: () => onRetry(record),
-                onPause: () => onPause(record.contentId),
-                onResume: () => onResume(record.contentId),
-                onRemove: () => onRemove(record.contentId),
+                onPause: () => onPause(record.key),
+                onResume: () => onResume(record.key),
+                onRemove: () => onRemove(record.key),
               ),
           ],
           SizedBox(height: t.space.x4),
@@ -142,14 +150,17 @@ class _DownloadsList extends StatelessWidget {
 
 /// Space used by finished episodes and free space left on the device.
 class _StorageHeader extends ConsumerWidget {
-  const _StorageHeader();
+  const _StorageHeader({required this.sourceId});
+
+  /// The active source, whose downloads the figure counts.
+  final String? sourceId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final AppTheme t = context.appTheme;
     final AppLocalizations l = AppLocalizations.of(context);
     final AsyncState<DownloadStorageInfo> state =
-        ref.watch(downloadStorageProvider);
+        ref.watch(downloadStorageProvider(sourceId));
     final String text = switch (state) {
       AsyncIdle<DownloadStorageInfo>() => "",
       AsyncLoading<DownloadStorageInfo>() => "",
@@ -157,6 +168,8 @@ class _StorageHeader extends ConsumerWidget {
       AsyncSuccess<DownloadStorageInfo>(:final DownloadStorageInfo data) =>
         <String>[
           l.downloadsStorageUsed(formatBytes(data.usedBytes)),
+          if (data.totalUsedBytes > data.usedBytes)
+            l.downloadsStorageTotal(formatBytes(data.totalUsedBytes)),
           if (data.freeBytes != null)
             l.downloadsStorageFree(formatBytes(data.freeBytes!)),
         ].join(" · "),

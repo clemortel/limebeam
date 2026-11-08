@@ -59,7 +59,7 @@ class EpisodeDownloadButton extends ConsumerWidget {
                 ),
                 () => ref
                     .read(downloadsProvider.notifier)
-                    .resume(current.contentId),
+                    .resume(current.key),
               ),
             DownloadQueued() => (
                 l.downloadsEpisodeQueued,
@@ -87,7 +87,7 @@ class EpisodeDownloadButton extends ConsumerWidget {
                 ),
                 () => ref
                     .read(downloadsProvider.notifier)
-                    .pause(current.contentId),
+                    .pause(current.key),
               ),
             DownloadCompleted() => (
                 l.downloadsEpisodeDone,

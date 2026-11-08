@@ -1351,6 +1351,12 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Source indisponible'**
   String get sourceUnavailable;
+
+  /// No description provided for @downloadsStorageTotal.
+  ///
+  /// In fr, this message translates to:
+  /// **'{size} au total, toutes sources'**
+  String downloadsStorageTotal(String size);
 }
 
 class _AppLocalizationsDelegate

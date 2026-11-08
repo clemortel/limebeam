@@ -45,7 +45,7 @@ class DownloadsRepository implements IDownloadsRepository {
         final DownloadRecord record = DownloadRecord.fromJson(
           jsonDecode(raw) as Map<String, dynamic>,
         );
-        _records[record.contentId] = record;
+        _records[record.key] = record;
       } catch (_) {
         // A corrupt record must not take the whole library down.
         developer.log("skipped unreadable record", name: "iptv.downloads");
@@ -65,6 +65,11 @@ class DownloadsRepository implements IDownloadsRepository {
   StreamSubscription<GatewayEvent>? _subscription;
   DateTime? _lastProgressEmit;
 
+  /// Completes once [initialize] is over, whatever its outcome. Trap:
+  /// [enqueue] waits for it, otherwise a record created while the boot
+  /// reconcile runs has no native task yet and is wrongly marked failed.
+  final Completer<void> _ready = Completer<void>();
+
   /// Subscribes to the native events, then reconciles. Never throws: the app
   /// must boot in airplane mode.
   Future<void> initialize() async {
@@ -79,6 +84,8 @@ class DownloadsRepository implements IDownloadsRepository {
         name: "iptv.downloads",
         stackTrace: stackTrace,
       );
+    } finally {
+      if (!_ready.isCompleted) _ready.complete();
     }
   }
 
@@ -92,17 +99,21 @@ class DownloadsRepository implements IDownloadsRepository {
   Future<void> _reconcile() async {
     final ISet<String> active = await _gateway.activeIds();
     final String root = await _documentsPath();
-    for (final DownloadRecord record in _records.values.toList()) {
-      if (active.contains(record.contentId)) continue;
+    for (final DownloadRecord snapshot in _records.values.toList()) {
+      final String key = snapshot.key;
+      if (active.contains(key)) continue;
       // Dead task: whatever resume data it left holds the URL.
-      await _gateway.purgeStoredTask(record.contentId);
+      await _gateway.purgeStoredTask(key);
+      // Events and removals ran during the awaits: judge the live record.
+      final DownloadRecord? record = _records[key];
+      if (record == null) continue;
       final bool pending = record.phase is DownloadQueued ||
           record.phase is DownloadRunning ||
           record.phase is DownloadPaused;
       if (!pending) continue;
       final bool landed = File("$root/${record.relativePath}").existsSync();
       await _setPhase(
-        record.contentId,
+        key,
         landed ? const DownloadPhase.completed() : const DownloadPhase.failed(),
       );
     }
@@ -120,8 +131,11 @@ class DownloadsRepository implements IDownloadsRepository {
     );
   }
 
+  /// Trap: events overlap (each runs unawaited), so the record is read
+  /// again after every await instead of trusting the first read.
   Future<void> _handle(GatewayEvent event) async {
-    final DownloadRecord? record = _records[event.contentId];
+    final String key = event.taskId;
+    final DownloadRecord? record = _records[key];
     // Late events of a removed download.
     if (record == null) return;
     switch (event.status) {
@@ -136,13 +150,13 @@ class DownloadsRepository implements IDownloadsRepository {
         }
         if (record.phase is! DownloadRunning) {
           await _setPhase(
-            event.contentId,
+            key,
             const DownloadPhase.running(0),
             progress: event.progress,
           );
           return;
         }
-        _progress[event.contentId] = event.progress;
+        _progress[key] = event.progress;
         final DateTime now = _now();
         final DateTime? last = _lastProgressEmit;
         if (last == null || now.difference(last) >= _kProgressThrottle) {
@@ -157,55 +171,53 @@ class DownloadsRepository implements IDownloadsRepository {
             record.phase is DownloadFailed) {
           return;
         }
-        await _setPhase(event.contentId, const DownloadPhase.queued());
+        await _setPhase(key, const DownloadPhase.queued());
       case GatewayStatus.paused:
         if (record.phase is DownloadCompleted ||
             record.phase is DownloadFailed) {
           return;
         }
-        await _setPhase(event.contentId, const DownloadPhase.paused());
+        await _setPhase(key, const DownloadPhase.paused());
       case GatewayStatus.completed:
-        await _gateway.purgeStoredTask(event.contentId);
-        await _setPhase(event.contentId, const DownloadPhase.completed());
+        await _gateway.purgeStoredTask(key);
+        await _setPhase(key, const DownloadPhase.completed());
       case GatewayStatus.failed:
       case GatewayStatus.canceled:
-        await _gateway.purgeStoredTask(event.contentId);
+        await _gateway.purgeStoredTask(key);
         // Completed stays: a late cancel must not erase a finished file.
-        if (record.phase is DownloadCompleted) return;
-        await _setPhase(
-          event.contentId,
-          DownloadPhase.failed(reason: event.reason),
-        );
+        final DownloadRecord? fresh = _records[key];
+        if (fresh == null || fresh.phase is DownloadCompleted) return;
+        await _setPhase(key, DownloadPhase.failed(reason: event.reason));
     }
   }
 
   Future<void> _setPhase(
-    String contentId,
+    String key,
     DownloadPhase phase, {
     double? progress,
   }) async {
-    final DownloadRecord? record = _records[contentId];
+    final DownloadRecord? record = _records[key];
     if (record == null) return;
     // Memory first: the stored phase carries no progress.
     if (progress == null) {
-      _progress.remove(contentId);
+      _progress.remove(key);
     } else {
-      _progress[contentId] = progress;
+      _progress[key] = progress;
     }
     await _put(record.copyWith(phase: phase));
     _emit();
   }
 
   Future<void> _put(DownloadRecord record) async {
-    _records[record.contentId] = record;
-    await _box.put(record.contentId, jsonEncode(record.toJson()));
+    _records[record.key] = record;
+    await _box.put(record.key, jsonEncode(record.toJson()));
   }
 
   IList<DownloadRecord> _snapshot() => _records.values
       .map(
         (DownloadRecord r) => r.phase is DownloadRunning
             ? r.copyWith(
-                phase: DownloadPhase.running(_progress[r.contentId] ?? 0),
+                phase: DownloadPhase.running(_progress[r.key] ?? 0),
               )
             : r,
       )
@@ -229,6 +241,12 @@ class DownloadsRepository implements IDownloadsRepository {
     return controller.stream;
   }
 
+  /// One file per source and episode: ids repeat across panels.
+  String _fileName(DownloadRequest request) => request.sourceId.isEmpty
+      ? "${request.contentId}.${request.containerExtension}"
+      : "${request.sourceId}_${request.contentId}"
+          ".${request.containerExtension}";
+
   @override
   Future<Either<Failures, Unit>> enqueue(
     IList<DownloadRequest> requests,
@@ -236,28 +254,31 @@ class DownloadsRepository implements IDownloadsRepository {
     // The first gateway failure; later requests are still attempted.
     Failures? firstFailure;
     try {
+      await _ready.future;
       // Episodes accepted in this batch are not on disk yet: count them.
       int reservedBytes = 0;
       for (final DownloadRequest request in requests) {
-        final DownloadRecord? existing = _records[request.contentId];
+        final String key = request.key;
+        final DownloadRecord? existing = _records[key];
         if (existing != null && existing.phase is! DownloadFailed) continue;
-        final String ext = request.containerExtension;
+        final String filename = _fileName(request);
         final DownloadRecord record = DownloadRecord(
           contentId: request.contentId,
+          sourceId: request.sourceId,
           seriesId: request.seriesId,
           seriesTitle: request.seriesTitle,
           seasonNumber: request.seasonNumber,
           episodeNumber: request.episodeNumber,
           title: request.title,
-          containerExtension: ext,
-          relativePath: "$kDownloadsDirectory/${request.contentId}.$ext",
+          containerExtension: request.containerExtension,
+          relativePath: "$kDownloadsDirectory/$filename",
           phase: const DownloadPhase.queued(),
           seriesCoverUrl: request.seriesCoverUrl,
           duration: request.duration,
         );
         // Stored before any await so a concurrent enqueue sees it.
-        _records[record.contentId] = record;
-        _progress.remove(record.contentId);
+        _records[key] = record;
+        _progress.remove(key);
         await _put(record);
         _emit();
         final int? size = await _gateway.expectedSize(request);
@@ -268,7 +289,7 @@ class DownloadsRepository implements IDownloadsRepository {
             free != null &&
             reservedBytes + size + _kSpaceMarginBytes > free) {
           await _setPhase(
-            record.contentId,
+            key,
             const DownloadPhase.failed(reason: DownloadFailureReason.storage),
           );
           continue;
@@ -276,14 +297,13 @@ class DownloadsRepository implements IDownloadsRepository {
         reservedBytes += size ?? 0;
         bool accepted = false;
         try {
-          accepted =
-              await _gateway.enqueue(request, "${request.contentId}.$ext");
+          accepted = await _gateway.enqueue(request, filename);
         } catch (error, stackTrace) {
           // No native task exists, so no event will ever fix the phase.
           firstFailure ??= catchError(error, stackTrace);
         }
         if (!accepted) {
-          await _setPhase(record.contentId, const DownloadPhase.failed());
+          await _setPhase(key, const DownloadPhase.failed());
         }
       }
       final Failures? failure = firstFailure;
@@ -294,15 +314,15 @@ class DownloadsRepository implements IDownloadsRepository {
   }
 
   @override
-  Future<Either<Failures, Unit>> pause(String contentId) async {
+  Future<Either<Failures, Unit>> pause(String key) async {
     try {
-      final DownloadRecord? record = _records[contentId];
+      final DownloadRecord? record = _records[key];
       final bool pausable = record != null &&
           record.phase is! DownloadCompleted &&
           record.phase is! DownloadFailed &&
           record.phase is! DownloadPaused;
       // The paused status event flips the phase, not this call.
-      if (pausable) await _gateway.pause(contentId);
+      if (pausable) await _gateway.pause(key);
       return right(unit);
     } catch (error, stackTrace) {
       return left(catchError(error, stackTrace));
@@ -310,18 +330,18 @@ class DownloadsRepository implements IDownloadsRepository {
   }
 
   @override
-  Future<Either<Failures, Unit>> resume(String contentId) async {
+  Future<Either<Failures, Unit>> resume(String key) async {
     try {
-      final DownloadRecord? record = _records[contentId];
+      final DownloadRecord? record = _records[key];
       if (record == null || record.phase is! DownloadPaused) {
         return right(unit);
       }
       // Queued first: the native layer re-enters the holding queue.
-      await _setPhase(contentId, const DownloadPhase.queued());
-      final bool resumed = await _gateway.resume(contentId);
+      await _setPhase(key, const DownloadPhase.queued());
+      final bool resumed = await _gateway.resume(key);
       if (!resumed) {
         await _setPhase(
-          contentId,
+          key,
           const DownloadPhase.failed(reason: DownloadFailureReason.server),
         );
       }
@@ -332,18 +352,25 @@ class DownloadsRepository implements IDownloadsRepository {
   }
 
   @override
-  Future<Either<Failures, DownloadStorageInfo>> storageInfo() async {
+  Future<Either<Failures, DownloadStorageInfo>> storageInfo(
+    String? sourceId,
+  ) async {
     try {
       final String root = await _documentsPath();
-      int used = 0;
+      int total = 0;
+      int mine = 0;
       for (final DownloadRecord record in _records.values) {
         if (record.phase is! DownloadCompleted) continue;
         final File file = File("$root/${record.relativePath}");
-        if (file.existsSync()) used += file.lengthSync();
+        if (!file.existsSync()) continue;
+        final int length = file.lengthSync();
+        total += length;
+        if (sourceId != null && record.sourceId == sourceId) mine += length;
       }
       return right(
         DownloadStorageInfo(
-          usedBytes: used,
+          usedBytes: mine,
+          totalUsedBytes: total,
           freeBytes: await _storage.freeBytes(),
         ),
       );
@@ -353,23 +380,107 @@ class DownloadsRepository implements IDownloadsRepository {
   }
 
   @override
-  Future<Either<Failures, Unit>> remove(String contentId) async {
-    final DownloadRecord? record = _records.remove(contentId);
-    _progress.remove(contentId);
+  Future<Either<Failures, Unit>> remove(String key) async {
+    final DownloadRecord? record = _records.remove(key);
+    _progress.remove(key);
     if (record == null) return right(unit);
     _emit();
     try {
-      await _gateway.cancel(contentId);
-      await _gateway.purgeStoredTask(contentId);
+      await _gateway.cancel(key);
+      await _gateway.purgeStoredTask(key);
       final String root = await _documentsPath();
       final File file = File("$root/${record.relativePath}");
       if (file.existsSync()) await file.delete();
-      await _box.delete(contentId);
+      await _box.delete(key);
       return right(unit);
     } catch (error, stackTrace) {
       // Hive still has it and the file may too: show what is really there.
-      _records[contentId] = record;
+      _records[key] = record;
       _emit();
+      return left(catchError(error, stackTrace));
+    }
+  }
+
+  @override
+  Future<Either<Failures, Unit>> removeSource(String sourceId) async {
+    if (sourceId.isEmpty) return right(unit);
+    Failures? firstFailure;
+    try {
+      final List<DownloadRecord> victims = _records.values
+          .where((DownloadRecord r) => r.sourceId == sourceId)
+          .toList();
+      for (final DownloadRecord record in victims) {
+        (await remove(record.key)).fold(
+          (Failures f) => firstFailure ??= f,
+          (Unit _) {},
+        );
+      }
+      // Native tasks outliving their record still hold the old credentials.
+      final String prefix = "$sourceId:";
+      final ISet<String> tasks = await _gateway.activeIds();
+      for (final String taskId
+          in tasks.where((String id) => id.startsWith(prefix))) {
+        await _gateway.cancel(taskId);
+        await _gateway.purgeStoredTask(taskId);
+      }
+    } catch (error, stackTrace) {
+      firstFailure ??= catchError(error, stackTrace);
+    }
+    final Failures? failure = firstFailure;
+    return failure == null ? right(unit) : left(failure);
+  }
+
+  @override
+  Future<Either<Failures, Unit>> retainSources(ISet<String> sourceIds) async {
+    final Set<String> orphans = _records.values
+        .map((DownloadRecord r) => r.sourceId)
+        .where((String id) => id.isNotEmpty && !sourceIds.contains(id))
+        .toSet();
+    Failures? firstFailure;
+    for (final String sourceId in orphans) {
+      (await removeSource(sourceId)).fold(
+        (Failures f) => firstFailure ??= f,
+        (Unit _) {},
+      );
+    }
+    final Failures? failure = firstFailure;
+    return failure == null ? right(unit) : left(failure);
+  }
+
+  @override
+  Future<Either<Failures, Unit>> adoptLegacy(String sourceId) async {
+    if (sourceId.isEmpty) return right(unit);
+    try {
+      // After the boot reconcile, which judges legacy tasks by their id.
+      await _ready.future;
+      final List<DownloadRecord> legacy = _records.values
+          .where((DownloadRecord r) => r.sourceId.isEmpty)
+          .toList();
+      for (final DownloadRecord old in legacy) {
+        final String oldKey = old.key;
+        final bool pending = old.phase is DownloadQueued ||
+            old.phase is DownloadRunning ||
+            old.phase is DownloadPaused;
+        // A task started under the bare id would report events nobody maps
+        // to the new key: stop it and let the user restart it.
+        if (pending) {
+          await _gateway.cancel(oldKey);
+          await _gateway.purgeStoredTask(oldKey);
+        }
+        final DownloadRecord adopted = old.copyWith(
+          sourceId: sourceId,
+          phase: pending ? const DownloadPhase.failed() : old.phase,
+        );
+        // Never overwrite a record the source already owns.
+        if (_records.containsKey(adopted.key)) continue;
+        _records.remove(oldKey);
+        _progress.remove(oldKey);
+        await _put(adopted);
+        await _box.delete(oldKey);
+      }
+      _emit();
+      return right(unit);
+    } catch (error, stackTrace) {
       return left(catchError(error, stackTrace));
     }
   }
