@@ -273,5 +273,9 @@
         "type": "String"
       }
     }
-  }
+  },
+  "downloadsUnavailable": "Téléchargement indisponible",
+  "downloadsEnqueueFailed": "Impossible de lancer le téléchargement.",
+  "downloadsRemoveFailed": "Impossible de supprimer le téléchargement.",
+  "sourceUnavailable": "Source indisponible"
 }

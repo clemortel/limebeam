@@ -14,8 +14,6 @@ import "../models/download_request.dart";
 import "download_gateway.dart";
 import "downloads_repository.dart";
 
-const String _kDirectory = "downloads";
-
 /// Progress ticks arrive many times a second; the UI needs one per second.
 const Duration _kProgressThrottle = Duration(seconds: 1);
 
@@ -84,9 +82,12 @@ class DownloadsRepository implements IDownloadsRepository {
     final ISet<String> active = await _gateway.activeIds();
     final String root = await _documentsPath();
     for (final DownloadRecord record in _records.values.toList()) {
+      if (active.contains(record.contentId)) continue;
+      // Dead task: whatever resume data it left holds the URL.
+      await _gateway.purgeStoredTask(record.contentId);
       final bool pending =
           record.phase is DownloadQueued || record.phase is DownloadRunning;
-      if (!pending || active.contains(record.contentId)) continue;
+      if (!pending) continue;
       final bool landed = File("$root/${record.relativePath}").existsSync();
       await _setPhase(
         record.contentId,
@@ -139,9 +140,11 @@ class DownloadsRepository implements IDownloadsRepository {
         if (record.phase is DownloadQueued) return;
         await _setPhase(event.contentId, const DownloadPhase.queued());
       case GatewayStatus.completed:
+        await _gateway.purgeStoredTask(event.contentId);
         await _setPhase(event.contentId, const DownloadPhase.completed());
       case GatewayStatus.failed:
       case GatewayStatus.canceled:
+        await _gateway.purgeStoredTask(event.contentId);
         // Completed stays: a late cancel must not erase a finished file.
         if (record.phase is DownloadCompleted) return;
         await _setPhase(event.contentId, const DownloadPhase.failed());
@@ -202,6 +205,8 @@ class DownloadsRepository implements IDownloadsRepository {
   Future<Either<Failures, Unit>> enqueue(
     IList<DownloadRequest> requests,
   ) async {
+    // The first gateway failure; later requests are still attempted.
+    Failures? firstFailure;
     try {
       for (final DownloadRequest request in requests) {
         final DownloadRecord? existing = _records[request.contentId];
@@ -215,7 +220,7 @@ class DownloadsRepository implements IDownloadsRepository {
           episodeNumber: request.episodeNumber,
           title: request.title,
           containerExtension: ext,
-          relativePath: "$_kDirectory/${request.contentId}.$ext",
+          relativePath: "$kDownloadsDirectory/${request.contentId}.$ext",
           phase: const DownloadPhase.queued(),
           seriesCoverUrl: request.seriesCoverUrl,
           duration: request.duration,
@@ -225,15 +230,20 @@ class DownloadsRepository implements IDownloadsRepository {
         _progress.remove(record.contentId);
         await _put(record);
         _emit();
-        final bool accepted = await _gateway.enqueue(
-          request,
-          "${request.contentId}.$ext",
-        );
+        bool accepted = false;
+        try {
+          accepted =
+              await _gateway.enqueue(request, "${request.contentId}.$ext");
+        } catch (error, stackTrace) {
+          // No native task exists, so no event will ever fix the phase.
+          firstFailure ??= catchError(error, stackTrace);
+        }
         if (!accepted) {
           await _setPhase(record.contentId, const DownloadPhase.failed());
         }
       }
-      return right(unit);
+      final Failures? failure = firstFailure;
+      return failure == null ? right(unit) : left(failure);
     } catch (error, stackTrace) {
       return left(catchError(error, stackTrace));
     }
@@ -241,18 +251,22 @@ class DownloadsRepository implements IDownloadsRepository {
 
   @override
   Future<Either<Failures, Unit>> remove(String contentId) async {
+    final DownloadRecord? record = _records.remove(contentId);
+    _progress.remove(contentId);
+    if (record == null) return right(unit);
+    _emit();
     try {
-      final DownloadRecord? record = _records.remove(contentId);
-      _progress.remove(contentId);
-      if (record == null) return right(unit);
-      _emit();
       await _gateway.cancel(contentId);
+      await _gateway.purgeStoredTask(contentId);
       final String root = await _documentsPath();
       final File file = File("$root/${record.relativePath}");
       if (file.existsSync()) await file.delete();
       await _box.delete(contentId);
       return right(unit);
     } catch (error, stackTrace) {
+      // Hive still has it and the file may too: show what is really there.
+      _records[contentId] = record;
+      _emit();
       return left(catchError(error, stackTrace));
     }
   }

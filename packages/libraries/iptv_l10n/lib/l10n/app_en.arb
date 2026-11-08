@@ -225,5 +225,9 @@
         "type": "String"
       }
     }
-  }
+  },
+  "downloadsUnavailable": "Download unavailable",
+  "downloadsEnqueueFailed": "Could not start the download.",
+  "downloadsRemoveFailed": "Could not delete the download.",
+  "sourceUnavailable": "Source unavailable"
 }
