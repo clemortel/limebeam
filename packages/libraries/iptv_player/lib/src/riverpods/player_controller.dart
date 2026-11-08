@@ -146,8 +146,7 @@ class PlaybackController extends _$PlaybackController {
   bool get isCasting => state.castDevice != null;
 
   /// Whether casting is supported on this build (repository registered).
-  bool get canCast =>
-      _castRepo != null && !(currentRequest?.isLocal ?? false);
+  bool get canCast => _castRepo != null && !(currentRequest?.isLocal ?? false);
 
   static const MediaSessionService _mediaSession = MediaSessionService();
 
@@ -203,15 +202,29 @@ class PlaybackController extends _$PlaybackController {
   /// (SurfaceView) unless it has failed this session ([_nativeEngineFailed]).
   /// On iOS we switch to native AVPlayer only while [_externalPlayback]
   /// (AirPlay) is active, since libmpv renders to a texture and cannot AirPlay.
-  PlaybackEngine _createEngine() {
+  PlaybackEngine _createEngine(PlaybackRequest? item) {
     if (_wantsNativeEngine()) {
       return ExoPlayerEngine();
     }
-    if (defaultTargetPlatform == TargetPlatform.iOS && _externalPlayback) {
+    if (_wantsAirPlayEngine(item)) {
       return AvPlayerEngine();
     }
     return MediaKitEngine();
   }
+
+  /// AirPlay is on and [item] can travel over it. Trap: a downloaded file
+  /// cannot be handed to AVPlayer/AirPlay, so it always plays on libmpv.
+  bool _wantsAirPlayEngine(PlaybackRequest? item) =>
+      defaultTargetPlatform == TargetPlatform.iOS &&
+      _externalPlayback &&
+      !(item?.isLocal ?? false);
+
+  /// Moves to the engine [item] needs when the AirPlay route and the item
+  /// kind disagree with the running engine (online item reached while
+  /// AirPlay is on after a local one, or the reverse).
+  bool _engineMismatch(PlaybackRequest item) =>
+      defaultTargetPlatform == TargetPlatform.iOS &&
+      (_engine is AvPlayerEngine) != _wantsAirPlayEngine(item);
 
   /// Cancels the current engine's stream subscriptions and disposes it so a
   /// different engine can take over (e.g. VOD↔live transition on TV). Cancelling
@@ -241,7 +254,7 @@ class PlaybackController extends _$PlaybackController {
         _engine != null && (_engine is ExoPlayerEngine) == _wantsNativeEngine();
     if (!engineMatches) {
       _replaceEngineSubscriptions();
-      final PlaybackEngine engine = _createEngine();
+      final PlaybackEngine engine = _createEngine(queue.current);
       _engine = engine;
       _listen(engine);
     }
@@ -273,26 +286,29 @@ class PlaybackController extends _$PlaybackController {
   /// owns playback (that path manages its own handoff).
   Future<void> _onAirPlayChanged(bool active) async {
     if (_disposed || isCasting || active == _externalPlayback) return;
+    // Always record the route, even over a local item: the next online item
+    // must still go to AirPlay, and no further route event will tell us.
+    _externalPlayback = active;
     // A local file cannot be handed to AVPlayer/AirPlay; keep libmpv.
     if (currentRequest?.isLocal ?? false) return;
-    _externalPlayback = active;
     if (_engine == null) return;
     await _swapEngine();
   }
 
   /// Tears down the current engine and rebuilds it via [_createEngine] at the
   /// current position, re-subscribing its streams. Used for the AirPlay handoff.
-  Future<void> _swapEngine() async {
+  Future<void> _swapEngine({Duration? resumeFrom}) async {
     final PlaybackQueue? q = _queue;
     if (q == null) return;
-    final Duration resumeAt = state.isLive ? Duration.zero : state.position;
+    final Duration resumeAt =
+        resumeFrom ?? (state.isLive ? Duration.zero : state.position);
     for (final StreamSubscription<dynamic> sub in _subscriptions) {
       await sub.cancel();
     }
     _subscriptions.clear();
     await _engine?.dispose();
     if (_disposed) return;
-    final PlaybackEngine engine = _createEngine();
+    final PlaybackEngine engine = _createEngine(q.items[state.queueIndex]);
     _engine = engine;
     _listen(engine);
     // Carry the zoom-to-fill preference across the engine swap.
@@ -314,8 +330,8 @@ class PlaybackController extends _$PlaybackController {
     // stall falls back to media_kit fast; media_kit (or a retry) gets the full
     // timeout before the error surfaces.
     final bool exoFirstTry = _engine is ExoPlayerEngine && !_nativeEngineFailed;
-    _bufferWatchdog = Timer(exoFirstTry ? _kExoStallTimeout : _kBufferTimeout,
-        () {
+    _bufferWatchdog =
+        Timer(exoFirstTry ? _kExoStallTimeout : _kBufferTimeout, () {
       if (_disposed || isCasting || state.playing) return;
       // ExoPlayer stalled with no error (unsupported codec/container it neither
       // plays nor rejects) — swap to media_kit before giving up.
@@ -588,8 +604,9 @@ class PlaybackController extends _$PlaybackController {
     }
     // AVPlayer (AirPlay) needs the HLS variant; libmpv uses the default URL.
     final PlaybackRequest item = q.items[index];
-    final String url =
-        _externalPlayback ? (item.externalUrl ?? item.url) : item.url;
+    final String url = _externalPlayback && !item.isLocal
+        ? (item.externalUrl ?? item.url)
+        : item.url;
     await engine.open(url);
     _applySavedSubtitleStyle();
     if (startAt > Duration.zero) {
@@ -825,13 +842,40 @@ class PlaybackController extends _$PlaybackController {
         countdownSeconds: 0,
       ),
     );
-    if (device != null) {
+    if (device != null && !request.isLocal) {
       // Casting: load the new item onto the receiver (session is reused).
       unawaited(_castLoad(device, request, request.startAt));
+    } else if (device != null) {
+      // A receiver cannot read a file:// URL: leave the cast for this item.
+      unawaited(_leaveCastFor(index, request.startAt));
+    } else if (_engineMismatch(request)) {
+      unawaited(_swapEngine(resumeFrom: request.startAt));
     } else {
       unawaited(_openIndex(index, request.startAt));
     }
     revealOverlay();
+  }
+
+  /// Ends the cast session and plays queue item [index] locally.
+  Future<void> _leaveCastFor(int index, Duration startAt) async {
+    await _dropCastSession();
+    if (_disposed || state.queueIndex != index) return;
+    _set(state.copyWith(castDevice: null, buffering: true));
+    if (_engineMismatch(_queue!.items[index])) {
+      await _swapEngine(resumeFrom: startAt);
+    } else {
+      await _openIndex(index, startAt);
+    }
+  }
+
+  /// Stops cast polling and the connection watch, then ends the session.
+  /// Returns the remote playhead.
+  Future<Duration> _dropCastSession() async {
+    _castPollTimer?.cancel();
+    _castPollTimer = null;
+    await _castConnSub?.cancel();
+    _castConnSub = null;
+    return await _castRepo?.endSession() ?? Duration.zero;
   }
 
   void playNext() {
@@ -938,7 +982,8 @@ class PlaybackController extends _$PlaybackController {
     Duration startAt,
   ) async {
     final ICastRepository? repo = _castRepo;
-    if (repo == null) return;
+    // Every hand-off is guarded, not only the current item: see [playAt].
+    if (repo == null || request.isLocal) return;
     _set(state.copyWith(buffering: true, error: null));
     final Either<Failures, Unit> result = await repo.connectAndLoad(
       device,
@@ -973,11 +1018,7 @@ class PlaybackController extends _$PlaybackController {
   Future<void> stopCasting() async {
     final ICastRepository? repo = _castRepo;
     if (repo == null || !isCasting) return;
-    _castPollTimer?.cancel();
-    _castPollTimer = null;
-    await _castConnSub?.cancel();
-    _castConnSub = null;
-    final Duration resumeAt = await repo.endSession();
+    final Duration resumeAt = await _dropCastSession();
     if (_disposed) return;
     final bool live = state.isLive;
     _set(state.copyWith(castDevice: null, buffering: true));

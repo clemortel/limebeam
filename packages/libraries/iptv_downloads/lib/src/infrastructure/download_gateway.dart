@@ -10,9 +10,10 @@ enum GatewayStatus { queued, running, completed, failed, canceled }
 
 /// One status or progress tick coming from the native layer.
 class GatewayEvent {
-  const GatewayEvent(this.contentId, this.status, [this.progress = 0]);
+  const GatewayEvent(this.taskId, this.status, [this.progress = 0]);
 
-  final String contentId;
+  /// The download key (`DownloadRecord.key`): the native task id.
+  final String taskId;
   final GatewayStatus status;
 
   /// 0..1, meaningful while [status] is running.
@@ -38,18 +39,19 @@ abstract interface class DownloadGateway {
   /// Configures the queue and starts listening. Must not touch the network.
   Future<void> initialize();
 
-  /// Returns false when the native layer refused the task.
+  /// Returns false when the native layer refused the task. The task id is
+  /// the request key, so two sources never collide.
   Future<bool> enqueue(DownloadRequest request, String filename);
 
-  Future<void> cancel(String contentId);
+  Future<void> cancel(String taskId);
 
-  /// Ids of transfers the native layer still knows about.
+  /// Task ids (download keys) the native layer still knows about.
   Future<ISet<String>> activeIds();
 
-  /// Best-effort: erases the plugin's stored copy of the task [contentId]
+  /// Best-effort: erases the plugin's stored copy of the task [taskId]
   /// (resume data, paused task), which embeds the credentialed URL. Never
   /// throws.
-  Future<void> purgeStoredTask(String contentId);
+  Future<void> purgeStoredTask(String taskId);
 }
 
 /// Folder under the documents directory, shared with the repository.
@@ -77,6 +79,13 @@ const Duration _kResourceTimeout = Duration(days: 2);
 ///  - Android: every enqueue puts the task JSON in WorkManager input data
 ///    (workdb, plain SQLite). No public API reaches it: exposed while a
 ///    task exists, until WorkManager prunes the finished work.
+///
+/// Residual, pending an owner decision: neither store can be emptied from
+/// here, so the URL (user and password) can outlive a task on both
+/// platforms. What our code does about it: no task tracking, purge of every
+/// store we can reach after each end, and, when a source is deleted, the
+/// repository cancels its tasks, purges them and deletes their files
+/// (`DownloadsRepository.removeSource`).
 class BackgroundDownloaderGateway implements DownloadGateway {
   /// Held so the purge reaches the very store the plugin writes to.
   final LocalStorePersistentStorage _storage = LocalStorePersistentStorage();
@@ -140,7 +149,7 @@ class BackgroundDownloaderGateway implements DownloadGateway {
     try {
       return await FileDownloader().enqueue(
         DownloadTask(
-          taskId: request.contentId,
+          taskId: request.key,
           url: request.url,
           filename: filename,
           directory: kDownloadsDirectory,
@@ -160,9 +169,9 @@ class BackgroundDownloaderGateway implements DownloadGateway {
   }
 
   @override
-  Future<void> cancel(String contentId) async {
+  Future<void> cancel(String taskId) async {
     try {
-      await FileDownloader().cancelTaskWithId(contentId);
+      await FileDownloader().cancelTaskWithId(taskId);
     } catch (_) {
       throw const DownloadGatewayException("cancel");
     }
@@ -179,10 +188,10 @@ class BackgroundDownloaderGateway implements DownloadGateway {
   }
 
   @override
-  Future<void> purgeStoredTask(String contentId) async {
+  Future<void> purgeStoredTask(String taskId) async {
     try {
-      await _storage.removeResumeData(contentId);
-      await _storage.removePausedTask(contentId);
+      await _storage.removeResumeData(taskId);
+      await _storage.removePausedTask(taskId);
     } catch (_) {
       // Best effort, and never logged: nothing here may carry the URL.
     }

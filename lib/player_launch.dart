@@ -112,11 +112,38 @@ extension PlayerLaunch on WidgetRef {
     );
   }
 
-  /// Every known download. Trap: read from the repository, because
+  /// The active source's downloads. Trap: read from the repository, because
   /// [downloadsProvider] is still loading on a cold start and "Continue
-  /// watching" would then go to the network in airplane mode.
-  Future<IList<DownloadRecord>> _downloadRecords() =>
-      read(downloadsRepositoryProvider).watch().first;
+  /// watching" would then go to the network in airplane mode. Trap: only
+  /// the active source's, episode ids repeat across panels.
+  Future<IList<DownloadRecord>> _downloadRecords() async => recordsOfSource(
+        await read(downloadsRepositoryProvider).watch().first,
+        _activeSourceId,
+      );
+
+  String? get _activeSourceId => read(activeSourceStoreProvider).sourceId;
+
+  /// [items] with the item at [index] pointing at its downloaded file, when
+  /// there is one. A bad local path never blocks playback: the online URL
+  /// stays.
+  Future<IList<PlaybackRequest>> _withLocalUrl(
+    IList<PlaybackRequest> items,
+    int index,
+  ) async {
+    if (index < 0 || index >= items.length) return items;
+    final DownloadRecord? local = completedDownloadFor(
+      await _downloadRecords(),
+      _activeSourceId,
+      items[index].contentId,
+    );
+    if (local == null) return items;
+    final Either<Failures, String> localUrl =
+        await read(downloadsRepositoryProvider).localUrlFor(local);
+    final String? url = localUrl.fold((Failures _) => null, (String u) => u);
+    return url == null
+        ? items
+        : items.replace(index, items[index].copyWith(url: url));
+  }
 
   /// Plays the tapped channel; the queue is the visible category so the
   /// in-player mini-list can zap between channels.
@@ -192,20 +219,11 @@ extension PlayerLaunch on WidgetRef {
     final int index =
         season.episodes.indexWhere((Episode e) => e.id == episode.id);
     final AppPreferences prefs = read(appPreferencesProvider);
-    IList<PlaybackRequest> items = _seasonQueue(source, seriesId, season);
-    final DownloadRecord? local =
-        completedDownloadFor(await _downloadRecords(), episode.id);
+    final IList<PlaybackRequest> items = await _withLocalUrl(
+      _seasonQueue(source, seriesId, season),
+      index,
+    );
     if (!context.mounted) return;
-    if (local != null && index >= 0) {
-      final Either<Failures, String> localUrl =
-          await read(downloadsRepositoryProvider).localUrlFor(local);
-      if (!context.mounted) return;
-      // A bad local path must never block playback: keep the online URL.
-      final String? url = localUrl.fold((Failures _) => null, (String u) => u);
-      if (url != null) {
-        items = items.replace(index, items[index].copyWith(url: url));
-      }
-    }
     _pushVod(
       context,
       PlaybackQueue(
@@ -220,43 +238,25 @@ extension PlayerLaunch on WidgetRef {
   /// Resumes a continue-watching entry. For an episode this rebuilds the whole
   /// season queue (so next/previous work in the player) and, when the saved
   /// point is within [_kResumeNextThresholdSeconds] of the end, starts the
-  /// *next* episode instead. Falls back to a single-item resume when the season
-  /// can't be fetched (or the entry is a movie / a legacy session with no
-  /// seriesId).
+  /// *next* episode instead. Falls back to a downloaded copy when the source
+  /// or the season can't be reached, then to a single-item resume (also for a
+  /// movie or a legacy session with no seriesId).
+  ///
+  /// Trap: the online path comes first even for a downloaded episode, so a
+  /// connected device keeps the full season queue and the same near-the-end
+  /// rule; the offline queue only holds what was downloaded.
   Future<void> openSession(BuildContext context, WatchSession session) async {
-    // Offline first: a downloaded episode needs neither the source nor
-    // getSeriesInfo, both of which fail in airplane mode.
-    if (session.kind == ContentKind.episode) {
-      final DownloadRecord? local =
-          completedDownloadFor(await _downloadRecords(), session.id);
-      if (!context.mounted) return;
-      if (local != null) {
-        // Same near-the-end rule as the online path below.
-        final ({DownloadRecord record, bool fromStart}) target =
-            offlineResumeTarget(
-          season: offlineSeasonRecords(await _downloadRecords(), local),
-          current: local,
-          positionSeconds: session.positionSeconds,
-          durationSeconds: session.durationSeconds,
-          thresholdSeconds: _kResumeNextThresholdSeconds,
-        );
-        if (!context.mounted) return;
-        await openDownloadedEpisode(
-          context,
-          target.record,
-          fromStart: target.fromStart,
-        );
-        return;
-      }
-    }
     final IPlaylistSource? source = read(activePlaylistSourceProvider);
+    final bool isEpisode = session.kind == ContentKind.episode;
     if (source == null) {
+      if (isEpisode && await _resumeOffline(context, session)) return;
+      if (!context.mounted) return;
       _toastUnavailable(context);
       return;
     }
     final AppPreferences prefs = read(appPreferencesProvider);
 
-    if (session.kind == ContentKind.episode && session.seriesId != null) {
+    if (isEpisode && session.seriesId != null) {
       final Either<Failures, SeriesDetail> result =
           await read(seriesRepositoryProvider).getSeriesInfo(session.seriesId!);
       if (!context.mounted) return;
@@ -281,10 +281,15 @@ extension PlayerLaunch on WidgetRef {
             current >= 0 && current < season.episodes.length - 1;
         final int index =
             (nearEnd && hasNext) ? current + 1 : (current < 0 ? 0 : current);
+        final IList<PlaybackRequest> items = await _withLocalUrl(
+          _seasonQueue(source, session.seriesId!, season),
+          index,
+        );
+        if (!context.mounted) return;
         _pushVod(
           context,
           PlaybackQueue(
-            items: _seasonQueue(source, session.seriesId!, season),
+            items: items,
             index: index,
             autoplayNext: prefs.autoplayNext,
             gesturesEnabled: prefs.playerGestures,
@@ -292,6 +297,9 @@ extension PlayerLaunch on WidgetRef {
         );
         return;
       }
+      // The season could not be fetched: the device may be offline.
+      if (await _resumeOffline(context, session)) return;
+      if (!context.mounted) return;
     }
 
     // Movie, or episode whose season couldn't be resolved: single-item resume.
@@ -318,6 +326,33 @@ extension PlayerLaunch on WidgetRef {
       context,
       PlaybackQueue.single(request, gesturesEnabled: prefs.playerGestures),
     );
+  }
+
+  /// Resumes [session] from its downloaded copy. False when there is none.
+  /// Same near-the-end rule as the online path, see [offlineResumeTarget].
+  Future<bool> _resumeOffline(
+    BuildContext context,
+    WatchSession session,
+  ) async {
+    final IList<DownloadRecord> records = await _downloadRecords();
+    final DownloadRecord? local =
+        completedDownloadFor(records, _activeSourceId, session.id);
+    if (local == null) return false;
+    if (!context.mounted) return true;
+    final ({DownloadRecord record, bool fromStart}) target =
+        offlineResumeTarget(
+      season: offlineSeasonRecords(records, local),
+      current: local,
+      positionSeconds: session.positionSeconds,
+      durationSeconds: session.durationSeconds,
+      thresholdSeconds: _kResumeNextThresholdSeconds,
+    );
+    await openDownloadedEpisode(
+      context,
+      target.record,
+      fromStart: target.fromStart,
+    );
+    return true;
   }
 
   /// Builds the playable queue for a whole [season], each item carrying its own

@@ -15,7 +15,20 @@ abstract interface class IDownloadsRepository {
   Future<Either<Failures, Unit>> enqueue(IList<DownloadRequest> requests);
 
   /// Cancels a running task, deletes the file, and forgets the record.
-  Future<Either<Failures, Unit>> remove(String contentId);
+  /// [key] is `DownloadRecord.key`: content ids repeat across sources.
+  Future<Either<Failures, Unit>> remove(String key);
+
+  /// Cancels every task of [sourceId], purges the plugin's stored copy of
+  /// them, and deletes their files and records. For a deleted source.
+  Future<Either<Failures, Unit>> removeSource(String sourceId);
+
+  /// [removeSource] for every source id with records that is not in
+  /// [sourceIds]: sweeps what a deletion left behind.
+  Future<Either<Failures, Unit>> retainSources(ISet<String> sourceIds);
+
+  /// Gives the records written before downloads were scoped (no source id)
+  /// to [sourceId]. A queued or running one is stopped and marked failed.
+  Future<Either<Failures, Unit>> adoptLegacy(String sourceId);
 
   /// The `file://` URL of a completed download, resolved at call time.
   Future<Either<Failures, String>> localUrlFor(DownloadRecord record);

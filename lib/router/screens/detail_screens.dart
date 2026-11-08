@@ -3,6 +3,7 @@ import "package:fast_immutable_collections/fast_immutable_collections.dart";
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart"
     hide AsyncData, AsyncError, AsyncLoading, AsyncValue;
+import "package:iptv_auth/iptv_auth.dart";
 import "package:iptv_core/iptv_core.dart";
 import "package:iptv_downloads/iptv_downloads.dart";
 import "package:iptv_favorites/iptv_favorites.dart";
@@ -78,16 +79,18 @@ class SeriesDetailScreen extends ConsumerWidget {
   }
 }
 
-/// Records for [ids], keyed by episode id. Empty until the store has loaded.
+/// The active source's records, keyed by episode id. Empty until the store
+/// has loaded. Trap: only this source's, episode ids repeat across panels.
 IMap<String, DownloadRecord> _recordsFor(
   AsyncState<IList<DownloadRecord>> state,
+  String? sourceId,
 ) =>
     switch (state) {
       AsyncSuccess<IList<DownloadRecord>>(
         :final IList<DownloadRecord> data,
       ) =>
         IMap<String, DownloadRecord>.fromEntries(
-          data.map(
+          recordsOfSource(data, sourceId).map(
             (DownloadRecord r) =>
                 MapEntry<String, DownloadRecord>(r.contentId, r),
           ),
@@ -110,16 +113,23 @@ class _EpisodeDownloadSlot extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final IMap<String, DownloadRecord> records =
-        _recordsFor(ref.watch(downloadsProvider));
+    final IMap<String, DownloadRecord> records = _recordsFor(
+      ref.watch(downloadsProvider),
+      ref.watch(activeSourceStoreProvider).sourceId,
+    );
+    final DownloadRecord? record = records[episode.id];
     return EpisodeDownloadButton(
-      record: records[episode.id],
+      record: record,
       onDownload: () => ref.downloadEpisodes(
         series,
         season,
         <Episode>[episode].toIList(),
       ),
-      onRemove: () => ref.read(downloadsProvider.notifier).remove(episode.id),
+      onRemove: () {
+        if (record != null) {
+          ref.read(downloadsProvider.notifier).remove(record.key);
+        }
+      },
     );
   }
 }
@@ -132,8 +142,10 @@ class _SeasonDownloadSlot extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final IMap<String, DownloadRecord> records =
-        _recordsFor(ref.watch(downloadsProvider));
+    final IMap<String, DownloadRecord> records = _recordsFor(
+      ref.watch(downloadsProvider),
+      ref.watch(activeSourceStoreProvider).sourceId,
+    );
     final IList<DownloadRecord> mine = season.episodes
         .map((Episode e) => records[e.id])
         .whereType<DownloadRecord>()
@@ -144,22 +156,8 @@ class _SeasonDownloadSlot extends ConsumerWidget {
       totalCount: season.episodes.length,
       completedCount: completed,
       startedCount: mine.length,
-      // Skips queued/running/done; failed ones are retried.
-      onDownload: () => ref.downloadEpisodes(
-        series,
-        season,
-        season.episodes
-            .where(
-              (Episode e) => switch (records[e.id]?.phase) {
-                null => true,
-                DownloadFailed() => true,
-                DownloadQueued() => false,
-                DownloadRunning() => false,
-                DownloadCompleted() => false,
-              },
-            )
-            .toIList(),
-      ),
+      // The repository skips queued/running/done and retries failed ones.
+      onDownload: () => ref.downloadEpisodes(series, season, season.episodes),
     );
   }
 }

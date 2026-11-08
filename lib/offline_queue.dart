@@ -1,7 +1,8 @@
 import "package:fast_immutable_collections/fast_immutable_collections.dart";
 import "package:iptv_downloads/iptv_downloads.dart";
 
-/// The completed downloads of [tapped]'s season, in episode order.
+/// The completed downloads of [tapped]'s season (same source), in episode
+/// order.
 ///
 /// [tapped] is always included, so the queue never loses the episode the user
 /// asked for even if the live downloads list has not loaded yet.
@@ -13,6 +14,7 @@ IList<DownloadRecord> offlineSeasonRecords(
       .where(
         (DownloadRecord r) =>
             r.phase is DownloadCompleted &&
+            r.sourceId == tapped.sourceId &&
             r.seriesId == tapped.seriesId &&
             r.seasonNumber == tapped.seasonNumber,
       )
@@ -27,13 +29,20 @@ IList<DownloadRecord> offlineSeasonRecords(
   return season.toIList();
 }
 
-/// The completed download for [contentId], or null.
+/// The completed download of [contentId] in [sourceId], or null. Trap:
+/// episode ids are panel-local, so the source is part of the match.
 DownloadRecord? completedDownloadFor(
   IList<DownloadRecord> all,
+  String? sourceId,
   String contentId,
 ) {
+  if (sourceId == null) return null;
   for (final DownloadRecord r in all) {
-    if (r.contentId == contentId && r.phase is DownloadCompleted) return r;
+    if (r.sourceId == sourceId &&
+        r.contentId == contentId &&
+        r.phase is DownloadCompleted) {
+      return r;
+    }
   }
   return null;
 }
@@ -41,8 +50,9 @@ DownloadRecord? completedDownloadFor(
 /// Where an offline "Continue watching" tap on [current] should start.
 ///
 /// Mirrors the online rule: within [thresholdSeconds] of the end the episode
-/// counts as watched, so the next downloaded episode of [season] starts from
-/// zero. With no next downloaded episode the current one resumes as is.
+/// counts as watched, so the *next* episode starts from zero, provided it is
+/// downloaded. Trap: a later downloaded episode is not the next one (E4 to E6
+/// missing must not jump to E7); then the current one resumes as is.
 /// [season] is [offlineSeasonRecords] output (episode order).
 ({DownloadRecord record, bool fromStart}) offlineResumeTarget({
   required IList<DownloadRecord> season,
@@ -55,7 +65,7 @@ DownloadRecord? completedDownloadFor(
       positionSeconds >= durationSeconds - thresholdSeconds;
   if (nearEnd) {
     for (final DownloadRecord r in season) {
-      if (r.episodeNumber > current.episodeNumber) {
+      if (r.episodeNumber == current.episodeNumber + 1) {
         return (record: r, fromStart: true);
       }
     }
