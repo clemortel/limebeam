@@ -19,6 +19,10 @@ const int _kSynopsisCollapsedLines = 3;
 const double _kSeasonSkeletonHeight = 120;
 const double _kSeasonChipsHeight = 34;
 const double _kEpisodePlayIconSize = 28;
+const double _kEpisodeThumbWidth = 96;
+const double _kEpisodeThumbAspect = 16 / 9;
+const int _kEpisodeThumbCacheWidth = 192;
+const double _kOfflineIconSize = 16;
 
 /// TV cinematic hero: fraction of viewport height, and content-column width
 /// fraction (lower-left), so episodes peek below and text stays readable.
@@ -360,13 +364,63 @@ class _SeasonsSection extends StatelessWidget {
           failure.localized(AppLocalizations.of(context)),
           style: t.typography.caption.copyWith(color: t.colors.textSecondary),
         ),
-      AsyncSuccess<SeriesDetail>(:final SeriesDetail data) => _Seasons(
-          seasons: data.seasons,
-          onPlayEpisode: onPlayEpisode,
-          episodeTrailing: episodeTrailing,
-          seasonAction: seasonAction,
+      AsyncSuccess<SeriesDetail>(:final SeriesDetail data) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            if (data.fromCache) ...<Widget>[
+              const _OfflineBanner(),
+              SizedBox(height: t.space.x3),
+            ],
+            _Seasons(
+              seasons: data.seasons,
+              onPlayEpisode: onPlayEpisode,
+              episodeTrailing: episodeTrailing,
+              seasonAction: seasonAction,
+            ),
+          ],
         ),
     };
+  }
+}
+
+/// Discreet "Offline" pill: the detail comes from the cache, not the portal.
+class _OfflineBanner extends StatelessWidget {
+  const _OfflineBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final AppTheme t = context.appTheme;
+    return Semantics(
+      container: true,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: t.colors.bgElevated,
+          borderRadius: t.radius.smAll,
+        ),
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: t.space.x3,
+            vertical: t.space.x1,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(
+                Icons.cloud_off,
+                size: _kOfflineIconSize,
+                color: t.colors.textSecondary,
+              ),
+              SizedBox(width: t.space.x2),
+              Text(
+                AppLocalizations.of(context).seriesOfflineBanner,
+                style: t.typography.caption
+                    .copyWith(color: t.colors.textSecondary),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -432,6 +486,7 @@ class _SeasonsState extends State<_Seasons> {
         for (int i = 0; i < season.episodes.length; i++)
           _EpisodeRow(
             episode: season.episodes[i],
+            showThumbnail: !isTv,
             // On TV the hero Play owns initial focus; here the list is reached
             // by pressing Down, so don't steal focus. On mobile, no autofocus.
             autofocus: false,
@@ -473,10 +528,14 @@ class _EpisodeRow extends StatelessWidget {
     required this.episode,
     required this.onPlay,
     this.autofocus = false,
+    this.showThumbnail = false,
     this.trailing,
   });
 
   final Episode episode;
+
+  /// Phone only: the cinematic TV rows keep their structure untouched.
+  final bool showThumbnail;
   final VoidCallback onPlay;
   final bool autofocus;
   final Widget? trailing;
@@ -495,11 +554,10 @@ class _EpisodeRow extends StatelessWidget {
         padding: EdgeInsets.symmetric(vertical: t.space.x2, horizontal: t.space.x2),
         child: Row(
           children: <Widget>[
-            Icon(
-              Icons.play_circle_outline,
-              color: t.colors.accent,
-              size: _kEpisodePlayIconSize,
-            ),
+            if (showThumbnail && episode.posterUrl != null)
+              _EpisodeThumb(url: episode.posterUrl!)
+            else
+              const _EpisodePlayIcon(),
             SizedBox(width: t.space.x3),
             Expanded(
               child: Column(
@@ -522,6 +580,53 @@ class _EpisodeRow extends StatelessWidget {
             ),
             if (trailing != null) trailing!,
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EpisodePlayIcon extends StatelessWidget {
+  const _EpisodePlayIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    final AppTheme t = context.appTheme;
+    return Icon(
+      Icons.play_circle_outline,
+      color: t.colors.accent,
+      size: _kEpisodePlayIconSize,
+    );
+  }
+}
+
+/// Episode still. Falls back to a neutral tile with the play glyph when the
+/// image cannot load (offline and never cached, or a dead provider URL).
+class _EpisodeThumb extends StatelessWidget {
+  const _EpisodeThumb({required this.url});
+
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppTheme t = context.appTheme;
+    final Widget fallback = ColoredBox(
+      color: t.colors.bgElevated,
+      child: const Center(child: _EpisodePlayIcon()),
+    );
+    return SizedBox(
+      width: _kEpisodeThumbWidth,
+      child: AspectRatio(
+        aspectRatio: _kEpisodeThumbAspect,
+        child: ClipRRect(
+          borderRadius: t.radius.smAll,
+          child: CachedNetworkImage(
+            imageUrl: url,
+            fit: BoxFit.cover,
+            memCacheWidth: _kEpisodeThumbCacheWidth,
+            placeholder: (BuildContext c, String _) => fallback,
+            errorWidget: (BuildContext c, String _, Object __) => fallback,
+          ),
         ),
       ),
     );

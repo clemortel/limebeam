@@ -7,6 +7,7 @@ import "package:injectable/injectable.dart";
 import "package:iptv_api/iptv_api.dart";
 import "package:iptv_core/iptv_core.dart";
 
+import "../models/episode.dart";
 import "../models/season.dart";
 import "../models/series.dart";
 import "../models/series_category.dart";
@@ -20,8 +21,15 @@ abstract interface class ISeriesRepository {
 
   Future<Either<Failures, IList<SeriesCategory>>> getCategories();
 
-  /// Seasons + episodes for one series (fetched on demand, not cached).
+  /// Seasons + episodes for one series. Every success is written to the
+  /// cache; a network failure serves the cached copy (`fromCache: true`)
+  /// when one exists, otherwise the failure.
   Future<Either<Failures, SeriesDetail>> getSeriesInfo(String seriesId);
+
+  /// The cached detail without touching the network, or `none()`.
+  Future<Either<Failures, Option<SeriesDetail>>> getCachedSeriesInfo(
+    String seriesId,
+  );
 }
 
 @LazySingleton(as: ISeriesRepository)
@@ -35,6 +43,9 @@ class SeriesRepository implements ISeriesRepository {
   String get _sid => _activeStore.sourceId ?? "none";
   String get _seriesKey => "series_$_sid";
   String get _categoriesKey => "series_categories_$_sid";
+
+  /// One small entry per opened series, scoped to the active source.
+  String _infoKey(String seriesId) => "series_info_${_sid}_$seriesId";
 
   @override
   Future<Either<Failures, int>> sync() async {
@@ -102,12 +113,15 @@ class SeriesRepository implements ISeriesRepository {
       final Either<Failures, Map<String, dynamic>> result =
           await _factory.create(config).fetchSeriesInfo(seriesId);
 
-      return result.fold(
-        (Failures failure) {
+      return await result.fold(
+        (Failures failure) async {
           developer.log("getSeriesInfo failed → $failure", name: "iptv.series");
-          return left(failure);
+          if (failure is! NetworkError) return left(failure);
+          final SeriesDetail? cached = await _readCached(seriesId);
+          if (cached == null) return left(failure);
+          return right(cached.copyWith(fromCache: true));
         },
-        (Map<String, dynamic> map) {
+        (Map<String, dynamic> map) async {
           final SeriesDetail detail = SeriesDetail.fromSeriesInfo(map);
           final int episodes = detail.seasons
               .fold<int>(0, (int a, Season s) => a + s.episodes.length);
@@ -116,6 +130,7 @@ class SeriesRepository implements ISeriesRepository {
             "episodes=$episodes episodesType=${map["episodes"].runtimeType}",
             name: "iptv.series",
           );
+          await _writeCached(seriesId, detail);
           return right(detail);
         },
       );
@@ -123,7 +138,94 @@ class SeriesRepository implements ISeriesRepository {
       return left(catchError(error, stackTrace));
     }
   }
+
+  @override
+  Future<Either<Failures, Option<SeriesDetail>>> getCachedSeriesInfo(
+    String seriesId,
+  ) async {
+    try {
+      return right(optionOf(await _readCached(seriesId)));
+    } catch (error, stackTrace) {
+      return left(catchError(error, stackTrace));
+    }
+  }
+
+  Future<SeriesDetail?> _readCached(String seriesId) async {
+    final String? raw = await _cache.read(_infoKey(seriesId));
+    if (raw == null) return null;
+    try {
+      return seriesDetailFromJson(
+        jsonDecode(raw) as Map<String, dynamic>,
+      );
+    } on Object {
+      // A stale/corrupt entry must never block a live fetch: treat as miss.
+      return null;
+    }
+  }
+
+  Future<void> _writeCached(String seriesId, SeriesDetail detail) async {
+    final String encoded = jsonEncode(seriesDetailToJson(detail));
+    // The box compacts after a handful of overwrites, and a compaction
+    // rewrites the multi-MB catalogs too — skip the write when unchanged.
+    if (await _cache.read(_infoKey(seriesId)) == encoded) return;
+    await _cache.write(_infoKey(seriesId), encoded);
+  }
 }
+
+// --- Cache (de)serialisation: only content fields, no portal data ----------
+
+Map<String, dynamic> seriesDetailToJson(SeriesDetail d) => <String, dynamic>{
+      "plot": d.plot,
+      "cover": d.coverUrl,
+      "seasons": d.seasons
+          .map((Season s) => <String, dynamic>{
+                "number": s.number,
+                "name": s.name,
+                "episodes": s.episodes
+                    .map((Episode e) => <String, dynamic>{
+                          "id": e.id,
+                          "title": e.title,
+                          "num": e.episodeNum,
+                          "season": e.season,
+                          "ext": e.containerExtension,
+                          "plot": e.plot,
+                          "duration": e.duration,
+                          "poster": e.posterUrl,
+                        },)
+                    .toList(growable: false),
+              },)
+          .toList(growable: false),
+    };
+
+SeriesDetail seriesDetailFromJson(Map<String, dynamic> m) => SeriesDetail(
+      plot: m["plot"] as String,
+      coverUrl: m["cover"] as String?,
+      seasons: (m["seasons"] as List<dynamic>)
+          .map((dynamic raw) {
+            final Map<String, dynamic> s = raw as Map<String, dynamic>;
+            return Season(
+              number: s["number"] as int,
+              name: s["name"] as String,
+              episodes: (s["episodes"] as List<dynamic>)
+                  .map((dynamic rawEp) {
+                    final Map<String, dynamic> e =
+                        rawEp as Map<String, dynamic>;
+                    return Episode(
+                      id: e["id"] as String,
+                      title: e["title"] as String,
+                      episodeNum: e["num"] as int,
+                      season: e["season"] as int,
+                      containerExtension: e["ext"] as String,
+                      plot: e["plot"] as String,
+                      duration: e["duration"] as String,
+                      posterUrl: e["poster"] as String?,
+                    );
+                  })
+                  .toIList(),
+            );
+          })
+          .toIList(),
+    );
 
 // --- Top-level parsers (run via compute) -----------------------------------
 

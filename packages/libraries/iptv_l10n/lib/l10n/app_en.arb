@@ -225,5 +225,6 @@
         "type": "String"
       }
     }
-  }
+  },
+  "seriesOfflineBanner": "Offline"
 }

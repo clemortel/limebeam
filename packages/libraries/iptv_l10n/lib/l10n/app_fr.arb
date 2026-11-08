@@ -273,5 +273,6 @@
         "type": "String"
       }
     }
-  }
+  },
+  "seriesOfflineBanner": "Hors ligne"
 }

@@ -1267,6 +1267,12 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Lire {title}'**
   String downloadsPlayEpisode(String title);
+
+  /// No description provided for @seriesOfflineBanner.
+  ///
+  /// In fr, this message translates to:
+  /// **'Hors ligne'**
+  String get seriesOfflineBanner;
 }
 
 class _AppLocalizationsDelegate

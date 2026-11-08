@@ -15,6 +15,10 @@ sealed class SeriesDetail with _$SeriesDetail {
     @Default("") String plot,
     String? coverUrl,
     required IList<Season> seasons,
+
+    /// True when this came from the on-disk cache because the network was
+    /// unreachable. Never persisted: a cached read stores `false`.
+    @Default(false) bool fromCache,
   }) = _SeriesDetail;
 
   factory SeriesDetail.fromSeriesInfo(Map<String, dynamic> json) {
@@ -82,6 +86,14 @@ sealed class SeriesDetail with _$SeriesDetail {
       containerExtension: "${e["container_extension"] ?? "mp4"}",
       plot: "${epInfo["plot"] ?? ""}",
       duration: "${epInfo["duration"] ?? ""}",
+      posterUrl: _nonEmpty(epInfo["movie_image"]),
     );
+  }
+
+  /// Null for absent/blank values (providers send "" instead of omitting).
+  static String? _nonEmpty(dynamic value) {
+    if (value == null) return null;
+    final String s = "$value".trim();
+    return s.isEmpty ? null : s;
   }
 }

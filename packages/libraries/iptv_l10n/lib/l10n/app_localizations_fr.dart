@@ -638,4 +638,7 @@ class AppLocalizationsFr extends AppLocalizations {
   String downloadsPlayEpisode(String title) {
     return 'Lire $title';
   }
+
+  @override
+  String get seriesOfflineBanner => 'Hors ligne';
 }

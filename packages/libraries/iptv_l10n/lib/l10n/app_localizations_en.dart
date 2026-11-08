@@ -631,4 +631,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String downloadsPlayEpisode(String title) {
     return 'Play $title';
   }
+
+  @override
+  String get seriesOfflineBanner => 'Offline';
 }
