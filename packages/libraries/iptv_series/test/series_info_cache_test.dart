@@ -1,21 +1,28 @@
+import "dart:convert";
 import "dart:io";
 
 import "package:dartz/dartz.dart" hide IList, IMap, ISet;
+import "package:fast_immutable_collections/fast_immutable_collections.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart"
     hide AsyncData, AsyncError, AsyncLoading, AsyncValue;
+import "package:flutter_riverpod/misc.dart" show Override;
 import "package:flutter_test/flutter_test.dart";
 import "package:iptv_api/iptv_api.dart";
 import "package:iptv_core/iptv_core.dart";
 import "package:iptv_series/src/infrastructure/series_repository.dart";
+import "package:iptv_series/src/models/episode.dart";
+import "package:iptv_series/src/models/season.dart";
 import "package:iptv_series/src/models/series_detail.dart";
 import "package:iptv_series/src/riverpods/providers.dart";
 
 class _MemoryCache implements CacheStore {
   final Map<String, String> data = <String, String>{};
   int writes = 0;
+  bool failWrites = false;
 
   @override
   Future<void> write(String key, String value) async {
+    if (failWrites) throw const FileSystemException("disk full");
     writes++;
     data[key] = value;
   }
@@ -37,12 +44,16 @@ class _FakeHttp implements HttpService {
   Object? error;
   dynamic payload;
 
+  /// Runs while a request is in flight (e.g. to switch the active source).
+  void Function()? onGet;
+
   @override
   Future<dynamic> get(
     String path, {
     Map<String, dynamic>? queryParameters,
     Map<String, String>? headers,
   }) async {
+    onGet?.call();
     if (error != null) throw error!;
     return payload;
   }
@@ -166,6 +177,72 @@ void main() {
       expect(result, left<Failures, SeriesDetail>(const Failures.server(500)));
     });
 
+    test("should keep the good cached sheet when the response has no seasons",
+        () async {
+      await repository.getSeriesInfo("42");
+      final String good = cache.data["series_info_src1_42"]!;
+      http.payload = <String, dynamic>{};
+
+      final Either<Failures, SeriesDetail> result =
+          await repository.getSeriesInfo("42");
+
+      expect(result.isRight(), isTrue);
+      expect(cache.data["series_info_src1_42"], good);
+    });
+
+    test("should still return the detail when the cache write fails",
+        () async {
+      cache.failWrites = true;
+
+      final Either<Failures, SeriesDetail> result =
+          await repository.getSeriesInfo("42");
+
+      expect(result.isRight(), isTrue);
+    });
+
+    test("should not write or serve another source after a mid-request switch",
+        () async {
+      await repository.getSeriesInfo("42");
+      cache.data["series_info_src2_42"] = "{}";
+      void switchToSrc2() => store.set(
+            sourceId: "src2",
+            config: const SourceConfig.xtream(
+              host: "http://other.invalid",
+              username: "u2",
+              password: "p2",
+            ),
+          );
+
+      // Success path: the write must land under src1, not src2.
+      http.onGet = switchToSrc2;
+      http.payload = <String, dynamic>{
+        "episodes": <String, dynamic>{
+          "1": <dynamic>[
+            <String, dynamic>{"id": "99", "title": "New", "episode_num": 1},
+          ],
+        },
+      };
+      await repository.getSeriesInfo("42");
+      expect(cache.data["series_info_src2_42"], "{}");
+      expect(cache.data["series_info_src1_42"]!.contains("New"), isTrue);
+
+      // Failure path: the fallback must serve src1's sheet, not src2's.
+      store.set(
+        sourceId: "src1",
+        config: const SourceConfig.xtream(
+          host: "http://example.invalid",
+          username: "user",
+          password: "secret",
+        ),
+      );
+      http.error = const SocketException("offline");
+      final SeriesDetail served =
+          (await repository.getSeriesInfo("42")).getOrElse(
+        () => throw StateError("expected src1 cached detail"),
+      );
+      expect(served.seasons.first.episodes.first.title, "New");
+    });
+
     test("should treat a corrupt cache entry as a miss", () async {
       cache.data["series_info_src1_42"] = "{not json";
       http.error = const SocketException("offline");
@@ -177,12 +254,44 @@ void main() {
     });
   });
 
+  group("cache JSON", () {
+    test("should round-trip every field of a populated detail", () {
+      final SeriesDetail detail = SeriesDetail(
+        plot: "plot",
+        coverUrl: "https://i/c.jpg",
+        seasons: IList<Season>(<Season>[
+          Season(
+            number: 2,
+            name: "Saison 2",
+            episodes: IList<Episode>(<Episode>[
+              const Episode(
+                id: "7",
+                title: "T",
+                episodeNum: 3,
+                season: 2,
+                containerExtension: "mkv",
+                plot: "ep",
+                duration: "00:40:00",
+                posterUrl: "https://i/e.jpg",
+              ),
+            ]),
+          ),
+        ]),
+      );
+
+      final SeriesDetail decoded = seriesDetailFromJson(
+        jsonDecode(jsonEncode(seriesDetailToJson(detail)))
+            as Map<String, dynamic>,
+      );
+
+      expect(decoded, detail);
+    });
+  });
+
   group("SeriesDetailNotifier", () {
     ProviderContainer makeContainer() {
       final ProviderContainer container = ProviderContainer(
-        // Riverpod 3 does not export `Override` from the public barrel.
-        // ignore: always_specify_types
-        overrides: [
+        overrides: <Override>[
           seriesRepositoryProvider.overrideWithValue(repository),
         ],
       );
@@ -232,6 +341,21 @@ void main() {
         container.read(seriesDetailProvider("42")),
         const AsyncState<SeriesDetail>.error(Failures.network()),
       );
+    });
+
+    test("should flag the kept sheet as cached when a refresh fails",
+        () async {
+      await repository.getSeriesInfo("42");
+      http.error = const HttpStatusException(503);
+
+      final ProviderContainer container = makeContainer();
+      container.listen(seriesDetailProvider("42"), (_, __) {});
+      await settle();
+      await settle();
+
+      final AsyncState<SeriesDetail> state =
+          container.read(seriesDetailProvider("42"));
+      expect((state as AsyncSuccess<SeriesDetail>).data.fromCache, isTrue);
     });
 
     test("should keep the cached detail when a refresh hits a server error",

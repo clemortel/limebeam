@@ -53,8 +53,9 @@ class SeriesDetailNotifier extends _$SeriesDetailNotifier {
     if (!ref.mounted) return;
     state = result.fold(
       // A failed refresh must not wipe a detail the user is already reading.
+      // The refresh failed, so what stays on screen is the cached copy.
       (Failures failure) => shown != null
-          ? AsyncState<SeriesDetail>.success(shown)
+          ? AsyncState<SeriesDetail>.success(shown.copyWith(fromCache: true))
           : AsyncState<SeriesDetail>.error(failure),
       (SeriesDetail detail) => AsyncState<SeriesDetail>.success(detail),
     );

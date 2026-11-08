@@ -109,6 +109,9 @@ class SeriesRepository implements ISeriesRepository {
     try {
       final SourceConfig? config = _activeStore.config;
       if (config == null) return left(const Failures.unexpected());
+      // Pinned before the await: a source switch mid-request must neither
+      // write nor serve another account's sheet.
+      final String key = _infoKey(seriesId);
 
       final Either<Failures, Map<String, dynamic>> result =
           await _factory.create(config).fetchSeriesInfo(seriesId);
@@ -117,7 +120,7 @@ class SeriesRepository implements ISeriesRepository {
         (Failures failure) async {
           developer.log("getSeriesInfo failed → $failure", name: "iptv.series");
           if (failure is! NetworkError) return left(failure);
-          final SeriesDetail? cached = await _readCached(seriesId);
+          final SeriesDetail? cached = await _readCached(key);
           if (cached == null) return left(failure);
           return right(cached.copyWith(fromCache: true));
         },
@@ -130,7 +133,9 @@ class SeriesRepository implements ISeriesRepository {
             "episodes=$episodes episodesType=${map["episodes"].runtimeType}",
             name: "iptv.series",
           );
-          await _writeCached(seriesId, detail);
+          // An empty sheet (captive portal, auth:0) must not replace a
+          // good cached one.
+          if (detail.seasons.isNotEmpty) await _writeCached(key, detail);
           return right(detail);
         },
       );
@@ -144,31 +149,39 @@ class SeriesRepository implements ISeriesRepository {
     String seriesId,
   ) async {
     try {
-      return right(optionOf(await _readCached(seriesId)));
+      return right(optionOf(await _readCached(_infoKey(seriesId))));
     } catch (error, stackTrace) {
       return left(catchError(error, stackTrace));
     }
   }
 
-  Future<SeriesDetail?> _readCached(String seriesId) async {
-    final String? raw = await _cache.read(_infoKey(seriesId));
-    if (raw == null) return null;
+  Future<SeriesDetail?> _readCached(String key) async {
     try {
+      final String? raw = await _cache.read(key);
+      if (raw == null) return null;
       return seriesDetailFromJson(
         jsonDecode(raw) as Map<String, dynamic>,
       );
     } on Object {
-      // A stale/corrupt entry must never block a live fetch: treat as miss.
+      // A stale/corrupt/unreadable entry must never block a live fetch.
       return null;
     }
   }
 
-  Future<void> _writeCached(String seriesId, SeriesDetail detail) async {
-    final String encoded = jsonEncode(seriesDetailToJson(detail));
-    // The box compacts after a handful of overwrites, and a compaction
-    // rewrites the multi-MB catalogs too — skip the write when unchanged.
-    if (await _cache.read(_infoKey(seriesId)) == encoded) return;
-    await _cache.write(_infoKey(seriesId), encoded);
+  /// Best-effort: a Hive/disk error must not fail a successful fetch.
+  Future<void> _writeCached(String key, SeriesDetail detail) async {
+    try {
+      final String encoded = jsonEncode(seriesDetailToJson(detail));
+      // The box compacts after a handful of overwrites, and a compaction
+      // rewrites the multi-MB catalogs too - skip the write when unchanged.
+      if (await _cache.read(key) == encoded) return;
+      await _cache.write(key, encoded);
+    } on Object catch (error) {
+      developer.log(
+        "series info cache write failed: $error",
+        name: "iptv.series",
+      );
+    }
   }
 }
 
