@@ -9,6 +9,7 @@ import "package:iptv_auth/iptv_auth.dart";
 import "package:iptv_core/iptv_core.dart";
 import "package:iptv_downloads/iptv_downloads.dart";
 import "package:iptv_favorites/iptv_favorites.dart";
+import "package:iptv_l10n/iptv_l10n.dart";
 import "package:iptv_live/iptv_live.dart";
 import "package:iptv_player/iptv_player.dart";
 import "package:iptv_series/iptv_series.dart";
@@ -30,12 +31,33 @@ const int _kResumeNextThresholdSeconds = 120;
 /// translating a Channel/Movie/Episode into a queue + stream URL happens here,
 /// including resuming from a saved [WatchSession].
 extension PlayerLaunch on WidgetRef {
+  /// Toasts every download failure once. Call from a screen's build:
+  /// `ref.listen` is auto-disposed with the widget.
+  void toastDownloadFailures(BuildContext context) {
+    listen<DownloadFailure?>(downloadFailuresProvider, (
+      DownloadFailure? _,
+      DownloadFailure? next,
+    ) {
+      if (next == null || !context.mounted) return;
+      final AppLocalizations l = AppLocalizations.of(context);
+      AppToast.show(
+        context,
+        message: switch (next.kind) {
+          DownloadFailureKind.enqueue => l.downloadsEnqueueFailed,
+          DownloadFailureKind.remove => l.downloadsRemoveFailed,
+        },
+        kind: ToastKind.error,
+      );
+    });
+  }
+
   /// Plays a downloaded episode with no network. The queue is the downloaded
   /// part of its season, so next/previous and autoplay work offline.
   Future<void> openDownloadedEpisode(
     BuildContext context,
-    DownloadRecord record,
-  ) async {
+    DownloadRecord record, {
+    bool fromStart = false,
+  }) async {
     final IDownloadsRepository repository = read(downloadsRepositoryProvider);
     final IList<DownloadRecord> season =
         offlineSeasonRecords(await _downloadRecords(), record);
@@ -51,7 +73,12 @@ extension PlayerLaunch on WidgetRef {
       final String? url = urls[i].fold((Failures _) => null, (String u) => u);
       if (url == null) continue;
       if (r.contentId == record.contentId) index = items.length;
-      items.add(_downloadedRequest(r, url));
+      final PlaybackRequest item = _downloadedRequest(r, url);
+      items.add(
+        fromStart && r.contentId == record.contentId
+            ? item.copyWith(startAt: Duration.zero)
+            : item,
+      );
     }
     final bool tappedPlayable =
         items.any((PlaybackRequest i) => i.contentId == record.contentId);
@@ -65,7 +92,7 @@ extension PlayerLaunch on WidgetRef {
       PlaybackQueue(
         items: items.toIList(),
         index: index,
-        autoplayNext: true,
+        autoplayNext: prefs.autoplayNext,
         gesturesEnabled: prefs.playerGestures,
       ),
     );
@@ -204,7 +231,21 @@ extension PlayerLaunch on WidgetRef {
           completedDownloadFor(await _downloadRecords(), session.id);
       if (!context.mounted) return;
       if (local != null) {
-        await openDownloadedEpisode(context, local);
+        // Same near-the-end rule as the online path below.
+        final ({DownloadRecord record, bool fromStart}) target =
+            offlineResumeTarget(
+          season: offlineSeasonRecords(await _downloadRecords(), local),
+          current: local,
+          positionSeconds: session.positionSeconds,
+          durationSeconds: session.durationSeconds,
+          thresholdSeconds: _kResumeNextThresholdSeconds,
+        );
+        if (!context.mounted) return;
+        await openDownloadedEpisode(
+          context,
+          target.record,
+          fromStart: target.fromStart,
+        );
         return;
       }
     }
@@ -236,8 +277,8 @@ extension PlayerLaunch on WidgetRef {
         final bool nearEnd = session.durationSeconds > 0 &&
             session.positionSeconds >=
                 session.durationSeconds - _kResumeNextThresholdSeconds;
-        final bool hasNext = current >= 0 &&
-            current < season.episodes.length - 1;
+        final bool hasNext =
+            current >= 0 && current < season.episodes.length - 1;
         final int index =
             (nearEnd && hasNext) ? current + 1 : (current < 0 ? 0 : current);
         _pushVod(
@@ -304,8 +345,7 @@ extension PlayerLaunch on WidgetRef {
 
   /// The channels currently visible in the TV tab (selected category, or all).
   IList<Channel> _scopedChannels(Channel fallback) {
-    final AsyncState<IList<Channel>> channelsState =
-        read(liveChannelsProvider);
+    final AsyncState<IList<Channel>> channelsState = read(liveChannelsProvider);
     final IList<Channel> all = switch (channelsState) {
       AsyncSuccess<IList<Channel>>(:final IList<Channel> data) => data,
       _ => const IListConst<Channel>(<Channel>[]),
@@ -320,8 +360,7 @@ extension PlayerLaunch on WidgetRef {
 
   /// Saved resume offset for a VOD item, or zero when none exists.
   Duration _resumeFor(ContentKind kind, String id) {
-    final AsyncState<IList<WatchSession>> state =
-        read(watchSessionsProvider);
+    final AsyncState<IList<WatchSession>> state = read(watchSessionsProvider);
     final IList<WatchSession> sessions = switch (state) {
       AsyncSuccess<IList<WatchSession>>(:final IList<WatchSession> data) =>
         data,
@@ -360,7 +399,7 @@ extension PlayerLaunch on WidgetRef {
 void _toastDownloadUnavailable(BuildContext context) {
   AppToast.show(
     context,
-    message: "Téléchargement indisponible",
+    message: AppLocalizations.of(context).downloadsUnavailable,
     kind: ToastKind.error,
   );
 }
@@ -368,7 +407,7 @@ void _toastDownloadUnavailable(BuildContext context) {
 void _toastUnavailable(BuildContext context) {
   AppToast.show(
     context,
-    message: "Source indisponible",
+    message: AppLocalizations.of(context).sourceUnavailable,
     kind: ToastKind.error,
   );
 }

@@ -1273,6 +1273,30 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Hors ligne'**
   String get seriesOfflineBanner;
+
+  /// No description provided for @downloadsUnavailable.
+  ///
+  /// In fr, this message translates to:
+  /// **'Téléchargement indisponible'**
+  String get downloadsUnavailable;
+
+  /// No description provided for @downloadsEnqueueFailed.
+  ///
+  /// In fr, this message translates to:
+  /// **'Impossible de lancer le téléchargement.'**
+  String get downloadsEnqueueFailed;
+
+  /// No description provided for @downloadsRemoveFailed.
+  ///
+  /// In fr, this message translates to:
+  /// **'Impossible de supprimer le téléchargement.'**
+  String get downloadsRemoveFailed;
+
+  /// No description provided for @sourceUnavailable.
+  ///
+  /// In fr, this message translates to:
+  /// **'Source indisponible'**
+  String get sourceUnavailable;
 }
 
 class _AppLocalizationsDelegate

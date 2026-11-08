@@ -274,5 +274,9 @@
       }
     }
   },
-  "seriesOfflineBanner": "Hors ligne"
+  "seriesOfflineBanner": "Hors ligne",
+  "downloadsUnavailable": "Téléchargement indisponible",
+  "downloadsEnqueueFailed": "Impossible de lancer le téléchargement.",
+  "downloadsRemoveFailed": "Impossible de supprimer le téléchargement.",
+  "sourceUnavailable": "Source indisponible"
 }

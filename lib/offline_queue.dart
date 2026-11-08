@@ -37,3 +37,28 @@ DownloadRecord? completedDownloadFor(
   }
   return null;
 }
+
+/// Where an offline "Continue watching" tap on [current] should start.
+///
+/// Mirrors the online rule: within [thresholdSeconds] of the end the episode
+/// counts as watched, so the next downloaded episode of [season] starts from
+/// zero. With no next downloaded episode the current one resumes as is.
+/// [season] is [offlineSeasonRecords] output (episode order).
+({DownloadRecord record, bool fromStart}) offlineResumeTarget({
+  required IList<DownloadRecord> season,
+  required DownloadRecord current,
+  required int positionSeconds,
+  required int durationSeconds,
+  required int thresholdSeconds,
+}) {
+  final bool nearEnd = durationSeconds > 0 &&
+      positionSeconds >= durationSeconds - thresholdSeconds;
+  if (nearEnd) {
+    for (final DownloadRecord r in season) {
+      if (r.episodeNumber > current.episodeNumber) {
+        return (record: r, fromStart: true);
+      }
+    }
+  }
+  return (record: current, fromStart: false);
+}

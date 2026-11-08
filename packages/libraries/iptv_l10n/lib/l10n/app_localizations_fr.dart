@@ -641,4 +641,18 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get seriesOfflineBanner => 'Hors ligne';
+
+  @override
+  String get downloadsUnavailable => 'Téléchargement indisponible';
+
+  @override
+  String get downloadsEnqueueFailed =>
+      'Impossible de lancer le téléchargement.';
+
+  @override
+  String get downloadsRemoveFailed =>
+      'Impossible de supprimer le téléchargement.';
+
+  @override
+  String get sourceUnavailable => 'Source indisponible';
 }

@@ -45,9 +45,15 @@ abstract interface class DownloadGateway {
 
   /// Ids of transfers the native layer still knows about.
   Future<ISet<String>> activeIds();
+
+  /// Best-effort: erases the plugin's stored copy of the task [contentId]
+  /// (resume data, paused task), which embeds the credentialed URL. Never
+  /// throws.
+  Future<void> purgeStoredTask(String contentId);
 }
 
-const String _kDirectory = "downloads";
+/// Folder under the documents directory, shared with the repository.
+const String kDownloadsDirectory = "downloads";
 const String _kUserAgent = "VLC/3.0.20 LibVLC/3.0.20";
 const int _kRetries = 5;
 
@@ -59,7 +65,22 @@ const (int, int, int) _kHoldingQueue = (1, 1, 1);
 const Duration _kResourceTimeout = Duration(days: 2);
 
 /// [FileDownloader]-backed gateway.
+///
+/// Credential trap (background_downloader 9.5.9): the plugin serialises the
+/// whole task, URL included, outside our control.
+///  - iOS: on a network error the OS hands back resume data, which the
+///    plugin writes to its `backgroundDownloaderResumeData` local store
+///    (UserDefaults fallback when Dart is unreachable). The plugin erases
+///    it only on a final state, so a kill while retrying leaves it behind.
+///    We purge the local store ourselves via [purgeStoredTask]; the
+///    UserDefaults fallback has no public API.
+///  - Android: every enqueue puts the task JSON in WorkManager input data
+///    (workdb, plain SQLite). No public API reaches it: exposed while a
+///    task exists, until WorkManager prunes the finished work.
 class BackgroundDownloaderGateway implements DownloadGateway {
+  /// Held so the purge reaches the very store the plugin writes to.
+  final LocalStorePersistentStorage _storage = LocalStorePersistentStorage();
+
   final StreamController<GatewayEvent> _events =
       StreamController<GatewayEvent>.broadcast();
 
@@ -69,7 +90,9 @@ class BackgroundDownloaderGateway implements DownloadGateway {
   @override
   Future<void> initialize() async {
     try {
-      await FileDownloader().configure(
+      // First FileDownloader() call of the app: the only one that may
+      // inject the storage.
+      await FileDownloader(persistentStorage: _storage).configure(
         globalConfig: <(String, dynamic)>[
           (Config.holdingQueue, _kHoldingQueue),
           (Config.resourceTimeout, _kResourceTimeout),
@@ -77,7 +100,8 @@ class BackgroundDownloaderGateway implements DownloadGateway {
       );
       // Listener first: start() flushes updates from the suspended period.
       FileDownloader().updates.listen(_onUpdate);
-      // No tracking: the plugin database would keep the URL after the end.
+      // No tracking: the task database would keep the URL after the end.
+      // Resume data and paused tasks are not covered: see [purgeStoredTask].
       await FileDownloader().start(
         doTrackTasks: false,
         doRescheduleKilledTasks: false,
@@ -119,7 +143,7 @@ class BackgroundDownloaderGateway implements DownloadGateway {
           taskId: request.contentId,
           url: request.url,
           filename: filename,
-          directory: _kDirectory,
+          directory: kDownloadsDirectory,
           // Not Application Support: its path contains a space.
           baseDirectory: BaseDirectory.applicationDocuments,
           // Xtream panels block default agents.
@@ -151,6 +175,16 @@ class BackgroundDownloaderGateway implements DownloadGateway {
       return tasks.map((Task t) => t.taskId).toISet();
     } catch (_) {
       throw const DownloadGatewayException("activeIds");
+    }
+  }
+
+  @override
+  Future<void> purgeStoredTask(String contentId) async {
+    try {
+      await _storage.removeResumeData(contentId);
+      await _storage.removePausedTask(contentId);
+    } catch (_) {
+      // Best effort, and never logged: nothing here may carry the URL.
     }
   }
 }

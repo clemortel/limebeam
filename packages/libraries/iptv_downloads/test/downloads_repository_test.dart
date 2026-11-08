@@ -20,6 +20,8 @@ class FakeGateway implements DownloadGateway {
   final List<String> canceled = <String>[];
   Set<String> active = <String>{};
   bool accept = true;
+  final Set<String> throwing = <String>{};
+  final List<String> purged = <String>[];
 
   @override
   Stream<GatewayEvent> get events => controller.stream;
@@ -30,6 +32,9 @@ class FakeGateway implements DownloadGateway {
   @override
   Future<bool> enqueue(DownloadRequest request, String filename) async {
     enqueued.add(request.contentId);
+    if (throwing.contains(request.contentId)) {
+      throw const DownloadGatewayException("enqueue");
+    }
     return accept;
   }
 
@@ -38,6 +43,9 @@ class FakeGateway implements DownloadGateway {
 
   @override
   Future<ISet<String>> activeIds() async => active.toISet();
+
+  @override
+  Future<void> purgeStoredTask(String contentId) async => purged.add(contentId);
 }
 
 DownloadRequest _request(String id) => DownloadRequest(
@@ -114,6 +122,36 @@ void main() {
     await repo.enqueue(<DownloadRequest>[_request("a")].toIList());
     expect(gateway.enqueued, <String>["a", "a"]);
     expect((await repo.watch().first).single.phase, isA<DownloadQueued>());
+  });
+
+  test("should fail the throwing record and still queue the others", () async {
+    gateway.throwing.add("a");
+    final Either<Failures, Unit> result = await repo.enqueue(
+      <DownloadRequest>[_request("a"), _request("b")].toIList(),
+    );
+    expect(result.isLeft(), isTrue);
+    expect(gateway.enqueued, <String>["a", "b"]);
+    final IList<DownloadRecord> all = await repo.watch().first;
+    DownloadPhase phase(String id) =>
+        all.firstWhere((DownloadRecord r) => r.contentId == id).phase;
+    expect(phase("a"), isA<DownloadFailed>());
+    expect(phase("b"), isA<DownloadQueued>());
+  });
+
+  test("should purge stored task data on remove, end and dead task", () async {
+    await repo.enqueue(<DownloadRequest>[_request("a")].toIList());
+    gateway.controller.add(const GatewayEvent("a", GatewayStatus.failed));
+    await _settle();
+    await _settle();
+    expect(gateway.purged, contains("a"));
+    gateway.purged.clear();
+    await repo.remove("a");
+    expect(gateway.purged, <String>["a"]);
+    gateway.purged.clear();
+    await repo.enqueue(<DownloadRequest>[_request("b")].toIList());
+    await repo.dispose();
+    repo = await build();
+    expect(gateway.purged, <String>["b"]);
   });
 
   test("progress stays in memory, status is persisted", () async {
