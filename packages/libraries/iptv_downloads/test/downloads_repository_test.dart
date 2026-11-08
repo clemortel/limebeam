@@ -23,6 +23,12 @@ class FakeGateway implements DownloadGateway {
   final Set<String> throwing = <String>{};
   final List<String> purged = <String>[];
 
+  /// When set, [activeIds] waits on it (boot reconcile window).
+  Completer<void>? activeGate;
+
+  /// Each purge call takes the next gate, if any, and waits on it.
+  final List<Completer<void>> purgeGates = <Completer<void>>[];
+
   @override
   Stream<GatewayEvent> get events => controller.stream;
 
@@ -42,14 +48,22 @@ class FakeGateway implements DownloadGateway {
   Future<void> cancel(String contentId) async => canceled.add(contentId);
 
   @override
-  Future<ISet<String>> activeIds() async => active.toISet();
+  Future<ISet<String>> activeIds() async {
+    await activeGate?.future;
+    return active.toISet();
+  }
 
   @override
-  Future<void> purgeStoredTask(String contentId) async => purged.add(contentId);
+  Future<void> purgeStoredTask(String contentId) async {
+    purged.add(contentId);
+    if (purgeGates.isNotEmpty) await purgeGates.removeAt(0).future;
+  }
 }
 
-DownloadRequest _request(String id) => DownloadRequest(
+/// An empty [source] is the legacy, pre-scoping shape: key == content id.
+DownloadRequest _request(String id, [String source = ""]) => DownloadRequest(
       contentId: id,
+      sourceId: source,
       seriesId: "s1",
       seriesTitle: "Show",
       seasonNumber: 1,
@@ -229,5 +243,135 @@ void main() {
       expect(box.get(key), isNot(contains("s3cr3t")));
       expect(box.get(key), isNot(contains("panel.example")));
     }
+  });
+
+  group("source scoping", () {
+    test("same episode id in two sources stays apart", () async {
+      await repo.enqueue(
+        <DownloadRequest>[_request("7", "s1"), _request("7", "s2")].toIList(),
+      );
+      final IList<DownloadRecord> all = await repo.watch().first;
+      expect(all.length, 2);
+      expect(
+        all.map((DownloadRecord r) => r.relativePath).toSet().length,
+        2,
+      );
+      expect(recordsOfSource(all, "s1").single.sourceId, "s1");
+      expect(recordsOfSource(all, null), isEmpty);
+      await repo.remove(recordsOfSource(all, "s1").single.key);
+      expect(
+        (await repo.watch().first).single.sourceId,
+        "s2",
+      );
+      expect(gateway.canceled, <String>["s1:7"]);
+    });
+
+    test("removeSource cancels, purges, deletes files and records", () async {
+      await repo.enqueue(
+        <DownloadRequest>[_request("1", "s1"), _request("2", "s2")].toIList(),
+      );
+      final File gone = File("${dir.path}/downloads/s1_1.mkv")
+        ..createSync(recursive: true);
+      final File kept = File("${dir.path}/downloads/s2_2.mkv")
+        ..createSync(recursive: true);
+      // A native task whose record is already gone.
+      gateway.active = <String>{"s1:ghost", "s2:2"};
+      gateway.purged.clear();
+      final Either<Failures, Unit> result = await repo.removeSource("s1");
+      expect(result.isRight(), isTrue);
+      expect(gateway.canceled, containsAll(<String>["s1:1", "s1:ghost"]));
+      expect(gateway.canceled, isNot(contains("s2:2")));
+      expect(gateway.purged, containsAll(<String>["s1:1", "s1:ghost"]));
+      expect(gone.existsSync(), isFalse);
+      expect(kept.existsSync(), isTrue);
+      expect(box.keys, <String>["s2:2"]);
+    });
+
+    test("retainSources sweeps orphans and spares legacy records", () async {
+      await repo.enqueue(
+        <DownloadRequest>[
+          _request("1", "gone"),
+          _request("2", "live"),
+          _request("3"),
+        ].toIList(),
+      );
+      await repo.retainSources(<String>{"live"}.toISet());
+      final Set<String> keys =
+          (await repo.watch().first).map((DownloadRecord r) => r.key).toSet();
+      expect(keys, <String>{"live:2", "3"});
+    });
+
+    test("adoptLegacy moves finished records to the source", () async {
+      await repo.enqueue(
+        <DownloadRequest>[_request("done"), _request("busy")].toIList(),
+      );
+      gateway.controller
+          .add(const GatewayEvent("done", GatewayStatus.completed));
+      await _settle();
+      await _settle();
+      final Either<Failures, Unit> result = await repo.adoptLegacy("s9");
+      expect(result.isRight(), isTrue);
+      final IList<DownloadRecord> all = await repo.watch().first;
+      final DownloadRecord done =
+          all.firstWhere((DownloadRecord r) => r.contentId == "done");
+      final DownloadRecord busy =
+          all.firstWhere((DownloadRecord r) => r.contentId == "busy");
+      expect(done.sourceId, "s9");
+      expect(done.phase, isA<DownloadCompleted>());
+      // The old file name is kept: the path stays valid and unique.
+      expect(done.relativePath, "downloads/done.mkv");
+      // A bare-id task would never report under the new key.
+      expect(busy.phase, isA<DownloadFailed>());
+      expect(gateway.canceled, contains("busy"));
+      expect(box.keys.toSet(), <String>{"s9:done", "s9:busy"});
+      // Persisted: a relaunch sees them under the source.
+      await repo.dispose();
+      repo = await build();
+      expect(recordsOfSource(await repo.watch().first, "s9").length, 2);
+    });
+  });
+
+  group("races", () {
+    test("a late cancel never overwrites a finished record", () async {
+      await repo.enqueue(<DownloadRequest>[_request("a")].toIList());
+      final Completer<void> slowPurge = Completer<void>();
+      gateway.purgeGates.add(slowPurge);
+      // The cancel event reads "queued" then waits on its purge...
+      gateway.controller.add(const GatewayEvent("a", GatewayStatus.canceled));
+      await _settle();
+      // ...the completion lands meanwhile...
+      gateway.controller.add(const GatewayEvent("a", GatewayStatus.completed));
+      await _settle();
+      await _settle();
+      expect((await repo.watch().first).single.phase, isA<DownloadCompleted>());
+      // ...and the cancel resumes with its stale view.
+      slowPurge.complete();
+      await _settle();
+      await _settle();
+      expect((await repo.watch().first).single.phase, isA<DownloadCompleted>());
+    });
+
+    test("reconcile ignores an enqueue made during boot", () async {
+      await repo.dispose();
+      gateway = FakeGateway()..activeGate = Completer<void>();
+      final DownloadsRepository booting = DownloadsRepository(
+        box: box,
+        gateway: gateway,
+        documentsPath: () async => dir.path,
+      );
+      repo = booting;
+      final Future<void> init = booting.initialize();
+      final Future<Either<Failures, Unit>> enqueued =
+          booting.enqueue(<DownloadRequest>[_request("late", "s1")].toIList());
+      await _settle();
+      // Held back until the reconcile is over.
+      expect(gateway.enqueued, isEmpty);
+      gateway.activeGate!.complete();
+      await init;
+      expect((await enqueued).isRight(), isTrue);
+      expect(gateway.enqueued, <String>["late"]);
+      expect(gateway.purged, isNot(contains("s1:late")));
+      expect((await booting.watch().first).single.phase, isA<DownloadQueued>());
+    });
   });
 }

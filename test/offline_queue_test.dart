@@ -1,17 +1,19 @@
 import "package:fast_immutable_collections/fast_immutable_collections.dart";
 import "package:flutter_test/flutter_test.dart";
-import "package:iptv_downloads/iptv_downloads.dart";
 import "package:green_iptv/offline_queue.dart";
+import "package:iptv_downloads/iptv_downloads.dart";
 
 DownloadRecord _record(
   String id, {
   required int episode,
   int season = 1,
   String series = "s1",
+  String source = "src",
   DownloadPhase phase = const DownloadPhase.completed(),
 }) =>
     DownloadRecord(
       contentId: id,
+      sourceId: source,
       seriesId: series,
       seriesTitle: "Show",
       seasonNumber: season,
@@ -44,10 +46,46 @@ void main() {
     final DownloadRecord tapped = _record("b", episode: 2);
     expect(
       offlineSeasonRecords(
-              const IListConst<DownloadRecord>(<DownloadRecord>[]), tapped)
-          .length,
+        const IListConst<DownloadRecord>(<DownloadRecord>[]),
+        tapped,
+      ).length,
       1,
     );
+  });
+
+  test("season queue never mixes sources", () {
+    final DownloadRecord tapped = _record("b", episode: 2);
+    final IList<DownloadRecord> all = <DownloadRecord>[
+      tapped,
+      _record("b", episode: 2, source: "other"),
+      _record("c", episode: 3, source: "other"),
+    ].toIList();
+    expect(offlineSeasonRecords(all, tapped).length, 1);
+  });
+
+  group("completedDownloadFor", () {
+    final IList<DownloadRecord> all = <DownloadRecord>[
+      _record("7", episode: 1, source: "a"),
+      _record(
+        "8",
+        episode: 2,
+        source: "a",
+        phase: const DownloadPhase.queued(),
+      ),
+    ].toIList();
+
+    test("should match the same source and id", () {
+      expect(completedDownloadFor(all, "a", "7")?.sourceId, "a");
+    });
+
+    test("should ignore an id colliding in another source", () {
+      expect(completedDownloadFor(all, "b", "7"), isNull);
+      expect(completedDownloadFor(all, null, "7"), isNull);
+    });
+
+    test("should ignore unfinished downloads", () {
+      expect(completedDownloadFor(all, "a", "8"), isNull);
+    });
   });
 
   group("offlineResumeTarget", () {
@@ -83,7 +121,7 @@ void main() {
       expect(t.fromStart, isTrue);
     });
 
-    test("should skip a gap to the next downloaded episode", () {
+    test("should not jump over a gap to a later downloaded episode", () {
       final IList<DownloadRecord> gap = <DownloadRecord>[e1, e3].toIList();
       final ({DownloadRecord record, bool fromStart}) t = offlineResumeTarget(
         season: gap,
@@ -92,7 +130,9 @@ void main() {
         durationSeconds: 1000,
         thresholdSeconds: 120,
       );
-      expect(t.record.contentId, "c");
+      // E2 is missing: the online path would play it, offline cannot.
+      expect(t.record.contentId, "a");
+      expect(t.fromStart, isFalse);
     });
 
     test("should resume the last episode when there is no next one", () {

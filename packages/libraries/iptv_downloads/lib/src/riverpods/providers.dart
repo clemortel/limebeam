@@ -45,9 +45,10 @@ class DownloadsNotifier extends _$DownloadsNotifier {
     );
   }
 
-  Future<void> remove(String contentId) async {
+  /// [key] is `DownloadRecord.key`.
+  Future<void> remove(String key) async {
     final Either<Failures, Unit> result =
-        await ref.read(downloadsRepositoryProvider).remove(contentId);
+        await ref.read(downloadsRepositoryProvider).remove(key);
     result.fold(
       (Failures _) => ref
           .read(downloadFailuresProvider.notifier)

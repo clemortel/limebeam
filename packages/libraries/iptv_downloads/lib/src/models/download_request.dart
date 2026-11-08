@@ -1,5 +1,7 @@
 import "package:freezed_annotation/freezed_annotation.dart";
 
+import "download_record.dart";
+
 part "download_request.freezed.dart";
 
 /// What the app layer hands over to start one download. Deliberately not
@@ -11,6 +13,7 @@ part "download_request.freezed.dart";
 sealed class DownloadRequest with _$DownloadRequest {
   const factory DownloadRequest({
     required String contentId,
+    required String sourceId,
     required String seriesId,
     required String seriesTitle,
     required int seasonNumber,
@@ -21,4 +24,8 @@ sealed class DownloadRequest with _$DownloadRequest {
     @Default("") String seriesCoverUrl,
     @Default("") String duration,
   }) = _DownloadRequest;
+}
+
+extension DownloadRequestKey on DownloadRequest {
+  String get key => downloadKey(sourceId, contentId);
 }

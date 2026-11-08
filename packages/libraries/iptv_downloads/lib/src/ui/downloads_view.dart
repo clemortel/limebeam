@@ -25,9 +25,17 @@ const double _kGlyphSize = 24;
 /// Works with no network and makes none: records are local metadata, and the
 /// poster falls back to a placeholder when it cannot load.
 class DownloadsView extends ConsumerWidget {
-  const DownloadsView({required this.onPlay, super.key});
+  const DownloadsView({
+    required this.onPlay,
+    required this.sourceId,
+    super.key,
+  });
 
   final void Function(DownloadRecord record) onPlay;
+
+  /// The active playlist source: only its downloads are listed. Null when
+  /// none is connected.
+  final String? sourceId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -54,9 +62,9 @@ class DownloadsView extends ConsumerWidget {
             ),
           ),
         AsyncSuccess<IList<DownloadRecord>>(
-          :final IList<DownloadRecord> data,
+          data: final IList<DownloadRecord> all,
         ) =>
-          data.isEmpty
+          recordsOfSource(all, sourceId).isEmpty
               ? Center(
                   child: EmptyState(
                     icon: Icons.download_for_offline_outlined,
@@ -65,10 +73,10 @@ class DownloadsView extends ConsumerWidget {
                   ),
                 )
               : _DownloadsList(
-                  groups: groupDownloads(data),
+                  groups: groupDownloads(recordsOfSource(all, sourceId)),
                   onPlay: onPlay,
-                  onRemove: (String id) =>
-                      ref.read(downloadsProvider.notifier).remove(id),
+                  onRemove: (String key) =>
+                      ref.read(downloadsProvider.notifier).remove(key),
                 ),
       },
     );
@@ -84,7 +92,7 @@ class _DownloadsList extends StatelessWidget {
 
   final IList<DownloadSeriesGroup> groups;
   final void Function(DownloadRecord record) onPlay;
-  final void Function(String contentId) onRemove;
+  final void Function(String key) onRemove;
 
   @override
   Widget build(BuildContext context) {
@@ -104,7 +112,7 @@ class _DownloadsList extends StatelessWidget {
               _DownloadRow(
                 record: record,
                 onPlay: () => onPlay(record),
-                onRemove: () => onRemove(record.contentId),
+                onRemove: () => onRemove(record.key),
               ),
           ],
           SizedBox(height: t.space.x4),
