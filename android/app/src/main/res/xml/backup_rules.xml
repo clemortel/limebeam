@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 11 and older Auto Backup. background_downloader keeps the task
+     JSON (Xtream URL with user and password) in these files: keep them off
+     Google's cloud backup. Everything else stays backed up as before. -->
+<full-backup-content>
+    <exclude domain="sharedpref" path="com.limebeam.app_preferences.xml"/>
+    <exclude domain="database" path="androidx.work.workdb"/>
+    <exclude domain="database" path="androidx.work.workdb-wal"/>
+    <exclude domain="database" path="androidx.work.workdb-shm"/>
+    <exclude domain="file" path="backgroundDownloaderResumeData"/>
+    <exclude domain="file" path="backgroundDownloaderPausedTasks"/>
+    <exclude domain="file" path="backgroundDownloaderTaskRecords"/>
+</full-backup-content>
