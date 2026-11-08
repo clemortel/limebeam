@@ -15,6 +15,7 @@ class DownloadsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.toastDownloadFailures(context);
     return DownloadsView(
       onPlay: (DownloadRecord record) =>
           ref.openDownloadedEpisode(context, record),

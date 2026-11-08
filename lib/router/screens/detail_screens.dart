@@ -50,12 +50,16 @@ class SeriesDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.toastDownloadFailures(context);
     return SeriesDetailView(
       series: series,
       onPlayEpisode: (Season season, Episode episode) =>
           ref.openEpisode(context, series.id, season, episode),
-      episodeTrailing: (Season season, Episode episode) =>
-          _EpisodeDownloadSlot(series: series, season: season, episode: episode),
+      episodeTrailing: (Season season, Episode episode) => _EpisodeDownloadSlot(
+        series: series,
+        season: season,
+        episode: episode,
+      ),
       seasonAction: (Season season) =>
           _SeasonDownloadSlot(series: series, season: season),
       actions: <Widget>[
@@ -88,12 +92,9 @@ IMap<String, DownloadRecord> _recordsFor(
                 MapEntry<String, DownloadRecord>(r.contentId, r),
           ),
         ),
-      AsyncIdle<IList<DownloadRecord>>() =>
-        IMap<String, DownloadRecord>(),
-      AsyncLoading<IList<DownloadRecord>>() =>
-        IMap<String, DownloadRecord>(),
-      AsyncError<IList<DownloadRecord>>() =>
-        IMap<String, DownloadRecord>(),
+      AsyncIdle<IList<DownloadRecord>>() => IMap<String, DownloadRecord>(),
+      AsyncLoading<IList<DownloadRecord>>() => IMap<String, DownloadRecord>(),
+      AsyncError<IList<DownloadRecord>>() => IMap<String, DownloadRecord>(),
     };
 
 class _EpisodeDownloadSlot extends ConsumerWidget {
@@ -118,8 +119,7 @@ class _EpisodeDownloadSlot extends ConsumerWidget {
         season,
         <Episode>[episode].toIList(),
       ),
-      onRemove: () =>
-          ref.read(downloadsProvider.notifier).remove(episode.id),
+      onRemove: () => ref.read(downloadsProvider.notifier).remove(episode.id),
     );
   }
 }
@@ -138,9 +138,8 @@ class _SeasonDownloadSlot extends ConsumerWidget {
         .map((Episode e) => records[e.id])
         .whereType<DownloadRecord>()
         .toIList();
-    final int completed = mine
-        .where((DownloadRecord r) => r.phase is DownloadCompleted)
-        .length;
+    final int completed =
+        mine.where((DownloadRecord r) => r.phase is DownloadCompleted).length;
     return SeasonDownloadButton(
       totalCount: season.episodes.length,
       completedCount: completed,

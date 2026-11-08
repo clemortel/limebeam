@@ -17,8 +17,6 @@ import "download_gateway.dart";
 import "download_storage.dart";
 import "downloads_repository.dart";
 
-const String _kDirectory = "downloads";
-
 /// Progress ticks arrive many times a second; the UI needs one per second.
 const Duration _kProgressThrottle = Duration(seconds: 1);
 
@@ -95,16 +93,17 @@ class DownloadsRepository implements IDownloadsRepository {
     final ISet<String> active = await _gateway.activeIds();
     final String root = await _documentsPath();
     for (final DownloadRecord record in _records.values.toList()) {
+      if (active.contains(record.contentId)) continue;
+      // Dead task: whatever resume data it left holds the URL.
+      await _gateway.purgeStoredTask(record.contentId);
       final bool pending = record.phase is DownloadQueued ||
           record.phase is DownloadRunning ||
           record.phase is DownloadPaused;
-      if (!pending || active.contains(record.contentId)) continue;
+      if (!pending) continue;
       final bool landed = File("$root/${record.relativePath}").existsSync();
       await _setPhase(
         record.contentId,
-        landed
-            ? const DownloadPhase.completed()
-            : const DownloadPhase.failed(),
+        landed ? const DownloadPhase.completed() : const DownloadPhase.failed(),
       );
     }
   }
@@ -166,9 +165,11 @@ class DownloadsRepository implements IDownloadsRepository {
         }
         await _setPhase(event.contentId, const DownloadPhase.paused());
       case GatewayStatus.completed:
+        await _gateway.purgeStoredTask(event.contentId);
         await _setPhase(event.contentId, const DownloadPhase.completed());
       case GatewayStatus.failed:
       case GatewayStatus.canceled:
+        await _gateway.purgeStoredTask(event.contentId);
         // Completed stays: a late cancel must not erase a finished file.
         if (record.phase is DownloadCompleted) return;
         await _setPhase(
@@ -232,6 +233,8 @@ class DownloadsRepository implements IDownloadsRepository {
   Future<Either<Failures, Unit>> enqueue(
     IList<DownloadRequest> requests,
   ) async {
+    // The first gateway failure; later requests are still attempted.
+    Failures? firstFailure;
     try {
       // Episodes accepted in this batch are not on disk yet: count them.
       int reservedBytes = 0;
@@ -247,7 +250,7 @@ class DownloadsRepository implements IDownloadsRepository {
           episodeNumber: request.episodeNumber,
           title: request.title,
           containerExtension: ext,
-          relativePath: "$_kDirectory/${request.contentId}.$ext",
+          relativePath: "$kDownloadsDirectory/${request.contentId}.$ext",
           phase: const DownloadPhase.queued(),
           seriesCoverUrl: request.seriesCoverUrl,
           duration: request.duration,
@@ -271,15 +274,20 @@ class DownloadsRepository implements IDownloadsRepository {
           continue;
         }
         reservedBytes += size ?? 0;
-        final bool accepted = await _gateway.enqueue(
-          request,
-          "${request.contentId}.$ext",
-        );
+        bool accepted = false;
+        try {
+          accepted =
+              await _gateway.enqueue(request, "${request.contentId}.$ext");
+        } catch (error, stackTrace) {
+          // No native task exists, so no event will ever fix the phase.
+          firstFailure ??= catchError(error, stackTrace);
+        }
         if (!accepted) {
           await _setPhase(record.contentId, const DownloadPhase.failed());
         }
       }
-      return right(unit);
+      final Failures? failure = firstFailure;
+      return failure == null ? right(unit) : left(failure);
     } catch (error, stackTrace) {
       return left(catchError(error, stackTrace));
     }
@@ -289,9 +297,10 @@ class DownloadsRepository implements IDownloadsRepository {
   Future<Either<Failures, Unit>> pause(String contentId) async {
     try {
       final DownloadRecord? record = _records[contentId];
-      final bool pausable =
-          record != null && record.phase is! DownloadCompleted &&
-              record.phase is! DownloadFailed && record.phase is! DownloadPaused;
+      final bool pausable = record != null &&
+          record.phase is! DownloadCompleted &&
+          record.phase is! DownloadFailed &&
+          record.phase is! DownloadPaused;
       // The paused status event flips the phase, not this call.
       if (pausable) await _gateway.pause(contentId);
       return right(unit);
@@ -345,18 +354,22 @@ class DownloadsRepository implements IDownloadsRepository {
 
   @override
   Future<Either<Failures, Unit>> remove(String contentId) async {
+    final DownloadRecord? record = _records.remove(contentId);
+    _progress.remove(contentId);
+    if (record == null) return right(unit);
+    _emit();
     try {
-      final DownloadRecord? record = _records.remove(contentId);
-      _progress.remove(contentId);
-      if (record == null) return right(unit);
-      _emit();
       await _gateway.cancel(contentId);
+      await _gateway.purgeStoredTask(contentId);
       final String root = await _documentsPath();
       final File file = File("$root/${record.relativePath}");
       if (file.existsSync()) await file.delete();
       await _box.delete(contentId);
       return right(unit);
     } catch (error, stackTrace) {
+      // Hive still has it and the file may too: show what is really there.
+      _records[contentId] = record;
+      _emit();
       return left(catchError(error, stackTrace));
     }
   }

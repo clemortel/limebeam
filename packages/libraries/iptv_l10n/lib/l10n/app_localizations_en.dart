@@ -666,4 +666,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String downloadsStorageFree(String size) {
     return '$size free';
   }
+
+  @override
+  String get downloadsUnavailable => 'Download unavailable';
+
+  @override
+  String get downloadsEnqueueFailed => 'Could not start the download.';
+
+  @override
+  String get downloadsRemoveFailed => 'Could not delete the download.';
+
+  @override
+  String get sourceUnavailable => 'Source unavailable';
 }

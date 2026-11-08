@@ -2,6 +2,7 @@ import "dart:async";
 
 import "package:dartz/dartz.dart" hide IList, IMap, ISet;
 import "package:fast_immutable_collections/fast_immutable_collections.dart";
+import "package:flutter/foundation.dart";
 import "package:get_it/get_it.dart";
 import "package:iptv_core/iptv_core.dart";
 import "package:riverpod_annotation/riverpod_annotation.dart";
@@ -32,12 +33,15 @@ class DownloadsNotifier extends _$DownloadsNotifier {
     return const AsyncState<IList<DownloadRecord>>.loading();
   }
 
+  /// A failure never replaces the live list: the last success stays and the
+  /// failure goes out through [downloadFailuresProvider] instead.
   Future<void> enqueue(IList<DownloadRequest> requests) async {
     final Either<Failures, Unit> result =
         await ref.read(downloadsRepositoryProvider).enqueue(requests);
     result.fold(
-      (Failures failure) =>
-          state = AsyncState<IList<DownloadRecord>>.error(failure),
+      (Failures _) => ref
+          .read(downloadFailuresProvider.notifier)
+          .report(DownloadFailureKind.enqueue),
       (Unit _) {},
     );
   }
@@ -46,8 +50,9 @@ class DownloadsNotifier extends _$DownloadsNotifier {
     final Either<Failures, Unit> result =
         await ref.read(downloadsRepositoryProvider).remove(contentId);
     result.fold(
-      (Failures failure) =>
-          state = AsyncState<IList<DownloadRecord>>.error(failure),
+      (Failures _) => ref
+          .read(downloadFailuresProvider.notifier)
+          .report(DownloadFailureKind.remove),
       (Unit _) {},
     );
   }
@@ -59,12 +64,10 @@ class DownloadsNotifier extends _$DownloadsNotifier {
       _run(() => ref.read(downloadsRepositoryProvider).resume(contentId));
 
   Future<void> _run(Future<Either<Failures, Unit>> Function() action) async {
-    final Either<Failures, Unit> result = await action();
-    result.fold(
-      (Failures failure) =>
-          state = AsyncState<IList<DownloadRecord>>.error(failure),
-      (Unit _) {},
-    );
+    // A refused pause or resume leaves the phase untouched, which is what
+    // the row shows; it must never replace the live list with an error.
+    // Trap: no new DownloadFailureKind, the toast mapping lives in the app.
+    await action();
   }
 }
 
@@ -111,4 +114,28 @@ class DownloadStorageNotifier extends _$DownloadStorageNotifier {
           AsyncState<DownloadStorageInfo>.success(info),
     );
   }
+}
+
+/// What the user tried to do when a download operation failed.
+enum DownloadFailureKind { enqueue, remove }
+
+/// One failure to tell the user about, once.
+///
+/// Trap: deliberately not Freezed. Value equality would make two identical
+/// failures equal, and `ref.listen` would swallow the second toast.
+@immutable
+class DownloadFailure {
+  const DownloadFailure(this.kind);
+
+  final DownloadFailureKind kind;
+}
+
+/// One-shot channel for download failures. Listen with `ref.listen` and show
+/// a toast; the state is null until the first failure.
+@Riverpod(keepAlive: true)
+class DownloadFailures extends _$DownloadFailures {
+  @override
+  DownloadFailure? build() => null;
+
+  void report(DownloadFailureKind kind) => state = DownloadFailure(kind);
 }
