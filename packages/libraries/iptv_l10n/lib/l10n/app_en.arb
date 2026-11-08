@@ -225,5 +225,29 @@
         "type": "String"
       }
     }
+  },
+  "downloadsPause": "Pause",
+  "downloadsResume": "Resume",
+  "downloadsEpisodePaused": "Download paused",
+  "downloadsReasonStorage": "Not enough space on this device",
+  "downloadsReasonNetwork": "Network problem",
+  "downloadsReasonServer": "The provider refused or cannot resume",
+  "downloadsReasonUnknown": "Download failed",
+  "downloadsRetryNoSource": "Select a provider to retry this download",
+  "downloadsStorageUsed": "Downloads: {size}",
+  "@downloadsStorageUsed": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadsStorageFree": "{size} free",
+  "@downloadsStorageFree": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
   }
 }

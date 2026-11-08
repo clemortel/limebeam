@@ -9,6 +9,7 @@ import "package:riverpod_annotation/riverpod_annotation.dart";
 import "../infrastructure/downloads_repository.dart";
 import "../models/download_record.dart";
 import "../models/download_request.dart";
+import "../models/download_storage_info.dart";
 
 part "providers.g.dart";
 
@@ -22,13 +23,11 @@ IDownloadsRepository downloadsRepository(Ref ref) =>
 class DownloadsNotifier extends _$DownloadsNotifier {
   @override
   AsyncState<IList<DownloadRecord>> build() {
-    final StreamSubscription<IList<DownloadRecord>> subscription = ref
-        .read(downloadsRepositoryProvider)
-        .watch()
-        .listen(
-          (IList<DownloadRecord> records) =>
-              state = AsyncState<IList<DownloadRecord>>.success(records),
-        );
+    final StreamSubscription<IList<DownloadRecord>> subscription =
+        ref.read(downloadsRepositoryProvider).watch().listen(
+              (IList<DownloadRecord> records) =>
+                  state = AsyncState<IList<DownloadRecord>>.success(records),
+            );
     ref.onDispose(subscription.cancel);
     return const AsyncState<IList<DownloadRecord>>.loading();
   }
@@ -50,6 +49,66 @@ class DownloadsNotifier extends _$DownloadsNotifier {
       (Failures failure) =>
           state = AsyncState<IList<DownloadRecord>>.error(failure),
       (Unit _) {},
+    );
+  }
+
+  Future<void> pause(String contentId) =>
+      _run(() => ref.read(downloadsRepositoryProvider).pause(contentId));
+
+  Future<void> resume(String contentId) =>
+      _run(() => ref.read(downloadsRepositoryProvider).resume(contentId));
+
+  Future<void> _run(Future<Either<Failures, Unit>> Function() action) async {
+    final Either<Failures, Unit> result = await action();
+    result.fold(
+      (Failures failure) =>
+          state = AsyncState<IList<DownloadRecord>>.error(failure),
+      (Unit _) {},
+    );
+  }
+}
+
+/// Disk figures for the header. Recomputed whenever the list changes phase,
+/// not on every progress tick (those do not rebuild the record list).
+@riverpod
+class DownloadStorageNotifier extends _$DownloadStorageNotifier {
+  @override
+  AsyncState<DownloadStorageInfo> build() {
+    // Phases only: a progress tick must not re-scan the disk each second.
+    ref.listen<AsyncState<IList<DownloadRecord>>>(
+      downloadsProvider,
+      (
+        AsyncState<IList<DownloadRecord>>? previous,
+        AsyncState<IList<DownloadRecord>> next,
+      ) {
+        if (_signature(previous) != _signature(next)) unawaited(_load());
+      },
+    );
+    unawaited(_load());
+    return const AsyncState<DownloadStorageInfo>.loading();
+  }
+
+  static String _signature(AsyncState<IList<DownloadRecord>>? state) =>
+      switch (state) {
+        AsyncSuccess<IList<DownloadRecord>>(
+          :final IList<DownloadRecord> data,
+        ) =>
+          data
+              .map(
+                (DownloadRecord r) => "${r.contentId}:${r.phase.runtimeType}",
+              )
+              .join(","),
+        _ => "",
+      };
+
+  Future<void> _load() async {
+    final Either<Failures, DownloadStorageInfo> result =
+        await ref.read(downloadsRepositoryProvider).storageInfo();
+    if (!ref.mounted) return;
+    state = result.fold(
+      (Failures failure) => AsyncState<DownloadStorageInfo>.error(failure),
+      (DownloadStorageInfo info) =>
+          AsyncState<DownloadStorageInfo>.success(info),
     );
   }
 }

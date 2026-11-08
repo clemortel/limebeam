@@ -9,6 +9,7 @@ import "package:hive_flutter/hive_flutter.dart";
 import "package:iptv_core/iptv_core.dart";
 import "package:iptv_downloads/iptv_downloads.dart";
 import "package:iptv_downloads/src/infrastructure/download_gateway.dart";
+import "package:iptv_downloads/src/infrastructure/download_storage.dart";
 import "package:iptv_downloads/src/infrastructure/downloads_repository_impl.dart";
 
 const String _kSecretUrl = "http://panel.example/series/user/s3cr3t/42.mkv";
@@ -20,6 +21,10 @@ class FakeGateway implements DownloadGateway {
   final List<String> canceled = <String>[];
   Set<String> active = <String>{};
   bool accept = true;
+  final List<String> paused = <String>[];
+  final List<String> resumed = <String>[];
+  bool canResume = true;
+  int? size;
 
   @override
   Stream<GatewayEvent> get events => controller.stream;
@@ -37,7 +42,33 @@ class FakeGateway implements DownloadGateway {
   Future<void> cancel(String contentId) async => canceled.add(contentId);
 
   @override
+  Future<bool> pause(String contentId) async {
+    paused.add(contentId);
+    return true;
+  }
+
+  @override
+  Future<bool> resume(String contentId) async {
+    resumed.add(contentId);
+    return canResume;
+  }
+
+  @override
+  Future<int?> expectedSize(DownloadRequest request) async => size;
+
+  @override
   Future<ISet<String>> activeIds() async => active.toISet();
+}
+
+class FakeStorage implements DownloadStorage {
+  int? free;
+  int excludeCalls = 0;
+
+  @override
+  Future<int?> freeBytes() async => free;
+
+  @override
+  Future<void> excludeFromBackup() async => excludeCalls++;
 }
 
 DownloadRequest _request(String id) => DownloadRequest(
@@ -57,12 +88,14 @@ void main() {
   late Directory dir;
   late Box<String> box;
   late FakeGateway gateway;
+  late FakeStorage storage;
   late DownloadsRepository repo;
 
   Future<DownloadsRepository> build() async {
     final DownloadsRepository r = DownloadsRepository(
       box: box,
       gateway: gateway,
+      storage: storage,
       documentsPath: () async => dir.path,
     );
     await r.initialize();
@@ -74,6 +107,7 @@ void main() {
     Hive.init(dir.path);
     box = await Hive.openBox<String>("downloads");
     gateway = FakeGateway();
+    storage = FakeStorage();
     repo = await build();
   });
 
@@ -88,7 +122,9 @@ void main() {
       const DownloadPhase.queued(),
       const DownloadPhase.running(0.5),
       const DownloadPhase.completed(),
+      const DownloadPhase.paused(),
       const DownloadPhase.failed(),
+      const DownloadPhase.failed(reason: DownloadFailureReason.storage),
     ]) {
       final DownloadPhase back = DownloadPhase.fromJson(
         jsonDecode(jsonEncode(p.toJson())) as Map<String, dynamic>,
@@ -191,5 +227,109 @@ void main() {
       expect(box.get(key), isNot(contains("s3cr3t")));
       expect(box.get(key), isNot(contains("panel.example")));
     }
+  });
+
+  test("backup exclusion is applied on every launch", () async {
+    expect(storage.excludeCalls, 1);
+    await repo.dispose();
+    repo = await build();
+    expect(storage.excludeCalls, 2);
+  });
+
+  test("an episode that does not fit is refused with a storage reason",
+      () async {
+    gateway.size = 900 * 1024 * 1024;
+    storage.free = 1000 * 1024 * 1024;
+    await repo.enqueue(<DownloadRequest>[_request("a")].toIList());
+    expect(gateway.enqueued, isEmpty);
+    expect(
+      (await repo.watch().first).single.phase,
+      const DownloadPhase.failed(reason: DownloadFailureReason.storage),
+    );
+  });
+
+  test("a batch counts the episodes already accepted", () async {
+    gateway.size = 400 * 1024 * 1024;
+    storage.free = 1000 * 1024 * 1024;
+    await repo.enqueue(
+      <DownloadRequest>[_request("a"), _request("b")].toIList(),
+    );
+    expect(gateway.enqueued, <String>["a"]);
+  });
+
+  test("unknown size or unknown free space is accepted", () async {
+    storage.free = 1;
+    await repo.enqueue(<DownloadRequest>[_request("a")].toIList());
+    gateway.size = 10 * 1024 * 1024 * 1024;
+    storage.free = null;
+    await repo.enqueue(<DownloadRequest>[_request("b")].toIList());
+    expect(gateway.enqueued, <String>["a", "b"]);
+  });
+
+  test("pause waits for the native status, resume re-queues", () async {
+    await repo.enqueue(<DownloadRequest>[_request("a")].toIList());
+    gateway.controller.add(const GatewayEvent("a", GatewayStatus.running, 0.3));
+    await _settle();
+    await repo.pause("a");
+    expect(gateway.paused, <String>["a"]);
+    expect((await repo.watch().first).single.phase, isA<DownloadRunning>());
+    gateway.controller.add(const GatewayEvent("a", GatewayStatus.paused));
+    await _settle();
+    expect((await repo.watch().first).single.phase, isA<DownloadPaused>());
+    // A stale tick and a stale queued status do not undo the pause.
+    gateway.controller
+      ..add(const GatewayEvent("a", GatewayStatus.running, 0.31))
+      ..add(const GatewayEvent("a", GatewayStatus.queued));
+    await _settle();
+    expect((await repo.watch().first).single.phase, isA<DownloadPaused>());
+    await repo.resume("a");
+    expect(gateway.resumed, <String>["a"]);
+    expect((await repo.watch().first).single.phase, isA<DownloadQueued>());
+  });
+
+  test("resume of a lost transfer fails with a server reason", () async {
+    await repo.enqueue(<DownloadRequest>[_request("a")].toIList());
+    gateway.controller.add(const GatewayEvent("a", GatewayStatus.paused));
+    await _settle();
+    gateway.canResume = false;
+    await repo.resume("a");
+    expect(
+      (await repo.watch().first).single.phase,
+      const DownloadPhase.failed(reason: DownloadFailureReason.server),
+    );
+  });
+
+  test("a native failure keeps its typed reason", () async {
+    await repo.enqueue(<DownloadRequest>[_request("a")].toIList());
+    gateway.controller.add(
+      const GatewayEvent(
+        "a",
+        GatewayStatus.failed,
+        0,
+        DownloadFailureReason.network,
+      ),
+    );
+    await _settle();
+    expect(
+      (await repo.watch().first).single.phase,
+      const DownloadPhase.failed(reason: DownloadFailureReason.network),
+    );
+  });
+
+  test("storageInfo sums completed files and reports free space", () async {
+    await repo.enqueue(
+      <DownloadRequest>[_request("a"), _request("b")].toIList(),
+    );
+    gateway.controller.add(const GatewayEvent("a", GatewayStatus.completed));
+    await _settle();
+    File("${dir.path}/downloads/a.mkv")
+      ..createSync(recursive: true)
+      ..writeAsBytesSync(List<int>.filled(1000, 0));
+    File("${dir.path}/downloads/b.mkv").writeAsBytesSync(List<int>.filled(5, 0));
+    storage.free = 42;
+    final DownloadStorageInfo info =
+        (await repo.storageInfo()).getOrElse(() => throw StateError("x"));
+    expect(info.usedBytes, 1000);
+    expect(info.freeBytes, 42);
   });
 }

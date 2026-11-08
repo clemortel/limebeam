@@ -8,10 +8,13 @@ import "package:fast_immutable_collections/fast_immutable_collections.dart";
 import "package:hive_flutter/hive_flutter.dart";
 import "package:iptv_core/iptv_core.dart";
 
+import "../models/download_failure_reason.dart";
 import "../models/download_phase.dart";
 import "../models/download_record.dart";
 import "../models/download_request.dart";
+import "../models/download_storage_info.dart";
 import "download_gateway.dart";
+import "download_storage.dart";
 import "downloads_repository.dart";
 
 const String _kDirectory = "downloads";
@@ -19,16 +22,22 @@ const String _kDirectory = "downloads";
 /// Progress ticks arrive many times a second; the UI needs one per second.
 const Duration _kProgressThrottle = Duration(seconds: 1);
 
+/// Headroom kept free on top of an episode: the OS and the player need room.
+const int _kBytesPerMegabyte = 1024 * 1024;
+const int _kSpaceMarginBytes = 300 * _kBytesPerMegabyte;
+
 /// Hive-backed store. Hive is the source of truth; the native layer only
 /// moves bytes. Trap: records never hold the URL (see [DownloadRecord]).
 class DownloadsRepository implements IDownloadsRepository {
   DownloadsRepository({
     required Box<String> box,
     required DownloadGateway gateway,
+    required DownloadStorage storage,
     required Future<String> Function() documentsPath,
     DateTime Function() now = DateTime.now,
   })  : _box = box,
         _gateway = gateway,
+        _storage = storage,
         _documentsPath = documentsPath,
         _now = now {
     for (final dynamic key in _box.keys) {
@@ -48,6 +57,7 @@ class DownloadsRepository implements IDownloadsRepository {
 
   final Box<String> _box;
   final DownloadGateway _gateway;
+  final DownloadStorage _storage;
   final Future<String> Function() _documentsPath;
   final DateTime Function() _now;
 
@@ -62,6 +72,7 @@ class DownloadsRepository implements IDownloadsRepository {
   Future<void> initialize() async {
     try {
       _subscription ??= _gateway.events.listen(_onEvent);
+      await _storage.excludeFromBackup();
       await _gateway.initialize();
       await _reconcile();
     } catch (error, stackTrace) {
@@ -84,13 +95,16 @@ class DownloadsRepository implements IDownloadsRepository {
     final ISet<String> active = await _gateway.activeIds();
     final String root = await _documentsPath();
     for (final DownloadRecord record in _records.values.toList()) {
-      final bool pending =
-          record.phase is DownloadQueued || record.phase is DownloadRunning;
+      final bool pending = record.phase is DownloadQueued ||
+          record.phase is DownloadRunning ||
+          record.phase is DownloadPaused;
       if (!pending || active.contains(record.contentId)) continue;
       final bool landed = File("$root/${record.relativePath}").existsSync();
       await _setPhase(
         record.contentId,
-        landed ? const DownloadPhase.completed() : const DownloadPhase.failed(),
+        landed
+            ? const DownloadPhase.completed()
+            : const DownloadPhase.failed(),
       );
     }
   }
@@ -115,8 +129,10 @@ class DownloadsRepository implements IDownloadsRepository {
       case GatewayStatus.running:
         // A late tick never reopens a finished record: a restart goes
         // through enqueue, which resets the phase first.
+        // Nor a paused one: a tick queued before the pause status is stale.
         if (record.phase is DownloadCompleted ||
-            record.phase is DownloadFailed) {
+            record.phase is DownloadFailed ||
+            record.phase is DownloadPaused) {
           return;
         }
         if (record.phase is! DownloadRunning) {
@@ -136,15 +152,29 @@ class DownloadsRepository implements IDownloadsRepository {
         }
       case GatewayStatus.queued:
         // A retry wait must not rewrite what is already queued.
-        if (record.phase is DownloadQueued) return;
+        if (record.phase is DownloadQueued ||
+            record.phase is DownloadPaused ||
+            record.phase is DownloadCompleted ||
+            record.phase is DownloadFailed) {
+          return;
+        }
         await _setPhase(event.contentId, const DownloadPhase.queued());
+      case GatewayStatus.paused:
+        if (record.phase is DownloadCompleted ||
+            record.phase is DownloadFailed) {
+          return;
+        }
+        await _setPhase(event.contentId, const DownloadPhase.paused());
       case GatewayStatus.completed:
         await _setPhase(event.contentId, const DownloadPhase.completed());
       case GatewayStatus.failed:
       case GatewayStatus.canceled:
         // Completed stays: a late cancel must not erase a finished file.
         if (record.phase is DownloadCompleted) return;
-        await _setPhase(event.contentId, const DownloadPhase.failed());
+        await _setPhase(
+          event.contentId,
+          DownloadPhase.failed(reason: event.reason),
+        );
     }
   }
 
@@ -203,6 +233,8 @@ class DownloadsRepository implements IDownloadsRepository {
     IList<DownloadRequest> requests,
   ) async {
     try {
+      // Episodes accepted in this batch are not on disk yet: count them.
+      int reservedBytes = 0;
       for (final DownloadRequest request in requests) {
         final DownloadRecord? existing = _records[request.contentId];
         if (existing != null && existing.phase is! DownloadFailed) continue;
@@ -225,6 +257,20 @@ class DownloadsRepository implements IDownloadsRepository {
         _progress.remove(record.contentId);
         await _put(record);
         _emit();
+        final int? size = await _gateway.expectedSize(request);
+        final int? free = await _storage.freeBytes();
+        // Unknown size or unknown free space: accept, the native layer
+        // reports a write failure if the disk really is full.
+        if (size != null &&
+            free != null &&
+            reservedBytes + size + _kSpaceMarginBytes > free) {
+          await _setPhase(
+            record.contentId,
+            const DownloadPhase.failed(reason: DownloadFailureReason.storage),
+          );
+          continue;
+        }
+        reservedBytes += size ?? 0;
         final bool accepted = await _gateway.enqueue(
           request,
           "${request.contentId}.$ext",
@@ -234,6 +280,64 @@ class DownloadsRepository implements IDownloadsRepository {
         }
       }
       return right(unit);
+    } catch (error, stackTrace) {
+      return left(catchError(error, stackTrace));
+    }
+  }
+
+  @override
+  Future<Either<Failures, Unit>> pause(String contentId) async {
+    try {
+      final DownloadRecord? record = _records[contentId];
+      final bool pausable =
+          record != null && record.phase is! DownloadCompleted &&
+              record.phase is! DownloadFailed && record.phase is! DownloadPaused;
+      // The paused status event flips the phase, not this call.
+      if (pausable) await _gateway.pause(contentId);
+      return right(unit);
+    } catch (error, stackTrace) {
+      return left(catchError(error, stackTrace));
+    }
+  }
+
+  @override
+  Future<Either<Failures, Unit>> resume(String contentId) async {
+    try {
+      final DownloadRecord? record = _records[contentId];
+      if (record == null || record.phase is! DownloadPaused) {
+        return right(unit);
+      }
+      // Queued first: the native layer re-enters the holding queue.
+      await _setPhase(contentId, const DownloadPhase.queued());
+      final bool resumed = await _gateway.resume(contentId);
+      if (!resumed) {
+        await _setPhase(
+          contentId,
+          const DownloadPhase.failed(reason: DownloadFailureReason.server),
+        );
+      }
+      return right(unit);
+    } catch (error, stackTrace) {
+      return left(catchError(error, stackTrace));
+    }
+  }
+
+  @override
+  Future<Either<Failures, DownloadStorageInfo>> storageInfo() async {
+    try {
+      final String root = await _documentsPath();
+      int used = 0;
+      for (final DownloadRecord record in _records.values) {
+        if (record.phase is! DownloadCompleted) continue;
+        final File file = File("$root/${record.relativePath}");
+        if (file.existsSync()) used += file.lengthSync();
+      }
+      return right(
+        DownloadStorageInfo(
+          usedBytes: used,
+          freeBytes: await _storage.freeBytes(),
+        ),
+      );
     } catch (error, stackTrace) {
       return left(catchError(error, stackTrace));
     }

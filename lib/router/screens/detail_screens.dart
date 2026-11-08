@@ -156,6 +156,7 @@ class _SeasonDownloadSlot extends ConsumerWidget {
                 DownloadFailed() => true,
                 DownloadQueued() => false,
                 DownloadRunning() => false,
+                DownloadPaused() => false,
                 DownloadCompleted() => false,
               },
             )
