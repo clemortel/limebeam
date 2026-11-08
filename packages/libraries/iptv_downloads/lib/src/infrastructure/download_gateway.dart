@@ -69,21 +69,41 @@ const Duration _kResourceTimeout = Duration(days: 2);
 /// [FileDownloader]-backed gateway.
 ///
 /// Credential trap (background_downloader 9.5.9): the plugin serialises the
-/// whole task, URL included, outside our control.
-///  - iOS: on a network error the OS hands back resume data, which the
-///    plugin writes to its `backgroundDownloaderResumeData` local store
-///    (UserDefaults fallback when Dart is unreachable). The plugin erases
-///    it only on a final state, so a kill while retrying leaves it behind.
-///    We purge the local store ourselves via [purgeStoredTask]; the
-///    UserDefaults fallback has no public API.
-///  - Android: every enqueue puts the task JSON in WorkManager input data
-///    (workdb, plain SQLite). No public API reaches it: exposed while a
-///    task exists, until WorkManager prunes the finished work.
+/// whole task, URL (Xtream user and password) included, in every store
+/// below. None can be emptied through a public API. Paths are in the
+/// plugin source; BD = BDPlugin, TR = TaskRunner, TF = TaskFunctions.swift,
+/// PS = lib/src/persistent_storage.dart.
 ///
-/// Residual, pending an owner decision: neither store can be emptied from
-/// here, so the URL (user and password) can outlive a task on both
-/// platforms. What our code does about it: no task tracking, purge of every
-/// store we can reach after each end, and, when a source is deleted, the
+/// Android
+///  - SharedPreferences `<applicationId>_preferences.xml` (the plugin uses
+///    `getDefaultSharedPreferences`), key `...taskMap.v2` (BD.kt:316-321).
+///    Written on each enqueue, removed at the final state, retries
+///    included (TR.kt:283-292): a kill or crash mid-task leaves it. The same
+///    file gets `statusUpdateMap.v2` / `resumeDataMap.v2` when Dart is
+///    unreachable (TR.kt:253, 377), emptied at the next `start()`. In Auto
+///    Backup unless excluded: we exclude it (res/xml backup rules).
+///  - WorkManager input data (BD.kt:242), in the `androidx.work.workdb`
+///    SQLite database. Lives until WorkManager prunes the finished work,
+///    which we do not control. WorkManager 2.11 should keep the file in
+///    `no_backup/` (never backed up); not checkable offline, so the same
+///    file is excluded explicitly in case it sits in `databases/`.
+///  - Dart local store, `files/backgroundDownloaderResumeData` and
+///    `...PausedTasks` (PS.dart:381-383). Emptied by [purgeStoredTask]
+///    after each end; stays after a kill. Excluded from backup too.
+/// iOS
+///  - Same Dart local store, in Library/Application Support (resume data
+///    from a network error). Same lifetime. Backed up by iCloud and iTunes.
+///  - UserDefaults (Library/Preferences) `statusUpdateMap.v2` and
+///    `progressUpdateMap.v2` (TF.swift:428, 467, 555-560), plus a
+///    `resumeDataMap.v2` fallback (TF.swift:496), written whenever the
+///    background channel cannot reach Dart (app relaunched in the
+///    background). Erased only by the next `start()` (BDPlugin.swift:698
+///    -708). Library/Preferences CANNOT be excluded from backup, so on iOS
+///    this copy can reach a device backup. No public API reaches it.
+///
+/// Residual, pending an owner decision: the URL can outlive a task in the
+/// stores above. What our code does: no task tracking, purge of every store
+/// we can reach after each end, and, when a source is deleted, the
 /// repository cancels its tasks, purges them and deletes their files
 /// (`DownloadsRepository.removeSource`).
 class BackgroundDownloaderGateway implements DownloadGateway {

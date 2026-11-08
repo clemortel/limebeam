@@ -254,12 +254,28 @@ class DownloadsRepository implements IDownloadsRepository {
         _progress.remove(key);
         await _put(record);
         _emit();
+        // Trap: remove()/removeSource() during an await above deletes the
+        // record; a native task created afterwards would be an orphan whose
+        // events are all dropped and whose URL is never purged.
+        if (!identical(_records[key], record)) continue;
         bool accepted = false;
         try {
           accepted = await _gateway.enqueue(request, filename);
         } catch (error, stackTrace) {
           // No native task exists, so no event will ever fix the phase.
           firstFailure ??= catchError(error, stackTrace);
+        }
+        if (!identical(_records[key], record)) {
+          // Removed while the gateway was working: undo the task it made.
+          if (accepted) {
+            try {
+              await _gateway.cancel(key);
+            } catch (_) {
+              // Best effort; the purge below still runs.
+            }
+            await _gateway.purgeStoredTask(key);
+          }
+          continue;
         }
         if (!accepted) {
           await _setPhase(key, const DownloadPhase.failed());
