@@ -36,6 +36,7 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: SourcesRoute.page, path: "/sources"),
         AutoRoute(page: DonationsRoute.page, path: "/donations"),
         AutoRoute(page: AboutRoute.page, path: "/about"),
+        AutoRoute(page: DownloadsRoute.page, path: "/downloads"),
         // Detail screens push over the shell (cover the tab bar).
         AutoRoute(page: MovieDetailRoute.page, path: "/movie"),
         AutoRoute(page: SeriesDetailRoute.page, path: "/series"),

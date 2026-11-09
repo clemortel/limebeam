@@ -34,4 +34,8 @@ sealed class PlaybackRequest with _$PlaybackRequest {
 
   /// Live streams are non-DVR: no scrubbing, "● DIRECT" badge only.
   bool get isLive => kind == PlaybackKind.live;
+
+  /// A downloaded file. AVPlayer-over-AirPlay and Cast need a remote URL, so
+  /// both are skipped for local items.
+  bool get isLocal => url.startsWith("file:");
 }
