@@ -3,7 +3,10 @@
      JSON (Xtream URL with user and password) in these files: keep them off
      Google's cloud backup. The downloaded videos (multi-GB, re-downloadable;
      they would blow the 25 MB quota and stop the whole backup) and the Hive
-     downloads box are excluded too. Everything else stays backed up. -->
+     downloads box are excluded too. Everything else stays backed up.
+     Trap: app_flutter (applicationDocuments) is getDir("flutter"), beside
+     files/ under the data dir, so its rules need domain="root": with
+     domain="file" they target files/app_flutter and match nothing. -->
 <full-backup-content>
     <exclude domain="sharedpref" path="com.limebeam.app_preferences.xml"/>
     <exclude domain="database" path="androidx.work.workdb"/>
@@ -12,8 +15,8 @@
     <exclude domain="file" path="backgroundDownloaderResumeData"/>
     <exclude domain="file" path="backgroundDownloaderPausedTasks"/>
     <exclude domain="file" path="backgroundDownloaderTaskRecords"/>
-    <exclude domain="file" path="app_flutter/downloads"/>
-    <exclude domain="file" path="app_flutter/downloads.hive"/>
-    <exclude domain="file" path="app_flutter/downloads.hivec"/>
-    <exclude domain="file" path="app_flutter/downloads.lock"/>
+    <exclude domain="root" path="app_flutter/downloads"/>
+    <exclude domain="root" path="app_flutter/downloads.hive"/>
+    <exclude domain="root" path="app_flutter/downloads.hivec"/>
+    <exclude domain="root" path="app_flutter/downloads.lock"/>
 </full-backup-content>

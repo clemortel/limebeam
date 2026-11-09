@@ -2,7 +2,8 @@
 <!-- Android 12+ (cloud backup and device-to-device transfer). Same files as
      backup_rules.xml: the Xtream URL with user and password, plus the
      downloaded videos and the Hive downloads box (app_flutter is the
-     applicationDocuments base, see kDownloadsDirectory). -->
+     applicationDocuments base, see kDownloadsDirectory). Trap: app_flutter
+     sits beside files/, not in it: domain="root", never "file". -->
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="sharedpref" path="com.limebeam.app_preferences.xml"/>
@@ -12,10 +13,10 @@
         <exclude domain="file" path="backgroundDownloaderResumeData"/>
         <exclude domain="file" path="backgroundDownloaderPausedTasks"/>
         <exclude domain="file" path="backgroundDownloaderTaskRecords"/>
-        <exclude domain="file" path="app_flutter/downloads"/>
-        <exclude domain="file" path="app_flutter/downloads.hive"/>
-        <exclude domain="file" path="app_flutter/downloads.hivec"/>
-        <exclude domain="file" path="app_flutter/downloads.lock"/>
+        <exclude domain="root" path="app_flutter/downloads"/>
+        <exclude domain="root" path="app_flutter/downloads.hive"/>
+        <exclude domain="root" path="app_flutter/downloads.hivec"/>
+        <exclude domain="root" path="app_flutter/downloads.lock"/>
     </cloud-backup>
     <device-transfer>
         <exclude domain="sharedpref" path="com.limebeam.app_preferences.xml"/>
@@ -25,9 +26,9 @@
         <exclude domain="file" path="backgroundDownloaderResumeData"/>
         <exclude domain="file" path="backgroundDownloaderPausedTasks"/>
         <exclude domain="file" path="backgroundDownloaderTaskRecords"/>
-        <exclude domain="file" path="app_flutter/downloads"/>
-        <exclude domain="file" path="app_flutter/downloads.hive"/>
-        <exclude domain="file" path="app_flutter/downloads.hivec"/>
-        <exclude domain="file" path="app_flutter/downloads.lock"/>
+        <exclude domain="root" path="app_flutter/downloads"/>
+        <exclude domain="root" path="app_flutter/downloads.hive"/>
+        <exclude domain="root" path="app_flutter/downloads.hivec"/>
+        <exclude domain="root" path="app_flutter/downloads.lock"/>
     </device-transfer>
 </data-extraction-rules>
