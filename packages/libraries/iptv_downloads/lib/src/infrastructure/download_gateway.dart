@@ -101,9 +101,9 @@ const Duration _kResourceTimeout = Duration(days: 2);
 ///    -708). Library/Preferences CANNOT be excluded from backup, so on iOS
 ///    this copy can reach a device backup. No public API reaches it.
 ///
-/// Residual, accepted by the owner on 2026-11-09: the URL can outlive a task in the
-/// stores above. What our code does: no task tracking, purge of every store
-/// we can reach after each end, and, when a source is deleted, the
+/// Residual, accepted by the owner on 2026-11-09: the URL can outlive a task
+/// in the stores above. What our code does: no task tracking, purge of every
+/// store we can reach after each end, and, when a source is deleted, the
 /// repository cancels its tasks, purges them and deletes their files
 /// (`DownloadsRepository.removeSource`).
 class BackgroundDownloaderGateway implements DownloadGateway {
