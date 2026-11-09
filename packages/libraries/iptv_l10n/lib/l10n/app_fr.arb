@@ -274,6 +274,11 @@
       }
     }
   },
+  "seriesOfflineBanner": "Hors ligne",
+  "downloadsUnavailable": "Téléchargement indisponible",
+  "downloadsEnqueueFailed": "Impossible de lancer le téléchargement.",
+  "downloadsRemoveFailed": "Impossible de supprimer le téléchargement.",
+  "sourceUnavailable": "Source indisponible",
   "downloadsPause": "Mettre en pause",
   "downloadsResume": "Reprendre",
   "downloadsEpisodePaused": "Téléchargement en pause",
@@ -298,10 +303,6 @@
       }
     }
   },
-  "downloadsUnavailable": "Téléchargement indisponible",
-  "downloadsEnqueueFailed": "Impossible de lancer le téléchargement.",
-  "downloadsRemoveFailed": "Impossible de supprimer le téléchargement.",
-  "sourceUnavailable": "Source indisponible",
   "downloadsStorageTotal": "{size} au total, toutes sources",
   "@downloadsStorageTotal": {
     "placeholders": {

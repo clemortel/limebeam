@@ -24,20 +24,40 @@ class SelectedSeriesCategory extends _$SelectedSeriesCategory {
   void select(String id) => state = id;
 }
 
-/// Seasons + episodes for one series, fetched on demand for the detail screen.
+/// Seasons + episodes for one series, for the detail screen.
+///
+/// Cache first: a cached detail is shown at once (so offline never waits for
+/// the 30 s network timeout), then the network result replaces it.
 @riverpod
 class SeriesDetailNotifier extends _$SeriesDetailNotifier {
   @override
   AsyncState<SeriesDetail> build(String seriesId) {
-    _fetch(seriesId);
+    _load(seriesId);
     return const AsyncState<SeriesDetail>.loading();
   }
 
-  Future<void> _fetch(String seriesId) async {
+  Future<void> _load(String seriesId) async {
+    final ISeriesRepository repository = ref.read(seriesRepositoryProvider);
+
+    final Either<Failures, Option<SeriesDetail>> cached =
+        await repository.getCachedSeriesInfo(seriesId);
+    if (!ref.mounted) return;
+    final SeriesDetail? shown = cached.fold(
+      (Failures _) => null,
+      (Option<SeriesDetail> detail) => detail.toNullable(),
+    );
+    if (shown != null) state = AsyncState<SeriesDetail>.success(shown);
+
     final Either<Failures, SeriesDetail> result =
-        await ref.read(seriesRepositoryProvider).getSeriesInfo(seriesId);
+        await repository.getSeriesInfo(seriesId);
+    if (!ref.mounted) return;
     state = result.fold(
-      (Failures failure) => AsyncState<SeriesDetail>.error(failure),
+      // A failed refresh must not wipe a detail the user is already reading.
+      // The offline rule (fromCache) lives in the repository only: a Left
+      // here is a 5xx/auth failure (or no cache) and keeps the sheet as is.
+      (Failures failure) => shown != null
+          ? AsyncState<SeriesDetail>.success(shown)
+          : AsyncState<SeriesDetail>.error(failure),
       (SeriesDetail detail) => AsyncState<SeriesDetail>.success(detail),
     );
   }

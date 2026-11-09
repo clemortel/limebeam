@@ -6,6 +6,14 @@ import "season.dart";
 
 part "series_detail.freezed.dart";
 
+const Set<String> _kSecretParams = <String>{
+  "username",
+  "password",
+  "user",
+  "pass",
+  "token",
+};
+
 /// Full series details from `get_series_info`: plot/cover + seasons/episodes.
 ///
 /// Run `melos run build_runner` after editing.
@@ -15,6 +23,11 @@ sealed class SeriesDetail with _$SeriesDetail {
     @Default("") String plot,
     String? coverUrl,
     required IList<Season> seasons,
+
+    /// True when this is the on-disk copy because the network was
+    /// unreachable or answered with an empty sheet. Never persisted.
+    /// Other refresh failures (5xx, auth) do not set it.
+    @Default(false) bool fromCache,
   }) = _SeriesDetail;
 
   factory SeriesDetail.fromSeriesInfo(Map<String, dynamic> json) {
@@ -55,10 +68,9 @@ sealed class SeriesDetail with _$SeriesDetail {
 
     seasons.sort((Season a, Season b) => a.number.compareTo(b.number));
 
-    final String cover = "${info["cover"] ?? ""}";
     return SeriesDetail(
       plot: "${info["plot"] ?? ""}",
-      coverUrl: cover.isEmpty ? null : cover,
+      coverUrl: safeHttpUrl(info["cover"]),
       seasons: seasons.toIList(),
     );
   }
@@ -82,6 +94,31 @@ sealed class SeriesDetail with _$SeriesDetail {
       containerExtension: "${e["container_extension"] ?? "mp4"}",
       plot: "${epInfo["plot"] ?? ""}",
       duration: "${epInfo["duration"] ?? ""}",
+      posterUrl: safeHttpUrl(epInfo["movie_image"]),
     );
+  }
+
+  /// Provider-supplied image URL, or null unless it is http(s) with a host:
+  /// it is cached and handed to the image loader, so nothing else passes.
+  static String? safeHttpUrl(dynamic value) {
+    final String? raw = _nonEmpty(value);
+    if (raw == null) return null;
+    final Uri? uri = Uri.tryParse(raw);
+    if (uri == null) return null;
+    final bool http = uri.scheme == "http" || uri.scheme == "https";
+    if (!http || uri.host.isEmpty) return null;
+    // Credentials in a poster URL would be cached and sent to image hosts.
+    if (uri.userInfo.isNotEmpty) return null;
+    final bool secretQuery = uri.queryParameters.keys.any(
+      (String k) => _kSecretParams.contains(k.toLowerCase()),
+    );
+    return secretQuery ? null : raw;
+  }
+
+  /// Null for absent/blank values (providers send "" instead of omitting).
+  static String? _nonEmpty(dynamic value) {
+    if (value == null) return null;
+    final String s = "$value".trim();
+    return s.isEmpty ? null : s;
   }
 }

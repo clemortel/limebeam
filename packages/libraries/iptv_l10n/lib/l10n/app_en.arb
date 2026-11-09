@@ -226,6 +226,11 @@
       }
     }
   },
+  "seriesOfflineBanner": "Offline",
+  "downloadsUnavailable": "Download unavailable",
+  "downloadsEnqueueFailed": "Could not start the download.",
+  "downloadsRemoveFailed": "Could not delete the download.",
+  "sourceUnavailable": "Source unavailable",
   "downloadsPause": "Pause",
   "downloadsResume": "Resume",
   "downloadsEpisodePaused": "Download paused",
@@ -250,10 +255,6 @@
       }
     }
   },
-  "downloadsUnavailable": "Download unavailable",
-  "downloadsEnqueueFailed": "Could not start the download.",
-  "downloadsRemoveFailed": "Could not delete the download.",
-  "sourceUnavailable": "Source unavailable",
   "downloadsStorageTotal": "{size} across all sources",
   "@downloadsStorageTotal": {
     "placeholders": {

@@ -1,5 +1,19 @@
 import "package:fast_immutable_collections/fast_immutable_collections.dart";
+import "package:iptv_core/iptv_core.dart";
 import "package:iptv_downloads/iptv_downloads.dart";
+import "package:iptv_series/iptv_series.dart";
+
+/// True when the series sheet on screen is the on-disk copy: the network
+/// was unreachable (or answered empty), so playback must prefer downloads.
+/// Trap: the repository now serves the cache instead of failing, so
+/// "getSeriesInfo failed" no longer means offline.
+bool isServedFromCache(AsyncState<SeriesDetail> state) => switch (state) {
+      AsyncSuccess<SeriesDetail>(:final SeriesDetail data) => data.fromCache,
+      AsyncIdle<SeriesDetail>() ||
+      AsyncLoading<SeriesDetail>() ||
+      AsyncError<SeriesDetail>() =>
+        false,
+    };
 
 /// The completed downloads of [tapped]'s season (same source), in episode
 /// order.

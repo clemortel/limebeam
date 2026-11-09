@@ -7,7 +7,8 @@ part "download_record.freezed.dart";
 part "download_record.g.dart";
 
 /// Persisted metadata of one offline episode: everything the library and the
-/// player need with no network, since `getSeriesInfo` is online-only.
+/// player need with no network: `getSeriesInfo` may serve a stale cached
+/// sheet (`fromCache`), so never rely on it offline.
 ///
 /// Trap: never add the stream URL here, it embeds the Xtream password.
 /// Records are scoped to the playlist source that produced them: Xtream
