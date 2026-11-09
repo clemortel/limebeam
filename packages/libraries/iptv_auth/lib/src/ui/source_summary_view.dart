@@ -49,7 +49,7 @@ class SourceSummaryView extends ConsumerWidget {
                         ),
                         child: Column(
                           children: <Widget>[
-                            _Row(label: l.summaryName, value: s.name),
+                            _Row(label: l.summaryName, value: s.effectiveName),
                             _Row(label: l.summaryHost, value: s.host),
                             _Row(label: l.summaryUser, value: s.username),
                             _Row(
@@ -93,9 +93,12 @@ class _Row extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: <Widget>[
-          Text(label, style: t.typography.caption.copyWith(
-            color: t.colors.textSecondary,
-          ),),
+          Text(
+            label,
+            style: t.typography.caption.copyWith(
+              color: t.colors.textSecondary,
+            ),
+          ),
           Flexible(
             child: Text(
               value,

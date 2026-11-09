@@ -7,6 +7,9 @@ part "sync_progress.freezed.dart";
 /// (§4.1.6) as real sub-steps.
 enum SyncStep { idle, connecting, live, vod, series, epg, done, failed }
 
+/// Number of visible sync steps: live, vod, series, epg.
+const int kSyncStepCount = 4;
+
 /// Progress of the eager post-connect sync. Counts feed the success summary.
 ///
 /// Run `melos run build_runner` after editing.
@@ -26,14 +29,25 @@ sealed class SyncProgress with _$SyncProgress {
   bool get isDone => step == SyncStep.done;
   bool get isFailed => step == SyncStep.failed;
 
-  /// Localized status line for the current step.
-  String get statusLabel => switch (step) {
-        SyncStep.idle || SyncStep.connecting => "Connexion à la source…",
-        SyncStep.live => "Récupération des chaînes…",
-        SyncStep.vod => "Récupération des films…",
-        SyncStep.series => "Récupération des séries…",
-        SyncStep.epg => "Chargement de l'EPG…",
-        SyncStep.done => "Terminé",
-        SyncStep.failed => "Échec de la synchronisation",
+  /// True while a sync is in flight (connecting through epg).
+  bool get isRunning => switch (step) {
+        SyncStep.connecting ||
+        SyncStep.live ||
+        SyncStep.vod ||
+        SyncStep.series ||
+        SyncStep.epg =>
+          true,
+        SyncStep.idle || SyncStep.done || SyncStep.failed => false,
+      };
+
+  /// 1-based position of the running step among [kSyncStepCount] (0 before
+  /// the first). Drives the "Step 2 of 4" line and the progress bar.
+  int get stepNumber => switch (step) {
+        SyncStep.idle || SyncStep.connecting || SyncStep.failed => 0,
+        SyncStep.live => 1,
+        SyncStep.vod => 2,
+        SyncStep.series => 3,
+        SyncStep.epg => kSyncStepCount,
+        SyncStep.done => kSyncStepCount,
       };
 }

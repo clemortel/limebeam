@@ -7,6 +7,7 @@ import "package:flutter_secure_storage/flutter_secure_storage.dart";
 import "package:injectable/injectable.dart";
 import "package:iptv_api/iptv_api.dart";
 import "package:iptv_core/iptv_core.dart";
+import "package:iptv_playlist/iptv_playlist.dart" show SourceSwitchCommit;
 
 import "../demo_source.dart";
 import "../models/connection_status.dart";
@@ -22,27 +23,43 @@ import "../models/source_type.dart";
 /// if the Keychain is cleared (a common iOS-simulator / unentitled-macOS
 /// quirk).
 abstract interface class ISourceRepository {
-  Future<Either<Failures, Source>> addXtreamSource({
+  /// Phase one of adding an Xtream source: authenticates against the portal
+  /// and builds the config, touching neither storage nor the active store.
+  /// The returned commit persists the source and makes it active. The split
+  /// lets the sync gate run its before-switch hooks (they stop playback)
+  /// only once the add can no longer fail on bad credentials.
+  Future<Either<Failures, SourceSwitchCommit<Source>>> prepareXtreamSource({
     required String name,
     required String host,
     required String username,
     required String password,
   });
 
-  Future<Either<Failures, Source>> addM3uSource({
+  /// Phase one of adding an M3U source, see [prepareXtreamSource].
+  Future<Either<Failures, SourceSwitchCommit<Source>>> prepareM3uSource({
     required String name,
     required String url,
     String? epgUrl,
   });
 
-  /// Adds the bundled offline demo source (live + VOD + series). No network.
-  Future<Either<Failures, Source>> addDemoSource();
+  /// Phase one of adding the bundled offline demo source (live + VOD +
+  /// series), see [prepareXtreamSource]. No network, so it cannot fail here.
+  Future<Either<Failures, SourceSwitchCommit<Source>>> prepareDemoSource();
+
+  /// Phase one of making [id] active: checks it exists and reads its
+  /// config. The commit switches the active store, see [prepareXtreamSource].
+  Future<Either<Failures, SourceSwitchCommit<Unit>>> prepareActivate(
+    String id,
+  );
 
   Future<IList<Source>> getSources();
 
   Future<Either<Failures, Unit>> deleteSource(String id);
 
   Future<Either<Failures, Unit>> setActive(String id);
+
+  /// Changes the display name only; credentials are untouched.
+  Future<Either<Failures, Unit>> renameSource(String id, String name);
 
   /// Loads the persisted active source into [ActiveSourceStore]. Call once on
   /// launch before building the UI.
@@ -68,56 +85,49 @@ class SourceRepository implements ISourceRepository {
   static String _pwdKey(String id) => "auth_pwd_$id";
 
   @override
-  Future<Either<Failures, Source>> addXtreamSource({
+  Future<Either<Failures, SourceSwitchCommit<Source>>> prepareXtreamSource({
     required String name,
     required String host,
     required String username,
     required String password,
   }) async {
-    developer.log(
-      "addXtreamSource name='$name' host='$host' user='$username'",
-      name: "iptv.auth",
-    );
+    developer.log("prepareXtreamSource name='$name'", name: "iptv.auth");
     try {
       final SourceConfig config = SourceConfig.xtream(
         host: host,
         username: username,
         password: password,
       );
-
       final Either<Failures, Map<String, dynamic>> auth =
           await _factory.create(config).authenticate();
-
-      return await auth.fold(
-        (Failures failure) async {
+      return auth.fold(
+        (Failures failure) {
           developer.log(
             "addXtreamSource auth failed → $failure",
             name: "iptv.auth",
           );
-          return left(failure);
+          return left<Failures, SourceSwitchCommit<Source>>(failure);
         },
-        (Map<String, dynamic> _) async {
-          final String id = DateTime.now().microsecondsSinceEpoch.toString();
-          final Source source = Source(
-            id: id,
-            name: name,
-            type: SourceType.xtream,
-            createdAtEpochMs: DateTime.now().millisecondsSinceEpoch,
-            status: ConnectionStatus.ok,
-          );
-          await _persist(
-            source: source,
-            host: host,
-            username: username,
-            password: password,
-          );
-          await _setActiveInternal(id, config);
-          developer.log(
-            "addXtreamSource success id=$id (active set)",
-            name: "iptv.auth",
-          );
-          return right(source);
-        },
+        (Map<String, dynamic> _) =>
+            right<Failures, SourceSwitchCommit<Source>>(() async {
+          try {
+            final Source source = _newSource(name, SourceType.xtream);
+            await _persist(
+              source: source,
+              host: host,
+              username: username,
+              password: password,
+            );
+            await _setActiveInternal(source.id, config);
+            developer.log(
+              "addXtreamSource success id=${source.id} (active set)",
+              name: "iptv.auth",
+            );
+            return right<Failures, Source>(source);
+          } catch (error, stackTrace) {
+            return left<Failures, Source>(catchError(error, stackTrace));
+          }
+        }),
       );
     } catch (error, stackTrace) {
       return left(catchError(error, stackTrace));
@@ -125,36 +135,40 @@ class SourceRepository implements ISourceRepository {
   }
 
   @override
-  Future<Either<Failures, Source>> addM3uSource({
+  Future<Either<Failures, SourceSwitchCommit<Source>>> prepareM3uSource({
     required String name,
     required String url,
     String? epgUrl,
   }) async {
-    developer.log("addM3uSource name='$name' url='$url'", name: "iptv.auth");
+    // Host only: the full URL often embeds credentials or a token.
+    developer.log(
+      "prepareM3uSource name='$name' host='${Uri.tryParse(url)?.host}'",
+      name: "iptv.auth",
+    );
     try {
       final SourceConfig config = SourceConfig.m3u(url: url, epgUrl: epgUrl);
       final Either<Failures, Map<String, dynamic>> auth =
           await _factory.create(config).authenticate();
-
-      return await auth.fold(
-        (Failures failure) async {
+      return auth.fold(
+        (Failures failure) {
           developer.log("addM3uSource failed → $failure", name: "iptv.auth");
-          return left(failure);
+          return left<Failures, SourceSwitchCommit<Source>>(failure);
         },
-        (Map<String, dynamic> _) async {
-          final String id = DateTime.now().microsecondsSinceEpoch.toString();
-          final Source source = Source(
-            id: id,
-            name: name,
-            type: SourceType.m3u,
-            createdAtEpochMs: DateTime.now().millisecondsSinceEpoch,
-            status: ConnectionStatus.ok,
-          );
-          await _persistM3u(source: source, url: url, epgUrl: epgUrl);
-          await _setActiveInternal(id, config);
-          developer.log("addM3uSource success id=$id", name: "iptv.auth");
-          return right(source);
-        },
+        (Map<String, dynamic> _) =>
+            right<Failures, SourceSwitchCommit<Source>>(() async {
+          try {
+            final Source source = _newSource(name, SourceType.m3u);
+            await _persistM3u(source: source, url: url, epgUrl: epgUrl);
+            await _setActiveInternal(source.id, config);
+            developer.log(
+              "addM3uSource success id=${source.id}",
+              name: "iptv.auth",
+            );
+            return right<Failures, Source>(source);
+          } catch (error, stackTrace) {
+            return left<Failures, Source>(catchError(error, stackTrace));
+          }
+        }),
       );
     } catch (error, stackTrace) {
       return left(catchError(error, stackTrace));
@@ -162,25 +176,54 @@ class SourceRepository implements ISourceRepository {
   }
 
   @override
-  Future<Either<Failures, Source>> addDemoSource() async {
-    developer.log("addDemoSource", name: "iptv.auth");
+  Future<Either<Failures, SourceSwitchCommit<Source>>>
+      prepareDemoSource() async {
+    developer.log("prepareDemoSource", name: "iptv.auth");
     try {
-      const SourceConfig config = SourceConfig.demo();
-      final String id = DateTime.now().microsecondsSinceEpoch.toString();
-      final Source source = Source(
-        id: id,
-        name: kDemoSourceName,
-        type: SourceType.demo,
-        createdAtEpochMs: DateTime.now().millisecondsSinceEpoch,
-        status: ConnectionStatus.ok,
-      );
-      await _persistDemo(source);
-      await _setActiveInternal(id, config);
-      return right(source);
+      return right<Failures, SourceSwitchCommit<Source>>(() async {
+        try {
+          final Source source = _newSource(kDemoSourceName, SourceType.demo);
+          await _persistDemo(source);
+          await _setActiveInternal(source.id, const SourceConfig.demo());
+          return right<Failures, Source>(source);
+        } catch (error, stackTrace) {
+          return left<Failures, Source>(catchError(error, stackTrace));
+        }
+      });
     } catch (error, stackTrace) {
       return left(catchError(error, stackTrace));
     }
   }
+
+  @override
+  Future<Either<Failures, SourceSwitchCommit<Unit>>> prepareActivate(
+    String id,
+  ) async {
+    try {
+      final SourceConfig? config = await _readConfig(id);
+      if (config == null) return left(const Failures.notFound());
+      return right<Failures, SourceSwitchCommit<Unit>>(() async {
+        try {
+          await _setActiveInternal(id, config);
+          return right<Failures, Unit>(unit);
+        } catch (error, stackTrace) {
+          return left<Failures, Unit>(catchError(error, stackTrace));
+        }
+      });
+    } catch (error, stackTrace) {
+      return left(catchError(error, stackTrace));
+    }
+  }
+
+  /// A fresh source record. Built inside the commit, not the prepare, so
+  /// its id and timestamp reflect when it is really added.
+  Source _newSource(String name, SourceType type) => Source(
+        id: DateTime.now().microsecondsSinceEpoch.toString(),
+        name: name,
+        type: type,
+        createdAtEpochMs: DateTime.now().millisecondsSinceEpoch,
+        status: ConnectionStatus.ok,
+      );
 
   @override
   Future<IList<Source>> getSources() async {
@@ -225,13 +268,33 @@ class SourceRepository implements ISourceRepository {
   }
 
   @override
+  Future<Either<Failures, Unit>> renameSource(String id, String name) async {
+    try {
+      final String? raw = await _cache.read(_metaKey(id));
+      if (raw == null) return left(const Failures.notFound());
+      final Source current =
+          Source.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      await _cache.write(
+        _metaKey(id),
+        jsonEncode(current.copyWith(name: name.trim()).toJson()),
+      );
+      return right(unit);
+    } catch (error, stackTrace) {
+      return left(catchError(error, stackTrace));
+    }
+  }
+
+  @override
   Future<void> hydrateOnLaunch() async {
     final String? activeId = await _cache.read(_kActiveKey);
     developer.log("hydrateOnLaunch activeId=$activeId", name: "iptv.auth");
     if (activeId == null) return;
     final SourceConfig? config = await _readConfig(activeId);
     if (config == null) {
-      developer.log("hydrateOnLaunch: no config for $activeId", name: "iptv.auth");
+      developer.log(
+        "hydrateOnLaunch: no config for $activeId",
+        name: "iptv.auth",
+      );
       return;
     }
     _activeStore.set(sourceId: activeId, config: config);

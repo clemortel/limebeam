@@ -9,11 +9,15 @@ class SourceTypeView extends StatelessWidget {
   const SourceTypeView({
     required this.onXtream,
     required this.onM3u,
+    this.onPasteLink,
     super.key,
   });
 
   final VoidCallback onXtream;
   final VoidCallback onM3u;
+
+  /// Reads the clipboard and starts the flow from a pasted provider link.
+  final VoidCallback? onPasteLink;
 
   @override
   Widget build(BuildContext context) {
@@ -30,11 +34,21 @@ class SourceTypeView extends StatelessWidget {
           padding: EdgeInsets.all(t.space.x4),
           child: Column(
             children: <Widget>[
+              if (onPasteLink != null) ...<Widget>[
+                _TypeCard(
+                  icon: Icons.content_paste,
+                  title: l.onboardingPasteLink,
+                  subtitle: l.onboardingPasteLinkReviewSub,
+                  autofocus: FormFactorScope.isTv(context),
+                  onTap: onPasteLink,
+                ),
+                SizedBox(height: t.space.x4),
+              ],
               _TypeCard(
                 icon: Icons.vpn_key,
                 title: l.sourceTypeXtream,
                 subtitle: l.sourceTypeXtreamSub,
-                autofocus: FormFactorScope.isTv(context),
+                autofocus: onPasteLink == null && FormFactorScope.isTv(context),
                 onTap: onXtream,
               ),
               SizedBox(height: t.space.x4),
@@ -90,13 +104,19 @@ class _TypeCard extends StatelessWidget {
             children: <Widget>[
               Icon(icon, size: _kTypeCardIconSize, color: t.colors.accent),
               SizedBox(height: t.space.x3),
-              Text(title, style: t.typography.h3.copyWith(
-                color: t.colors.textPrimary,
-              ),),
+              Text(
+                title,
+                style: t.typography.h3.copyWith(
+                  color: t.colors.textPrimary,
+                ),
+              ),
               SizedBox(height: t.space.x1),
-              Text(subtitle, style: t.typography.caption.copyWith(
-                color: t.colors.textSecondary,
-              ),),
+              Text(
+                subtitle,
+                style: t.typography.caption.copyWith(
+                  color: t.colors.textSecondary,
+                ),
+              ),
             ],
           ),
         ),

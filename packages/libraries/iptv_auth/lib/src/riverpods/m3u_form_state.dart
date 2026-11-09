@@ -1,6 +1,7 @@
 import "package:freezed_annotation/freezed_annotation.dart";
 import "package:iptv_core/iptv_core.dart";
 
+import "../models/form_field_issue.dart";
 import "../models/source.dart";
 
 part "m3u_form_state.freezed.dart";
@@ -17,15 +18,22 @@ sealed class M3uFormState with _$M3uFormState {
     @Default("") String name,
     @Default("") String url,
     @Default("") String epgUrl,
-    String? nameError,
-    String? urlError,
+    FormFieldIssue? urlError,
     @Default(AsyncState<Source>.idle()) AsyncState<Source> submission,
+
+    /// The add was refused because a sync is running: nothing was added, and
+    /// there is no [Failures] to show, so the view uses the busy copy.
+    @Default(false) bool syncBusy,
   }) = _M3uFormState;
 
-  /// True when name + URL are filled and valid (EPG URL is optional).
-  bool get canSubmit =>
-      name.trim().isNotEmpty &&
-      url.trim().isNotEmpty &&
-      nameError == null &&
-      urlError == null;
+  /// The name is optional: a blank one falls back to the playlist host.
+  String get effectiveName {
+    final String typed = name.trim();
+    if (typed.isNotEmpty) return typed;
+    final String u = url.trim();
+    return Uri.tryParse(u.contains("://") ? u : "http://$u")?.host ?? u;
+  }
+
+  /// True when the URL is filled and valid (name and EPG URL are optional).
+  bool get canSubmit => url.trim().isNotEmpty && urlError == null;
 }

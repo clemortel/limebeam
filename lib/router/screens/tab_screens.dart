@@ -286,6 +286,10 @@ class SourcesScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return SourcesSettingsView(
       onAddSource: () => context.router.root.push(const SourceTypeRoute()),
+      // No source left: back to the first-launch flow, nothing to browse.
+      onNoSourceLeft: () => context.router.root.replaceAll(
+        <PageRouteInfo<dynamic>>[const WelcomeRoute()],
+      ),
     );
   }
 }
