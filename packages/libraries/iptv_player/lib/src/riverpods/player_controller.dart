@@ -138,6 +138,12 @@ class PlaybackController extends _$PlaybackController {
   /// AVPlayer engine (see [_wantsAirPlayEngine]). Not "the engine is AVPlayer".
   bool _externalPlayback = false;
 
+  /// Set once the AVPlayer engine fails: online items stay on libmpv (AirPlay
+  /// degrades to audio-only) until the route changes or a new [start]. Trap:
+  /// clearing [_externalPlayback] instead would forget the route, and the
+  /// next online item would never reach the TV.
+  bool _airPlayEngineFailed = false;
+
   /// Serialises engine swaps and cast hand-offs, see [TransitionQueue].
   final TransitionQueue _transitions = TransitionQueue();
 
@@ -230,6 +236,7 @@ class PlaybackController extends _$PlaybackController {
   bool _wantsAirPlayEngine(PlaybackRequest? item) =>
       defaultTargetPlatform == TargetPlatform.iOS &&
       _externalPlayback &&
+      !_airPlayEngineFailed &&
       !(item?.isLocal ?? false);
 
   /// Moves to the engine [item] needs when the AirPlay route and the item
@@ -263,6 +270,7 @@ class PlaybackController extends _$PlaybackController {
     // New session: give ExoPlayer a fresh chance (a previous codec failure
     // shouldn't stick to unrelated new content).
     _nativeEngineFailed = false;
+    _airPlayEngineFailed = false;
     // Reuse the existing engine only if it is still the right kind for this
     // device (ExoPlayer on TV vs media_kit elsewhere). Otherwise tear it down
     // and build the correct one — handles a leftover keepAlive engine of the
@@ -321,6 +329,8 @@ class PlaybackController extends _$PlaybackController {
     // Always record the route, even over a local item: the next online item
     // must still go to AirPlay, and no further route event will tell us.
     _externalPlayback = active;
+    // A new route gives AVPlayer a fresh chance.
+    _airPlayEngineFailed = false;
     // A local file cannot be handed to AVPlayer/AirPlay; keep libmpv.
     if (currentRequest?.isLocal ?? false) return;
     if (_engine == null) return;
@@ -561,8 +571,10 @@ class PlaybackController extends _$PlaybackController {
         // If the AVPlayer (AirPlay) engine fails — e.g. the HLS variant is
         // rejected — fall back to libmpv so local playback continues instead of
         // a hard error. AirPlay then degrades to audio-only rather than failing.
-        if (_externalPlayback) {
-          _externalPlayback = false;
+        // Trap: test the engine, not the route flag — a downloaded file plays
+        // on libmpv while AirPlay is on, and its errors must surface.
+        if (_engine is AvPlayerEngine && !_airPlayEngineFailed) {
+          _airPlayEngineFailed = true;
           unawaited(_swapEngine());
           return;
         }
@@ -695,7 +707,7 @@ class PlaybackController extends _$PlaybackController {
     }
     // AVPlayer (AirPlay) needs the HLS variant; libmpv uses the default URL.
     final PlaybackRequest item = q.items[index];
-    final String url = _externalPlayback && !item.isLocal
+    final String url = engine is AvPlayerEngine
         ? (item.externalUrl ?? item.url)
         : item.url;
     await engine.open(url);
