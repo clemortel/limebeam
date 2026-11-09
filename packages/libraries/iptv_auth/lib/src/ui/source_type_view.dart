@@ -104,13 +104,19 @@ class _TypeCard extends StatelessWidget {
             children: <Widget>[
               Icon(icon, size: _kTypeCardIconSize, color: t.colors.accent),
               SizedBox(height: t.space.x3),
-              Text(title, style: t.typography.h3.copyWith(
-                color: t.colors.textPrimary,
-              ),),
+              Text(
+                title,
+                style: t.typography.h3.copyWith(
+                  color: t.colors.textPrimary,
+                ),
+              ),
               SizedBox(height: t.space.x1),
-              Text(subtitle, style: t.typography.caption.copyWith(
-                color: t.colors.textSecondary,
-              ),),
+              Text(
+                subtitle,
+                style: t.typography.caption.copyWith(
+                  color: t.colors.textSecondary,
+                ),
+              ),
             ],
           ),
         ),

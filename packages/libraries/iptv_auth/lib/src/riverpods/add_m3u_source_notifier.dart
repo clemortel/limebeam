@@ -8,6 +8,7 @@ import "../models/form_field_issue.dart";
 import "../models/source.dart";
 import "m3u_form_state.dart";
 import "providers.dart";
+import "sources_notifier.dart";
 
 part "add_m3u_source_notifier.g.dart";
 
@@ -53,6 +54,7 @@ class AddM3uSourceNotifier extends _$AddM3uSourceNotifier {
       (Source source) =>
           state.copyWith(submission: AsyncState<Source>.success(source)),
     );
+    if (result.isRight()) _followActiveSource();
   }
 
   /// Seeds the bundled offline demo source (rich live + VOD + series) — no
@@ -70,5 +72,13 @@ class AddM3uSourceNotifier extends _$AddM3uSourceNotifier {
       (Source source) =>
           state.copyWith(submission: AsyncState<Source>.success(source)),
     );
+    if (result.isRight()) _followActiveSource();
+  }
+
+  /// The repository just switched the store to the new source: make the
+  /// observable id and the Sources list follow it.
+  void _followActiveSource() {
+    ref.read(activeSourceIdProvider.notifier).sync();
+    ref.invalidate(sourcesProvider);
   }
 }

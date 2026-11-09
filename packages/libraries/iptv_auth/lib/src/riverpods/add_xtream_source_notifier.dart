@@ -7,6 +7,7 @@ import "package:riverpod_annotation/riverpod_annotation.dart";
 import "../models/form_field_issue.dart";
 import "../models/source.dart";
 import "providers.dart";
+import "sources_notifier.dart";
 import "xtream_form_state.dart";
 
 part "add_xtream_source_notifier.g.dart";
@@ -78,5 +79,13 @@ class AddXtreamSourceNotifier extends _$AddXtreamSourceNotifier {
         return state.copyWith(submission: AsyncState<Source>.success(source));
       },
     );
+    if (result.isRight()) _followActiveSource();
+  }
+
+  /// The repository just switched the store to the new source: make the
+  /// observable id and the Sources list follow it.
+  void _followActiveSource() {
+    ref.read(activeSourceIdProvider.notifier).sync();
+    ref.invalidate(sourcesProvider);
   }
 }

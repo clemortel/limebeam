@@ -1,6 +1,8 @@
+import "package:dartz/dartz.dart" hide IList, IMap, ISet, State;
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart"
     hide AsyncData, AsyncError, AsyncLoading, AsyncValue;
+import "package:iptv_core/iptv_core.dart";
 import "package:iptv_l10n/iptv_l10n.dart";
 import "package:iptv_ui/iptv_ui.dart";
 
@@ -14,6 +16,8 @@ Future<void> showSourceActions(
   WidgetRef ref, {
   required Source source,
   required bool isActive,
+  required bool canRefresh,
+  required VoidCallback onNoSourceLeft,
 }) {
   final AppLocalizations l = AppLocalizations.of(context);
   return AppBottomSheet.show<void>(
@@ -21,6 +25,7 @@ Future<void> showSourceActions(
     title: source.name,
     child: _SourceActions(
       isActive: isActive,
+      canRefresh: canRefresh,
       onRefresh: () {
         Navigator.of(context).pop();
         ref.read(sourcesProvider.notifier).refreshCatalog();
@@ -47,8 +52,7 @@ Future<void> showSourceActions(
             message: isActive
                 ? l.sourcesDeleteActiveMessage(source.name)
                 : l.sourcesDeleteMessage(source.name),
-            onConfirm: () =>
-                ref.read(sourcesProvider.notifier).delete(source.id),
+            onConfirm: () => _delete(context, ref, source, onNoSourceLeft),
           ),
         );
       },
@@ -56,15 +60,41 @@ Future<void> showSourceActions(
   );
 }
 
+/// Deletes [source]; surfaces a failure instead of letting the row silently
+/// come back, and hands over to [onNoSourceLeft] when nothing remains.
+Future<void> _delete(
+  BuildContext context,
+  WidgetRef ref,
+  Source source,
+  VoidCallback onNoSourceLeft,
+) async {
+  final AppLocalizations l = AppLocalizations.of(context);
+  final Either<Failures, Unit> result =
+      await ref.read(sourcesProvider.notifier).delete(source.id);
+  // The row is gone on success, so only a failure can still toast from it.
+  if (result.isRight()) {
+    if (ref.read(activeSourceIdProvider) == null) onNoSourceLeft();
+    return;
+  }
+  if (!context.mounted) return;
+  result.fold(
+    (Failures f) =>
+        AppToast.show(context, message: f.localized(l), kind: ToastKind.error),
+    (Unit _) {},
+  );
+}
+
 class _SourceActions extends StatelessWidget {
   const _SourceActions({
     required this.isActive,
+    required this.canRefresh,
     required this.onRefresh,
     required this.onRename,
     required this.onDelete,
   });
 
   final bool isActive;
+  final bool canRefresh;
   final VoidCallback onRefresh;
   final VoidCallback onRename;
   final VoidCallback onDelete;
@@ -83,6 +113,7 @@ class _SourceActions extends StatelessWidget {
               l.sourcesRefresh,
               style: t.typography.body.copyWith(color: t.colors.textPrimary),
             ),
+            enabled: canRefresh,
             onTap: onRefresh,
           ),
         ListTile(

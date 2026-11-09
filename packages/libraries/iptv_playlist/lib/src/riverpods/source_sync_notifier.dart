@@ -20,7 +20,10 @@ class SourceSyncNotifier extends _$SourceSyncNotifier {
   @override
   SyncProgress build() => const SyncProgress();
 
+  /// Runs one sync. Ignored while another is in flight: two interleaved
+  /// runs would write one source's channels under the other's keys.
   Future<void> run() async {
+    if (state.isRunning) return;
     state = const SyncProgress(step: SyncStep.live);
     final Either<Failures, int> live =
         await ref.read(liveRepositoryProvider).sync();
@@ -56,11 +59,13 @@ class SourceSyncNotifier extends _$SourceSyncNotifier {
       epgLoaded: epg.isRight(),
     );
 
-    _refreshCaches();
+    invalidateCatalogCaches();
   }
 
-  /// Forces the feature notifiers to re-read the freshly-written cache.
-  void _refreshCaches() {
+  /// Forces the feature notifiers to re-read the cache. Also called on a
+  /// source switch, so the previous source's catalog never lingers on
+  /// screen when the new source's sync fails.
+  void invalidateCatalogCaches() {
     ref.invalidate(liveChannelsProvider);
     ref.invalidate(liveCategoriesProvider);
     ref.invalidate(vodProvider);

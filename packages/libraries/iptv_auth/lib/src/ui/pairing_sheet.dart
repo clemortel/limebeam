@@ -23,9 +23,10 @@ const double _kIconSizeSmall = 18;
 /// "Unavailable" state icon size.
 const double _kIconSizeLarge = 40;
 
-/// AppLocalizations.of(context).onboardingPairingTitle dialog. Starts an on-device pairing server, shows a QR
-/// the phone scans, then — once the phone submits — asks the user to confirm on
-/// the TV before returning the [PhoneCredentials]. Returns null if dismissed.
+/// "Type on your phone" dialog. Starts an on-device pairing server, shows a
+/// QR the phone scans, then — once the phone submits — asks the user to
+/// confirm on the TV before returning the [PhoneCredentials]. Returns null if
+/// dismissed.
 ///
 /// The server is torn down automatically when this closes (the autoDispose
 /// [pairingControllerProvider] disposes once unwatched).
@@ -162,9 +163,7 @@ class _ShowQr extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
             Icon(
-              session.phoneConnected
-                  ? Icons.smartphone
-                  : Icons.qr_code_scanner,
+              session.phoneConnected ? Icons.smartphone : Icons.qr_code_scanner,
               size: _kIconSizeSmall,
               color: session.phoneConnected
                   ? t.colors.accent
@@ -212,9 +211,15 @@ class _ConfirmReceived extends StatelessWidget {
           style: t.typography.h3.copyWith(color: t.colors.textPrimary),
         ),
         SizedBox(height: t.space.x4),
-        _Field(label: AppLocalizations.of(context).summaryName, value: credentials.name),
-        _Field(label: AppLocalizations.of(context).xtreamHost, value: credentials.host),
-        _Field(label: AppLocalizations.of(context).xtreamUsername, value: credentials.username),
+        _Field(
+            label: AppLocalizations.of(context).summaryName,
+            value: credentials.name),
+        _Field(
+            label: AppLocalizations.of(context).xtreamHost,
+            value: credentials.host),
+        _Field(
+            label: AppLocalizations.of(context).xtreamUsername,
+            value: credentials.username),
         _Field(
           label: AppLocalizations.of(context).commonPassword,
           value: credentials.password.isEmpty
@@ -222,9 +227,13 @@ class _ConfirmReceived extends StatelessWidget {
               : "•" * credentials.password.length,
         ),
         SizedBox(height: t.space.x5),
-        PrimaryButton(label: AppLocalizations.of(context).onboardingPairingFill, onPressed: onApply),
+        PrimaryButton(
+            label: AppLocalizations.of(context).onboardingPairingFill,
+            onPressed: onApply),
         SizedBox(height: t.space.x2),
-        SecondaryButton(label: AppLocalizations.of(context).commonCancel, onPressed: onCancel),
+        SecondaryButton(
+            label: AppLocalizations.of(context).commonCancel,
+            onPressed: onCancel),
       ],
     );
   }
@@ -273,7 +282,8 @@ class _Unavailable extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        Icon(Icons.wifi_off, size: _kIconSizeLarge, color: t.colors.textTertiary),
+        Icon(Icons.wifi_off,
+            size: _kIconSizeLarge, color: t.colors.textTertiary),
         SizedBox(height: t.space.x4),
         Text(
           AppLocalizations.of(context).onboardingPairingFailedTitle,
@@ -287,7 +297,9 @@ class _Unavailable extends StatelessWidget {
           style: t.typography.caption.copyWith(color: t.colors.textSecondary),
         ),
         SizedBox(height: t.space.x5),
-        SecondaryButton(label: AppLocalizations.of(context).onboardingClose, onPressed: onClose),
+        SecondaryButton(
+            label: AppLocalizations.of(context).onboardingClose,
+            onPressed: onClose),
       ],
     );
   }

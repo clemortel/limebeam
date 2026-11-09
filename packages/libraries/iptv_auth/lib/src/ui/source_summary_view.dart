@@ -93,9 +93,12 @@ class _Row extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: <Widget>[
-          Text(label, style: t.typography.caption.copyWith(
-            color: t.colors.textSecondary,
-          ),),
+          Text(
+            label,
+            style: t.typography.caption.copyWith(
+              color: t.colors.textSecondary,
+            ),
+          ),
           Flexible(
             child: Text(
               value,

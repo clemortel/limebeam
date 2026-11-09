@@ -29,6 +29,17 @@ sealed class SyncProgress with _$SyncProgress {
   bool get isDone => step == SyncStep.done;
   bool get isFailed => step == SyncStep.failed;
 
+  /// True while a sync is in flight (connecting through epg).
+  bool get isRunning => switch (step) {
+        SyncStep.connecting ||
+        SyncStep.live ||
+        SyncStep.vod ||
+        SyncStep.series ||
+        SyncStep.epg =>
+          true,
+        SyncStep.idle || SyncStep.done || SyncStep.failed => false,
+      };
+
   /// 1-based position of the running step among [kSyncStepCount] (0 before
   /// the first). Drives the "Step 2 of 4" line and the progress bar.
   int get stepNumber => switch (step) {

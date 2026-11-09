@@ -19,7 +19,6 @@ sealed class XtreamFormState with _$XtreamFormState {
     @Default("") String host,
     @Default("") String username,
     @Default("") String password,
-    FormFieldIssue? nameError,
     FormFieldIssue? hostError,
     FormFieldIssue? usernameError,
     FormFieldIssue? passwordError,

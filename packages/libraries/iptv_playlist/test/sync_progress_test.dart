@@ -32,6 +32,24 @@ void main() {
     expect(seen, <bool>[true]);
   });
 
+  test("should report a sync as running only between connecting and epg", () {
+    final Map<SyncStep, bool> running = <SyncStep, bool>{
+      for (final SyncStep step in SyncStep.values)
+        step: SyncProgress(step: step).isRunning,
+    };
+
+    expect(running, <SyncStep, bool>{
+      SyncStep.idle: false,
+      SyncStep.connecting: true,
+      SyncStep.live: true,
+      SyncStep.vod: true,
+      SyncStep.series: true,
+      SyncStep.epg: true,
+      SyncStep.done: false,
+      SyncStep.failed: false,
+    });
+  });
+
   testWidgets("leaving the success screen cancels the timer",
       (WidgetTester tester) async {
     final ProviderContainer container = ProviderContainer();

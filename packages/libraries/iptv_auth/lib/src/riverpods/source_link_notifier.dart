@@ -1,4 +1,7 @@
+import "dart:developer" as developer;
+
 import "package:flutter/services.dart";
+import "package:flutter_riverpod/misc.dart" show KeepAliveLink;
 import "package:riverpod_annotation/riverpod_annotation.dart";
 
 import "../models/source_link.dart";
@@ -38,10 +41,27 @@ class SourceLinkNotifier extends _$SourceLinkNotifier {
     }
   }
 
-  /// Same as [apply] on the clipboard text; null when it holds no link.
+  /// Same as [apply] on the clipboard text; null when it holds no link or the
+  /// clipboard cannot be read (denied, unavailable): the caller falls back to
+  /// the manual flow.
   Future<SourceType?> applyClipboard() async {
-    final ClipboardData? data = await Clipboard.getData(Clipboard.kTextPlain);
-    final String? text = data?.text;
-    return text == null ? null : apply(text);
+    // Nothing listens to this auto-dispose notifier (it is only read), so it
+    // would be disposed while the paste prompt is up and `ref` would throw.
+    final KeepAliveLink link = ref.keepAlive();
+    try {
+      final ClipboardData? data = await Clipboard.getData(Clipboard.kTextPlain);
+      final String? text = data?.text;
+      if (text == null || !ref.mounted) return null;
+      return apply(text);
+    } on Exception catch (error, stackTrace) {
+      developer.log(
+        "clipboard unreadable: $error",
+        name: "iptv.auth",
+        stackTrace: stackTrace,
+      );
+      return null;
+    } finally {
+      link.close();
+    }
   }
 }

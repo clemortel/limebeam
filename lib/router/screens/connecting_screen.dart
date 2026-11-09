@@ -169,7 +169,8 @@ class _ErrorState extends StatelessWidget {
       message: failure.localized(AppLocalizations.of(context)),
       action: Column(
         children: <Widget>[
-          PrimaryButton(label: l.commonRetry, expand: false, onPressed: onRetry),
+          PrimaryButton(
+              label: l.commonRetry, expand: false, onPressed: onRetry),
           SizedBox(height: context.appTheme.space.x2),
           SecondaryButton(
             label: l.commonEdit,

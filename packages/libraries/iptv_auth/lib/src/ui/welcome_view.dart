@@ -95,7 +95,8 @@ class _LegalNote extends StatelessWidget {
           Expanded(
             child: Text(
               AppLocalizations.of(context).welcomeLegal,
-              style: t.typography.caption.copyWith(color: t.colors.textSecondary),
+              style:
+                  t.typography.caption.copyWith(color: t.colors.textSecondary),
             ),
           ),
         ],

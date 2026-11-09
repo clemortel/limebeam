@@ -86,7 +86,8 @@ class _M3uFormViewState extends ConsumerState<M3uFormView> {
             SizedBox(height: t.space.x3),
             Text(
               l.m3uHint,
-              style: t.typography.caption.copyWith(color: t.colors.textTertiary),
+              style:
+                  t.typography.caption.copyWith(color: t.colors.textTertiary),
             ),
             SizedBox(height: t.space.x6),
             PrimaryButton(

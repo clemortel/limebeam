@@ -251,7 +251,8 @@ class SourceRepository implements ISourceRepository {
     if (activeId == null) return;
     final SourceConfig? config = await _readConfig(activeId);
     if (config == null) {
-      developer.log("hydrateOnLaunch: no config for $activeId", name: "iptv.auth");
+      developer.log("hydrateOnLaunch: no config for $activeId",
+          name: "iptv.auth");
       return;
     }
     _activeStore.set(sourceId: activeId, config: config);

@@ -21,9 +21,17 @@ const double _kSourcesProgressHeight = 3;
 
 /// Réglages → Sources (§4.6): list with connection dot, add, delete.
 class SourcesSettingsView extends ConsumerWidget {
-  const SourcesSettingsView({required this.onAddSource, super.key});
+  const SourcesSettingsView({
+    required this.onAddSource,
+    required this.onNoSourceLeft,
+    super.key,
+  });
 
   final VoidCallback onAddSource;
+
+  /// Called after the last source was deleted: the app has no active source
+  /// anymore, so the host sends the user back to the first-launch flow.
+  final VoidCallback onNoSourceLeft;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -76,7 +84,10 @@ class SourcesSettingsView extends ConsumerWidget {
                 itemCount: data.length,
                 itemBuilder: (BuildContext context, int index) {
                   final Source source = data[index];
-                  return _SourceRow(source: source);
+                  return _SourceRow(
+                    source: source,
+                    onNoSourceLeft: onNoSourceLeft,
+                  );
                 },
               ),
       },
@@ -110,9 +121,10 @@ class _SourcesSkeleton extends StatelessWidget {
 }
 
 class _SourceRow extends ConsumerWidget {
-  const _SourceRow({required this.source});
+  const _SourceRow({required this.source, required this.onNoSourceLeft});
 
   final Source source;
+  final VoidCallback onNoSourceLeft;
 
   Future<void> _activate(BuildContext context, WidgetRef ref) async {
     final AppLocalizations l = AppLocalizations.of(context);
@@ -120,8 +132,11 @@ class _SourceRow extends ConsumerWidget {
         await ref.read(sourcesProvider.notifier).activate(source.id);
     if (!context.mounted) return;
     result.fold(
-      (Failures f) =>
-          AppToast.show(context, message: f.localized(l), kind: ToastKind.error),
+      (Failures f) => AppToast.show(
+        context,
+        message: f.localized(l),
+        kind: ToastKind.error,
+      ),
       (Unit _) => AppToast.show(
         context,
         message: l.sourcesSwitched(source.name),
@@ -137,15 +152,12 @@ class _SourceRow extends ConsumerWidget {
     final bool isActive = ref.watch(activeSourceIdProvider) == source.id;
     final SyncProgress progress =
         isActive ? ref.watch(sourceSyncProvider) : const SyncProgress();
-    final bool syncing = switch (progress.step) {
-      SyncStep.connecting ||
-      SyncStep.live ||
-      SyncStep.vod ||
-      SyncStep.series ||
-      SyncStep.epg =>
-        true,
-      SyncStep.idle || SyncStep.done || SyncStep.failed => false,
-    };
+    final bool syncing = progress.isRunning;
+    // Any running sync (not only this row's) freezes switching: two syncs
+    // at once would mix catalogs.
+    final bool busy = ref.watch(
+      sourceSyncProvider.select((SyncProgress p) => p.isRunning),
+    );
     final Color dot = switch (source.status) {
       ConnectionStatus.ok => t.colors.success,
       ConnectionStatus.error => t.colors.error,
@@ -169,7 +181,7 @@ class _SourceRow extends ConsumerWidget {
       child: ListTile(
         tileColor: t.colors.bgSurface,
         selected: isActive,
-        onTap: isActive ? null : () => _activate(context, ref),
+        onTap: isActive || busy ? null : () => _activate(context, ref),
         leading: Container(
           width: _kSourcesDotSize,
           height: _kSourcesDotSize,
@@ -197,9 +209,8 @@ class _SourceRow extends ConsumerWidget {
             Text(
               subtitle,
               style: t.typography.caption.copyWith(
-                color: progress.isFailed
-                    ? t.colors.error
-                    : t.colors.textSecondary,
+                color:
+                    progress.isFailed ? t.colors.error : t.colors.textSecondary,
               ),
             ),
             if (syncing) ...<Widget>[
@@ -221,6 +232,8 @@ class _SourceRow extends ConsumerWidget {
             ref,
             source: source,
             isActive: isActive,
+            canRefresh: !busy,
+            onNoSourceLeft: onNoSourceLeft,
           ),
         ),
       ),

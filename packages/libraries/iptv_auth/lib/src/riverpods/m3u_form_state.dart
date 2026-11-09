@@ -18,7 +18,6 @@ sealed class M3uFormState with _$M3uFormState {
     @Default("") String name,
     @Default("") String url,
     @Default("") String epgUrl,
-    FormFieldIssue? nameError,
     FormFieldIssue? urlError,
     @Default(AsyncState<Source>.idle()) AsyncState<Source> submission,
   }) = _M3uFormState;
@@ -32,7 +31,5 @@ sealed class M3uFormState with _$M3uFormState {
   }
 
   /// True when the URL is filled and valid (name and EPG URL are optional).
-  bool get canSubmit =>
-      url.trim().isNotEmpty &&
-      urlError == null;
+  bool get canSubmit => url.trim().isNotEmpty && urlError == null;
 }

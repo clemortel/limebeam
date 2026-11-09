@@ -31,6 +31,7 @@ void main() {
     final ProviderContainer container = ProviderContainer(
       overrides: <Override>[
         sourceRepositoryProvider.overrideWithValue(repository),
+        activeSourceStoreProvider.overrideWithValue(ActiveSourceStore()),
       ],
     );
     addTearDown(container.dispose);
@@ -51,21 +52,25 @@ void main() {
 
     await notifier.submit();
 
-    verifyNever(repository.addXtreamSource(
-      name: anyNamed("name"),
-      host: anyNamed("host"),
-      username: anyNamed("username"),
-      password: anyNamed("password"),
-    ),);
+    verifyNever(
+      repository.addXtreamSource(
+        name: anyNamed("name"),
+        host: anyNamed("host"),
+        username: anyNamed("username"),
+        password: anyNamed("password"),
+      ),
+    );
   });
 
   test("should expose success submission when repository connects", () async {
-    when(repository.addXtreamSource(
-      name: anyNamed("name"),
-      host: anyNamed("host"),
-      username: anyNamed("username"),
-      password: anyNamed("password"),
-    ),).thenAnswer((_) async => right(source));
+    when(
+      repository.addXtreamSource(
+        name: anyNamed("name"),
+        host: anyNamed("host"),
+        username: anyNamed("username"),
+        password: anyNamed("password"),
+      ),
+    ).thenAnswer((_) async => right(source));
 
     final ProviderContainer container = makeContainer();
     final AddXtreamSourceNotifier notifier =
@@ -81,12 +86,14 @@ void main() {
   });
 
   test("should expose portalAuth error when credentials are invalid", () async {
-    when(repository.addXtreamSource(
-      name: anyNamed("name"),
-      host: anyNamed("host"),
-      username: anyNamed("username"),
-      password: anyNamed("password"),
-    ),).thenAnswer((_) async => left(const Failures.portalAuth()));
+    when(
+      repository.addXtreamSource(
+        name: anyNamed("name"),
+        host: anyNamed("host"),
+        username: anyNamed("username"),
+        password: anyNamed("password"),
+      ),
+    ).thenAnswer((_) async => left(const Failures.portalAuth()));
 
     final ProviderContainer container = makeContainer();
     final AddXtreamSourceNotifier notifier =
