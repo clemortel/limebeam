@@ -188,7 +188,6 @@
   "onboardingSyncFailed": "Sync failed",
   "onboardingSyncStepOf": "Step {current} of {total}",
   "onboardingPasteLink": "Paste a link",
-  "onboardingPasteLinkSub": "Paste the full address of your M3U list or Xtream portal and we'll do the rest.",
   "onboardingPasteLinkReviewSub": "Paste the full address of your M3U list or Xtream portal. We'll fill the form in for you to check.",
   "onboardingPasteInvalid": "This link isn't recognised. Check that it starts with http.",
   "onboardingNameOptional": "Optional",
@@ -220,6 +219,7 @@
   "sourcesDeleteMessage": "\"{name}\" will be removed from this device.",
   "sourcesDeleteActiveMessage": "\"{name}\" is your active source: the app will switch to another one.",
   "sourcesRefresh": "Refresh catalog",
-  "sourcesSyncing": "Refreshing the catalog…",
+  "sourcesSyncBusy": "A sync is in progress. Try again in a moment.",
+  "sourcesRenameBlank": "The name can't be empty.",
   "sourcesSwitched": "Active source: {name}"
 }

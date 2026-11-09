@@ -39,28 +39,19 @@ class _ConnectingScreenState extends ConsumerState<ConnectingScreen> {
   bool get _isM3u =>
       widget.kind == SourceType.m3u || widget.kind == SourceType.demo;
 
-  AsyncState<Source> _readSubmission() => _isM3u
-      ? ref.read(addM3uSourceProvider).submission
-      : ref.read(addXtreamSourceProvider).submission;
-
+  /// Adds the source and syncs it under the one sync gate: the add itself
+  /// starts the sync, so there is no second `run()` that could be a no-op.
+  /// Reads nothing from [ref] after an await unless still [mounted].
   Future<void> _run() async {
-    if (_isDemo) {
-      await ref.read(addM3uSourceProvider.notifier).startDemo();
-    } else if (_isM3u) {
-      await ref.read(addM3uSourceProvider.notifier).submit();
-    } else {
-      await ref.read(addXtreamSourceProvider.notifier).submit();
-    }
+    final SyncProgress? progress = await _submit();
+    if (!mounted || progress == null || !progress.isDone) return;
+    await context.router.replace(const SourceSuccessRoute());
+  }
 
-    if (_readSubmission() is! AsyncSuccess<Source>) return; // error in build
-
-    await ref.read(sourceSyncProvider.notifier).run();
-    if (!mounted) return;
-
-    final SyncProgress progress = ref.read(sourceSyncProvider);
-    if (progress.isDone) {
-      await context.router.replace(const SourceSuccessRoute());
-    }
+  Future<SyncProgress?> _submit() {
+    if (_isDemo) return ref.read(addM3uSourceProvider.notifier).startDemo();
+    if (_isM3u) return ref.read(addM3uSourceProvider.notifier).submit();
+    return ref.read(addXtreamSourceProvider.notifier).submit();
   }
 
   @override
@@ -170,7 +161,10 @@ class _ErrorState extends StatelessWidget {
       action: Column(
         children: <Widget>[
           PrimaryButton(
-              label: l.commonRetry, expand: false, onPressed: onRetry),
+            label: l.commonRetry,
+            expand: false,
+            onPressed: onRetry,
+          ),
           SizedBox(height: context.appTheme.space.x2),
           SecondaryButton(
             label: l.commonEdit,

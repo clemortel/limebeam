@@ -5,7 +5,9 @@ import "package:iptv_playlist/iptv_playlist.dart";
 import "package:riverpod_annotation/riverpod_annotation.dart"
     hide AsyncData, AsyncError, AsyncLoading, AsyncValue;
 
+import "../infrastructure/source_repository.dart" show ISourceRepository;
 import "../models/source.dart";
+import "../models/source_action_failure.dart";
 import "providers.dart";
 
 part "sources_notifier.g.dart";
@@ -53,57 +55,114 @@ class SourcesNotifier extends _$SourcesNotifier {
 
   Future<void> refresh() => _load();
 
-  bool get _isSyncing => ref.read(sourceSyncProvider).isRunning;
+  SourceSyncNotifier get _gate => ref.read(sourceSyncProvider.notifier);
 
   /// Makes [id] the active source and re-syncs the catalog from it. A no-op
   /// when it already is the active one.
   ///
-  /// Refused (left) while a sync is in flight: a switch mid-sync would write
-  /// the running source's channels under the new source's keys. The latest
-  /// request is dropped, not queued; the UI disables the rows meanwhile.
-  Future<Either<Failures, Unit>> activate(String id) async {
+  /// Goes through the sync gate: refused ([SyncInProgress]) while a sync is
+  /// in flight, because a switch mid-sync would write the running source's
+  /// channels under the new source's keys. The request is dropped, not
+  /// queued; the UI disables the rows meanwhile. A failed sync is reported.
+  Future<Either<SourceActionFailure, Unit>> activate(String id) async {
     if (ref.read(activeSourceIdProvider) == id) return right(unit);
-    if (_isSyncing) return left(const Failures.unexpected());
+    final SyncGateOutcome<Unit> outcome = await _gate.changeSource<Unit>(
+      () => _setActive(id),
+    );
+    return _settle<Unit>(outcome);
+  }
+
+  Future<Either<Failures, Unit>> _setActive(String id) async {
     final Either<Failures, Unit> result =
         await ref.read(sourceRepositoryProvider).setActive(id);
-    if (result.isLeft()) return result;
-    ref.read(activeSourceIdProvider.notifier).sync();
-    await ref.read(sourceSyncProvider.notifier).run();
+    if (result.isRight()) ref.read(activeSourceIdProvider.notifier).sync();
     return result;
   }
 
-  /// Re-downloads the active source's catalog. Ignored while a sync runs.
-  Future<void> refreshCatalog() => ref.read(sourceSyncProvider.notifier).run();
+  /// Turns a gate outcome into the action result: refusal, change failure,
+  /// or the sync's own failure once it has ended.
+  Future<Either<SourceActionFailure, T>> _settle<T>(
+    SyncGateOutcome<T> outcome,
+  ) async {
+    switch (outcome) {
+      case SyncGateRefused<T>():
+        return left(const SourceActionFailure.syncInProgress());
+      case SyncGateRan<T>(
+          :final Either<Failures, T> result,
+          :final Future<SyncProgress>? sync
+        ):
+        if (result.isLeft()) {
+          return result.leftMap(SourceActionFailure.failed);
+        }
+        final SyncProgress? progress = await sync;
+        final Failures? syncFailure = progress?.failure;
+        if (progress != null && progress.isFailed && syncFailure != null) {
+          return left(SourceActionFailure.failed(syncFailure));
+        }
+        return result.leftMap(SourceActionFailure.failed);
+    }
+  }
 
-  Future<Either<Failures, Unit>> rename(String id, String name) async {
-    if (name.trim().isEmpty) return right(unit);
+  /// Re-downloads the active source's catalog. Joins a sync already running.
+  Future<SyncProgress> refreshCatalog() => _gate.run();
+
+  /// Renames [id]. A blank name is refused, not silently accepted.
+  Future<Either<SourceActionFailure, Unit>> rename(
+    String id,
+    String name,
+  ) async {
+    if (name.trim().isEmpty) return left(const SourceActionFailure.blankName());
     final Either<Failures, Unit> result =
         await ref.read(sourceRepositoryProvider).renameSource(id, name);
     await _load();
-    return result;
+    return result.leftMap(SourceActionFailure.failed);
   }
 
   /// Deletes [id]. When it was the active source, the first remaining one
   /// takes over (and syncs), so the app never keeps pointing at a dead id.
-  /// Deleting the active source mid-sync is refused, like [activate].
+  /// Deleting the active source goes through the sync gate, like [activate].
   ///
-  /// When nothing remains, [activeSourceIdProvider] ends up null: the caller
-  /// sends the user back to the first-launch flow.
-  Future<Either<Failures, Unit>> delete(String id) async {
+  /// The [DeleteOutcome] carries everything the caller needs afterwards, so
+  /// the view reads no provider after the await (its element may be gone).
+  Future<Either<SourceActionFailure, DeleteOutcome>> delete(String id) async {
     final bool wasActive = ref.read(activeSourceIdProvider) == id;
-    if (wasActive && _isSyncing) return left(const Failures.unexpected());
-    final Either<Failures, Unit> result =
-        await ref.read(sourceRepositoryProvider).deleteSource(id);
+    if (!wasActive) {
+      final Either<Failures, Unit> result =
+          await ref.read(sourceRepositoryProvider).deleteSource(id);
+      await _load();
+      return result.map((Unit _) => DeleteOutcome.deleted).leftMap(
+            SourceActionFailure.failed,
+          );
+    }
+    final SyncGateOutcome<DeleteOutcome> outcome =
+        await _gate.changeSource<DeleteOutcome>(
+      _deleteActive(id),
+      shouldSync: (DeleteOutcome o) => o == DeleteOutcome.deleted,
+    );
+    final Either<SourceActionFailure, DeleteOutcome> settled =
+        await _settle<DeleteOutcome>(outcome);
     await _load();
-    if (result.isLeft() || !wasActive) return result;
-    final IList<Source> remaining = switch (state) {
-      AsyncSuccess<IList<Source>>(:final IList<Source> data) => data,
-      AsyncIdle<IList<Source>>() => IList<Source>(),
-      AsyncLoading<IList<Source>>() => IList<Source>(),
-      AsyncError<IList<Source>>() => IList<Source>(),
-    };
-    if (remaining.isEmpty) return result;
-    await activate(remaining.first.id);
-    return result;
+    return settled;
   }
+
+  Future<Either<Failures, DeleteOutcome>> Function() _deleteActive(
+    String id,
+  ) =>
+      () async {
+        final ISourceRepository repository = ref.read(sourceRepositoryProvider);
+        final Either<Failures, Unit> deleted =
+            await repository.deleteSource(id);
+        if (deleted.isLeft()) {
+          return deleted.map((Unit _) => DeleteOutcome.deleted);
+        }
+        final IList<Source> remaining = await repository.getSources();
+        if (remaining.isEmpty) {
+          ref.read(activeSourceIdProvider.notifier).sync();
+          return right(DeleteOutcome.noSourceLeft);
+        }
+        final Either<Failures, Unit> next =
+            await repository.setActive(remaining.first.id);
+        ref.read(activeSourceIdProvider.notifier).sync();
+        return next.map((Unit _) => DeleteOutcome.deleted);
+      };
 }

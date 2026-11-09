@@ -611,10 +611,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get onboardingPasteLink => 'Coller un lien';
 
   @override
-  String get onboardingPasteLinkSub =>
-      'Colle l\'adresse complète de ta liste M3U ou de ton portail Xtream, on s\'occupe du reste.';
-
-  @override
   String get onboardingPasteLinkReviewSub =>
       'Colle l\'adresse complète de ta liste M3U ou de ton portail Xtream : on remplit le formulaire, tu vérifies.';
 
@@ -719,7 +715,11 @@ class AppLocalizationsFr extends AppLocalizations {
   String get sourcesRefresh => 'Actualiser le catalogue';
 
   @override
-  String get sourcesSyncing => 'Actualisation du catalogue…';
+  String get sourcesSyncBusy =>
+      'Une synchronisation est en cours. Réessaie dans un instant.';
+
+  @override
+  String get sourcesRenameBlank => 'Le nom ne peut pas être vide.';
 
   @override
   String sourcesSwitched(String name) {

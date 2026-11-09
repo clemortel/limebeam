@@ -76,8 +76,9 @@ class _XtreamFormViewState extends ConsumerState<XtreamFormView> {
     FocusScope.of(context).nextFocus();
     if (!FormFactorScope.isTv(context)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted)
+        if (mounted) {
           SystemChannels.textInput.invokeMethod<void>('TextInput.show');
+        }
       });
     }
   }

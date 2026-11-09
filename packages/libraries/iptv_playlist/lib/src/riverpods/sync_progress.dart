@@ -47,7 +47,7 @@ sealed class SyncProgress with _$SyncProgress {
         SyncStep.live => 1,
         SyncStep.vod => 2,
         SyncStep.series => 3,
-        SyncStep.epg => 4,
+        SyncStep.epg => kSyncStepCount,
         SyncStep.done => kSyncStepCount,
       };
 }

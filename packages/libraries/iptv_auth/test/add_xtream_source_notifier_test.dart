@@ -1,12 +1,27 @@
+import "dart:async";
+
 import "package:dartz/dartz.dart" hide IList, IMap, ISet;
 import "package:flutter_test/flutter_test.dart";
 import "package:iptv_auth/iptv_auth.dart";
 import "package:iptv_core/iptv_core.dart";
+import "package:iptv_playlist/iptv_playlist.dart";
 import "package:mockito/annotations.dart";
 import "package:mockito/mockito.dart";
 import "package:riverpod/src/framework.dart";
 
 import "add_xtream_source_notifier_test.mocks.dart";
+
+/// Stands in for the catalog sync: ends at once, or when [gate] completes.
+class _FakeSync extends SourceSyncNotifier {
+  Completer<void>? gate;
+
+  @override
+  Future<void> syncCatalog() async {
+    state = const SyncProgress(step: SyncStep.live);
+    if (gate != null) await gate!.future;
+    state = const SyncProgress(step: SyncStep.done);
+  }
+}
 
 // Run `melos run build_runner` to generate the mocks.
 @GenerateMocks(<Type>[ISourceRepository])
@@ -27,9 +42,13 @@ void main() {
 
   setUp(() => repository = MockISourceRepository());
 
+  late _FakeSync sync;
+
   ProviderContainer makeContainer() {
+    sync = _FakeSync();
     final ProviderContainer container = ProviderContainer(
       overrides: <Override>[
+        sourceSyncProvider.overrideWith(() => sync),
         sourceRepositoryProvider.overrideWithValue(repository),
         activeSourceStoreProvider.overrideWithValue(ActiveSourceStore()),
       ],
@@ -106,5 +125,52 @@ void main() {
       container.read(addXtreamSourceProvider).submission,
       const AsyncState<Source>.error(Failures.portalAuth()),
     );
+  });
+
+  test("should refuse to add a source while a sync runs", () async {
+    final ProviderContainer container = makeContainer();
+    final AddXtreamSourceNotifier notifier =
+        container.read(addXtreamSourceProvider.notifier);
+    fillValidForm(notifier);
+    sync.gate = Completer<void>();
+    final Future<SyncProgress> running =
+        container.read(sourceSyncProvider.notifier).run();
+
+    final SyncProgress? progress = await notifier.submit();
+
+    expect(progress, isNull);
+    expect(
+      container.read(addXtreamSourceProvider).submission,
+      const AsyncState<Source>.error(Failures.unexpected()),
+    );
+    verifyNever(
+      repository.addXtreamSource(
+        name: anyNamed("name"),
+        host: anyNamed("host"),
+        username: anyNamed("username"),
+        password: anyNamed("password"),
+      ),
+    );
+    sync.gate!.complete();
+    await running;
+  });
+
+  test("should complete submit with the sync the add started", () async {
+    when(
+      repository.addXtreamSource(
+        name: anyNamed("name"),
+        host: anyNamed("host"),
+        username: anyNamed("username"),
+        password: anyNamed("password"),
+      ),
+    ).thenAnswer((_) async => right(source));
+    final ProviderContainer container = makeContainer();
+    final AddXtreamSourceNotifier notifier =
+        container.read(addXtreamSourceProvider.notifier);
+    fillValidForm(notifier);
+
+    final SyncProgress? progress = await notifier.submit();
+
+    expect(progress?.isDone, isTrue);
   });
 }

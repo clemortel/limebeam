@@ -2,6 +2,7 @@ import "dart:developer" as developer;
 
 import "package:dartz/dartz.dart" hide IList, IMap, ISet;
 import "package:iptv_core/iptv_core.dart";
+import "package:iptv_playlist/iptv_playlist.dart";
 import "package:riverpod_annotation/riverpod_annotation.dart";
 
 import "../models/form_field_issue.dart";
@@ -52,34 +53,59 @@ class AddXtreamSourceNotifier extends _$AddXtreamSourceNotifier {
       );
 
   /// Validates then connects. On success `state.submission` becomes
-  /// `AsyncState.success(source)`; the screen listens and navigates.
-  Future<void> submit() async {
+  /// `AsyncState.success(source)` and the sync starts under the same gate;
+  /// the returned future completes with its final progress (null when
+  /// nothing was added). Refused while another sync runs.
+  Future<SyncProgress?> submit() async {
     if (!state.canSubmit) {
       developer.log("submit ignored: form invalid", name: "iptv.auth");
-      return;
+      return null;
     }
     developer.log("submit start", name: "iptv.auth");
     state = state.copyWith(submission: const AsyncState<Source>.loading());
 
-    final Either<Failures, Source> result =
-        await ref.read(sourceRepositoryProvider).addXtreamSource(
-              name: state.effectiveName,
-              host: state.host.trim(),
-              username: state.username.trim(),
-              password: state.password,
-            );
-
-    state = result.fold(
-      (Failures failure) {
-        developer.log("submit error → $failure", name: "iptv.auth");
-        return state.copyWith(submission: AsyncState<Source>.error(failure));
-      },
-      (Source source) {
-        developer.log("submit success id=${source.id}", name: "iptv.auth");
-        return state.copyWith(submission: AsyncState<Source>.success(source));
+    final SyncGateOutcome<Source> outcome =
+        await ref.read(sourceSyncProvider.notifier).changeSource<Source>(
+      () async {
+        final Either<Failures, Source> added =
+            await ref.read(sourceRepositoryProvider).addXtreamSource(
+                  name: state.effectiveName,
+                  host: state.host.trim(),
+                  username: state.username.trim(),
+                  password: state.password,
+                );
+        if (added.isRight()) _followActiveSource();
+        return added;
       },
     );
-    if (result.isRight()) _followActiveSource();
+
+    switch (outcome) {
+      case SyncGateRefused<Source>():
+        developer.log("submit refused: sync in flight", name: "iptv.auth");
+        state = state.copyWith(
+          submission: const AsyncState<Source>.error(Failures.unexpected()),
+        );
+        return null;
+      case SyncGateRan<Source>(
+          :final Either<Failures, Source> result,
+          :final Future<SyncProgress>? sync
+        ):
+        state = result.fold(
+          (Failures failure) {
+            developer.log("submit error → $failure", name: "iptv.auth");
+            return state.copyWith(
+              submission: AsyncState<Source>.error(failure),
+            );
+          },
+          (Source source) {
+            developer.log("submit success id=${source.id}", name: "iptv.auth");
+            return state.copyWith(
+              submission: AsyncState<Source>.success(source),
+            );
+          },
+        );
+        return sync;
+    }
   }
 
   /// The repository just switched the store to the new source: make the

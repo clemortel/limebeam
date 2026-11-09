@@ -10,8 +10,10 @@ import "package:iptv_ui/iptv_ui.dart";
 
 import "../models/connection_status.dart";
 import "../models/source.dart";
+import "../models/source_action_failure.dart";
 import "../models/source_type.dart";
 import "../riverpods/sources_notifier.dart";
+import "source_action_failure_text.dart";
 import "source_actions_sheets.dart";
 
 const int _kSourcesSkeletonRows = 4;
@@ -38,6 +40,11 @@ class SourcesSettingsView extends ConsumerWidget {
     final AppTheme t = context.appTheme;
     final AppLocalizations l = AppLocalizations.of(context);
     final AsyncState<IList<Source>> state = ref.watch(sourcesProvider);
+    // Same flag as the rows: adding switches the active source, which a
+    // running sync must never see.
+    final bool busy = ref.watch(
+      sourceSyncProvider.select((SyncProgress p) => p.isRunning),
+    );
 
     return Scaffold(
       backgroundColor: t.colors.bgBase,
@@ -48,7 +55,7 @@ class SourcesSettingsView extends ConsumerWidget {
           IconButton(
             tooltip: l.sourcesAddTooltip,
             icon: Icon(Icons.add, color: t.colors.accent),
-            onPressed: onAddSource,
+            onPressed: busy ? null : onAddSource,
           ),
         ],
       ),
@@ -76,17 +83,20 @@ class SourcesSettingsView extends ConsumerWidget {
                   action: PrimaryButton(
                     label: l.authAddSource,
                     expand: false,
-                    onPressed: onAddSource,
+                    onPressed: busy ? null : onAddSource,
                   ),
                 ),
               )
             : ListView.builder(
                 itemCount: data.length,
-                itemBuilder: (BuildContext context, int index) {
+                itemBuilder: (BuildContext rowContext, int index) {
                   final Source source = data[index];
                   return _SourceRow(
                     source: source,
-                    onNoSourceLeft: onNoSourceLeft,
+                    // The deleted row is unmounted by then: gate on this screen.
+                    onNoSourceLeft: () {
+                      if (context.mounted) onNoSourceLeft();
+                    },
                   );
                 },
               ),
@@ -128,13 +138,13 @@ class _SourceRow extends ConsumerWidget {
 
   Future<void> _activate(BuildContext context, WidgetRef ref) async {
     final AppLocalizations l = AppLocalizations.of(context);
-    final Either<Failures, Unit> result =
+    final Either<SourceActionFailure, Unit> result =
         await ref.read(sourcesProvider.notifier).activate(source.id);
     if (!context.mounted) return;
     result.fold(
-      (Failures f) => AppToast.show(
+      (SourceActionFailure f) => AppToast.show(
         context,
-        message: f.localized(l),
+        message: f.text(l),
         kind: ToastKind.error,
       ),
       (Unit _) => AppToast.show(

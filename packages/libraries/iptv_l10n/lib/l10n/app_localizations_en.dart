@@ -604,10 +604,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get onboardingPasteLink => 'Paste a link';
 
   @override
-  String get onboardingPasteLinkSub =>
-      'Paste the full address of your M3U list or Xtream portal and we\'ll do the rest.';
-
-  @override
   String get onboardingPasteLinkReviewSub =>
       'Paste the full address of your M3U list or Xtream portal. We\'ll fill the form in for you to check.';
 
@@ -710,7 +706,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sourcesRefresh => 'Refresh catalog';
 
   @override
-  String get sourcesSyncing => 'Refreshing the catalog…';
+  String get sourcesSyncBusy => 'A sync is in progress. Try again in a moment.';
+
+  @override
+  String get sourcesRenameBlank => 'The name can\'t be empty.';
 
   @override
   String sourcesSwitched(String name) {

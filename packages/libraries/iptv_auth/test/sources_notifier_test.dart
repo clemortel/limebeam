@@ -84,17 +84,23 @@ class _FakeSync extends SourceSyncNotifier {
   int runs = 0;
   int cacheResets = 0;
 
-  /// When set, a run stays "in flight" until it completes.
+  /// When set, a sync stays "in flight" until it completes.
   Completer<void>? gate;
 
+  /// Final step the next sync ends on.
+  SyncStep endsOn = SyncStep.done;
+
   @override
-  Future<void> run() async {
-    if (state.isRunning) return;
+  Future<void> syncCatalog() async {
     runs++;
-    if (gate == null) return;
     state = const SyncProgress(step: SyncStep.live);
-    await gate!.future;
-    state = const SyncProgress(step: SyncStep.done);
+    if (gate != null) await gate!.future;
+    state = endsOn == SyncStep.failed
+        ? const SyncProgress(
+            step: SyncStep.failed,
+            failure: Failures.network(),
+          )
+        : SyncProgress(step: endsOn);
   }
 
   @override
@@ -149,7 +155,8 @@ void main() {
       () async {
     final SourcesNotifier notifier = await loaded();
 
-    final Either<Failures, Unit> result = await notifier.activate("b");
+    final Either<SourceActionFailure, Unit> result =
+        await notifier.activate("b");
 
     expect(result.isRight(), isTrue);
     expect(container.read(activeSourceIdProvider), "b");
@@ -167,7 +174,8 @@ void main() {
   test("activate keeps the current source when the switch fails", () async {
     final SourcesNotifier notifier = await loaded();
 
-    final Either<Failures, Unit> result = await notifier.activate("zzz");
+    final Either<SourceActionFailure, Unit> result =
+        await notifier.activate("zzz");
 
     expect(result.isLeft(), isTrue);
     expect(container.read(activeSourceIdProvider), "a");
@@ -193,12 +201,14 @@ void main() {
     expect(sync.runs, 0);
   });
 
-  test("rename trims the name and ignores a blank one", () async {
+  test("should trim a rename and refuse a blank name", () async {
     final SourcesNotifier notifier = await loaded();
 
+    final Either<SourceActionFailure, Unit> blank =
+        await notifier.rename("b", "   ");
     await notifier.rename("a", "  Salon  ");
-    await notifier.rename("b", "   ");
 
+    expect(blank, left<SourceActionFailure, Unit>(const BlankName()));
     expect(
       sources().map((Source s) => s.name).toList(),
       <String>["Salon", "Source b", "Source c"],
@@ -208,31 +218,96 @@ void main() {
   test("should refuse to switch while a sync is in flight", () async {
     final SourcesNotifier notifier = await loaded();
     sync.gate = Completer<void>();
-    final Future<Either<Failures, Unit>> first = notifier.activate("b");
+    final Future<Either<SourceActionFailure, Unit>> first =
+        notifier.activate("b");
     await Future<void>.delayed(Duration.zero);
 
-    final Either<Failures, Unit> second = await notifier.activate("c");
-    await notifier.refreshCatalog();
+    final Either<SourceActionFailure, Unit> second =
+        await notifier.activate("c");
 
-    expect(second.isLeft(), isTrue);
+    expect(second, left<SourceActionFailure, Unit>(const SyncInProgress()));
     expect(container.read(activeSourceIdProvider), "b");
     expect(store.sourceId, "b");
     sync.gate!.complete();
     await first;
   });
 
+  test("should tell a refresh requested mid-sync how that sync ended",
+      () async {
+    final SourcesNotifier notifier = await loaded();
+    sync.gate = Completer<void>();
+    final Future<Either<SourceActionFailure, Unit>> first =
+        notifier.activate("b");
+    await Future<void>.delayed(Duration.zero);
+
+    final Future<SyncProgress> refresh = notifier.refreshCatalog();
+    sync.gate!.complete();
+
+    expect((await refresh).isDone, isTrue);
+    expect(sync.runs, 1);
+    await first;
+  });
+
+  test("should let one of two racing activations win, refuse the other",
+      () async {
+    final SourcesNotifier notifier = await loaded();
+
+    final Future<Either<SourceActionFailure, Unit>> toB =
+        notifier.activate("b");
+    final Future<Either<SourceActionFailure, Unit>> toC =
+        notifier.activate("c");
+
+    expect((await toB).isRight(), isTrue);
+    expect(await toC, left<SourceActionFailure, Unit>(const SyncInProgress()));
+    expect(store.sourceId, "b");
+    expect(sync.runs, 1);
+  });
+
+  test("should report a failed sync after a switch", () async {
+    final SourcesNotifier notifier = await loaded();
+    sync.endsOn = SyncStep.failed;
+
+    final Either<SourceActionFailure, Unit> result =
+        await notifier.activate("b");
+
+    expect(
+      result,
+      left<SourceActionFailure, Unit>(
+        const SourceActionFailure.failed(Failures.network()),
+      ),
+    );
+  });
+
   test("should refuse to delete the active source mid-sync", () async {
     final SourcesNotifier notifier = await loaded();
     sync.gate = Completer<void>();
-    final Future<Either<Failures, Unit>> first = notifier.activate("b");
+    final Future<Either<SourceActionFailure, Unit>> first =
+        notifier.activate("b");
     await Future<void>.delayed(Duration.zero);
 
-    final Either<Failures, Unit> result = await notifier.delete("b");
+    final Either<SourceActionFailure, DeleteOutcome> result =
+        await notifier.delete("b");
 
-    expect(result.isLeft(), isTrue);
+    expect(
+      result,
+      left<SourceActionFailure, DeleteOutcome>(const SyncInProgress()),
+    );
     expect(sources().map((Source s) => s.id), contains("b"));
     sync.gate!.complete();
     await first;
+  });
+
+  test("should return the outcome of deleting the active source", () async {
+    final SourcesNotifier notifier = await loaded();
+
+    final Either<SourceActionFailure, DeleteOutcome> result =
+        await notifier.delete("a");
+
+    expect(
+      result,
+      right<SourceActionFailure, DeleteOutcome>(DeleteOutcome.deleted),
+    );
+    expect(container.read(activeSourceIdProvider), "b");
   });
 
   test("should reset source-scoped providers and caches on a switch", () async {
@@ -273,7 +348,8 @@ void main() {
     final SourcesNotifier notifier = await loaded();
     repository.failDelete = true;
 
-    final Either<Failures, Unit> result = await notifier.delete("a");
+    final Either<SourceActionFailure, DeleteOutcome> result =
+        await notifier.delete("a");
 
     expect(result.isLeft(), isTrue);
     expect(container.read(activeSourceIdProvider), "a");
@@ -285,9 +361,13 @@ void main() {
     await notifier.delete("c");
     await notifier.delete("b");
 
-    final Either<Failures, Unit> result = await notifier.delete("a");
+    final Either<SourceActionFailure, DeleteOutcome> result =
+        await notifier.delete("a");
 
-    expect(result.isRight(), isTrue);
+    expect(
+      result,
+      right<SourceActionFailure, DeleteOutcome>(DeleteOutcome.noSourceLeft),
+    );
     expect(sources(), isEmpty);
     expect(container.read(activeSourceIdProvider), isNull);
     expect(sync.runs, 0);

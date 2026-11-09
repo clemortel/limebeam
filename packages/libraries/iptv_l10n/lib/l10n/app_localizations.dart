@@ -1226,12 +1226,6 @@ abstract class AppLocalizations {
   /// **'Coller un lien'**
   String get onboardingPasteLink;
 
-  /// No description provided for @onboardingPasteLinkSub.
-  ///
-  /// In fr, this message translates to:
-  /// **'Colle l\'adresse complète de ta liste M3U ou de ton portail Xtream, on s\'occupe du reste.'**
-  String get onboardingPasteLinkSub;
-
   /// No description provided for @onboardingPasteLinkReviewSub.
   ///
   /// In fr, this message translates to:
@@ -1418,11 +1412,17 @@ abstract class AppLocalizations {
   /// **'Actualiser le catalogue'**
   String get sourcesRefresh;
 
-  /// No description provided for @sourcesSyncing.
+  /// No description provided for @sourcesSyncBusy.
   ///
   /// In fr, this message translates to:
-  /// **'Actualisation du catalogue…'**
-  String get sourcesSyncing;
+  /// **'Une synchronisation est en cours. Réessaie dans un instant.'**
+  String get sourcesSyncBusy;
+
+  /// No description provided for @sourcesRenameBlank.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le nom ne peut pas être vide.'**
+  String get sourcesRenameBlank;
 
   /// No description provided for @sourcesSwitched.
   ///

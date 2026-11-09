@@ -212,14 +212,17 @@ class _ConfirmReceived extends StatelessWidget {
         ),
         SizedBox(height: t.space.x4),
         _Field(
-            label: AppLocalizations.of(context).summaryName,
-            value: credentials.name),
+          label: AppLocalizations.of(context).summaryName,
+          value: credentials.name,
+        ),
         _Field(
-            label: AppLocalizations.of(context).xtreamHost,
-            value: credentials.host),
+          label: AppLocalizations.of(context).xtreamHost,
+          value: credentials.host,
+        ),
         _Field(
-            label: AppLocalizations.of(context).xtreamUsername,
-            value: credentials.username),
+          label: AppLocalizations.of(context).xtreamUsername,
+          value: credentials.username,
+        ),
         _Field(
           label: AppLocalizations.of(context).commonPassword,
           value: credentials.password.isEmpty
@@ -228,12 +231,14 @@ class _ConfirmReceived extends StatelessWidget {
         ),
         SizedBox(height: t.space.x5),
         PrimaryButton(
-            label: AppLocalizations.of(context).onboardingPairingFill,
-            onPressed: onApply),
+          label: AppLocalizations.of(context).onboardingPairingFill,
+          onPressed: onApply,
+        ),
         SizedBox(height: t.space.x2),
         SecondaryButton(
-            label: AppLocalizations.of(context).commonCancel,
-            onPressed: onCancel),
+          label: AppLocalizations.of(context).commonCancel,
+          onPressed: onCancel,
+        ),
       ],
     );
   }
@@ -282,8 +287,11 @@ class _Unavailable extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
-        Icon(Icons.wifi_off,
-            size: _kIconSizeLarge, color: t.colors.textTertiary),
+        Icon(
+          Icons.wifi_off,
+          size: _kIconSizeLarge,
+          color: t.colors.textTertiary,
+        ),
         SizedBox(height: t.space.x4),
         Text(
           AppLocalizations.of(context).onboardingPairingFailedTitle,
@@ -298,8 +306,9 @@ class _Unavailable extends StatelessWidget {
         ),
         SizedBox(height: t.space.x5),
         SecondaryButton(
-            label: AppLocalizations.of(context).onboardingClose,
-            onPressed: onClose),
+          label: AppLocalizations.of(context).onboardingClose,
+          onPressed: onClose,
+        ),
       ],
     );
   }

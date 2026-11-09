@@ -2,15 +2,20 @@ import "package:dartz/dartz.dart" hide IList, IMap, ISet, State;
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart"
     hide AsyncData, AsyncError, AsyncLoading, AsyncValue;
-import "package:iptv_core/iptv_core.dart";
 import "package:iptv_l10n/iptv_l10n.dart";
 import "package:iptv_ui/iptv_ui.dart";
 
 import "../models/source.dart";
+import "../models/source_action_failure.dart";
 import "../riverpods/sources_notifier.dart";
+import "source_action_failure_text.dart";
 
 /// Opens the per-source action sheet: refresh (active source only), rename,
 /// delete. Delete always goes through a confirmation sheet.
+///
+/// Reads [ref] only here, synchronously: the row that opened the sheet can
+/// be unmounted by the time an action finishes, and a [WidgetRef] must not
+/// be touched after that. Each action works on the notifier captured now.
 Future<void> showSourceActions(
   BuildContext context,
   WidgetRef ref, {
@@ -20,6 +25,7 @@ Future<void> showSourceActions(
   required VoidCallback onNoSourceLeft,
 }) {
   final AppLocalizations l = AppLocalizations.of(context);
+  final SourcesNotifier notifier = ref.read(sourcesProvider.notifier);
   return AppBottomSheet.show<void>(
     context,
     title: source.name,
@@ -28,7 +34,7 @@ Future<void> showSourceActions(
       canRefresh: canRefresh,
       onRefresh: () {
         Navigator.of(context).pop();
-        ref.read(sourcesProvider.notifier).refreshCatalog();
+        notifier.refreshCatalog();
       },
       onRename: () {
         Navigator.of(context).pop();
@@ -37,9 +43,7 @@ Future<void> showSourceActions(
           title: l.sourcesRenameTitle,
           child: _RenameSheet(
             initialName: source.name,
-            onSave: (String name) {
-              ref.read(sourcesProvider.notifier).rename(source.id, name);
-            },
+            onSave: (String name) => _rename(context, notifier, source, name),
           ),
         );
       },
@@ -52,7 +56,7 @@ Future<void> showSourceActions(
             message: isActive
                 ? l.sourcesDeleteActiveMessage(source.name)
                 : l.sourcesDeleteMessage(source.name),
-            onConfirm: () => _delete(context, ref, source, onNoSourceLeft),
+            onConfirm: () => _delete(context, notifier, source, onNoSourceLeft),
           ),
         );
       },
@@ -60,27 +64,56 @@ Future<void> showSourceActions(
   );
 }
 
+/// Renames [source]; a refused or failed rename is surfaced, not dropped.
+Future<void> _rename(
+  BuildContext context,
+  SourcesNotifier notifier,
+  Source source,
+  String name,
+) async {
+  final AppLocalizations l = AppLocalizations.of(context);
+  final Either<SourceActionFailure, Unit> result =
+      await notifier.rename(source.id, name);
+  if (!context.mounted) return;
+  _toastFailure(context, l, result);
+}
+
 /// Deletes [source]; surfaces a failure instead of letting the row silently
 /// come back, and hands over to [onNoSourceLeft] when nothing remains.
+///
+/// Nothing is read from a [WidgetRef] after the await: the notifier returns
+/// the outcome, and only [BuildContext.mounted]-guarded UI follows.
 Future<void> _delete(
   BuildContext context,
-  WidgetRef ref,
+  SourcesNotifier notifier,
   Source source,
   VoidCallback onNoSourceLeft,
 ) async {
   final AppLocalizations l = AppLocalizations.of(context);
-  final Either<Failures, Unit> result =
-      await ref.read(sourcesProvider.notifier).delete(source.id);
-  // The row is gone on success, so only a failure can still toast from it.
-  if (result.isRight()) {
-    if (ref.read(activeSourceIdProvider) == null) onNoSourceLeft();
+  final Either<SourceActionFailure, DeleteOutcome> result =
+      await notifier.delete(source.id);
+  // The host guards its own context: this row is gone once it succeeded.
+  final bool noSourceLeft = result.fold(
+    (SourceActionFailure _) => false,
+    (DeleteOutcome o) => o == DeleteOutcome.noSourceLeft,
+  );
+  if (noSourceLeft) {
+    onNoSourceLeft();
     return;
   }
   if (!context.mounted) return;
+  _toastFailure(context, l, result);
+}
+
+void _toastFailure<T>(
+  BuildContext context,
+  AppLocalizations l,
+  Either<SourceActionFailure, T> result,
+) {
   result.fold(
-    (Failures f) =>
-        AppToast.show(context, message: f.localized(l), kind: ToastKind.error),
-    (Unit _) {},
+    (SourceActionFailure f) =>
+        AppToast.show(context, message: f.text(l), kind: ToastKind.error),
+    (T _) {},
   );
 }
 

@@ -9,6 +9,7 @@ export "src/models/connection_status.dart";
 export "src/models/form_field_issue.dart";
 export "src/models/portal_user_info.dart";
 export "src/models/source.dart";
+export "src/models/source_action_failure.dart";
 export "src/models/source_link.dart";
 export "src/models/source_type.dart";
 export "src/riverpods/add_m3u_source_notifier.dart";
