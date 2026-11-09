@@ -20,6 +20,10 @@ sealed class M3uFormState with _$M3uFormState {
     @Default("") String epgUrl,
     FormFieldIssue? urlError,
     @Default(AsyncState<Source>.idle()) AsyncState<Source> submission,
+
+    /// The add was refused because a sync is running: nothing was added, and
+    /// there is no [Failures] to show, so the view uses the busy copy.
+    @Default(false) bool syncBusy,
   }) = _M3uFormState;
 
   /// The name is optional: a blank one falls back to the playlist host.

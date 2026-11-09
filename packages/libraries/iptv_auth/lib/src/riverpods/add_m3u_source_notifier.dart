@@ -38,6 +38,7 @@ class AddM3uSourceNotifier extends _$AddM3uSourceNotifier {
   /// and the returned future completes with its final progress (null when
   /// nothing was added). Refused while another sync runs.
   Future<SyncProgress?> submit() async {
+    _demo = false;
     if (!state.canSubmit) {
       developer.log("m3u submit ignored: form invalid", name: "iptv.auth");
       return null;
@@ -55,13 +56,32 @@ class AddM3uSourceNotifier extends _$AddM3uSourceNotifier {
   /// Seeds the bundled offline demo source (rich live + VOD + series) — no
   /// form, no network. Reuses [submission] so the connecting screen reports
   /// progress exactly like a normal add.
-  Future<SyncProgress?> startDemo() =>
-      _add(() => ref.read(sourceRepositoryProvider).addDemoSource());
+  Future<SyncProgress?> startDemo() {
+    _demo = true;
+    return _add(() => ref.read(sourceRepositoryProvider).addDemoSource());
+  }
+
+  /// Whether the last submission was the demo one, so [retry] repeats it.
+  bool _demo = false;
+
+  /// The connecting screen's Retry. When the source was already added and
+  /// only the sync failed, re-runs the sync alone: adding again would leave
+  /// one more copy in Settings > Sources per retry (each add gets a new id).
+  /// Re-submits only when the add itself did not succeed.
+  Future<SyncProgress?> retry() {
+    if (state.submission is AsyncSuccess<Source>) {
+      return ref.read(sourceSyncProvider.notifier).run();
+    }
+    return _demo ? startDemo() : submit();
+  }
 
   Future<SyncProgress?> _add(
     Future<Either<Failures, Source>> Function() add,
   ) async {
-    state = state.copyWith(submission: const AsyncState<Source>.loading());
+    state = state.copyWith(
+      submission: const AsyncState<Source>.loading(),
+      syncBusy: false,
+    );
     final SyncGateOutcome<Source> outcome =
         await ref.read(sourceSyncProvider.notifier).changeSource<Source>(
       () async {
@@ -73,7 +93,8 @@ class AddM3uSourceNotifier extends _$AddM3uSourceNotifier {
     switch (outcome) {
       case SyncGateRefused<Source>():
         state = state.copyWith(
-          submission: const AsyncState<Source>.error(Failures.unexpected()),
+          submission: const AsyncState<Source>.idle(),
+          syncBusy: true,
         );
         return null;
       case SyncGateRan<Source>(

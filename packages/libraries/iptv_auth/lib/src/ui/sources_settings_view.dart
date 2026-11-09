@@ -93,7 +93,9 @@ class SourcesSettingsView extends ConsumerWidget {
                   final Source source = data[index];
                   return _SourceRow(
                     source: source,
-                    // The deleted row is unmounted by then: gate on this screen.
+                    isOnlySource: data.length == 1,
+                    // The deleted row is unmounted by then: gate on this
+                    // screen.
                     onNoSourceLeft: () {
                       if (context.mounted) onNoSourceLeft();
                     },
@@ -131,9 +133,14 @@ class _SourcesSkeleton extends StatelessWidget {
 }
 
 class _SourceRow extends ConsumerWidget {
-  const _SourceRow({required this.source, required this.onNoSourceLeft});
+  const _SourceRow({
+    required this.source,
+    required this.isOnlySource,
+    required this.onNoSourceLeft,
+  });
 
   final Source source;
+  final bool isOnlySource;
   final VoidCallback onNoSourceLeft;
 
   Future<void> _activate(BuildContext context, WidgetRef ref) async {
@@ -242,6 +249,7 @@ class _SourceRow extends ConsumerWidget {
             ref,
             source: source,
             isActive: isActive,
+            isOnlySource: isOnlySource,
             canRefresh: !busy,
             onNoSourceLeft: onNoSourceLeft,
           ),

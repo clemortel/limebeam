@@ -218,6 +218,7 @@
   "sourcesDeleteTitle": "Delete this source?",
   "sourcesDeleteMessage": "\"{name}\" will be removed from this device.",
   "sourcesDeleteActiveMessage": "\"{name}\" is your active source: the app will switch to another one.",
+  "sourcesDeleteLastMessage": "\"{name}\" is your only source: after deleting it you will need to add a new one.",
   "sourcesRefresh": "Refresh catalog",
   "sourcesSyncBusy": "A sync is in progress. Try again in a moment.",
   "sourcesRenameBlank": "The name can't be empty.",

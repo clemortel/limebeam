@@ -21,6 +21,7 @@ Future<void> showSourceActions(
   WidgetRef ref, {
   required Source source,
   required bool isActive,
+  required bool isOnlySource,
   required bool canRefresh,
   required VoidCallback onNoSourceLeft,
 }) {
@@ -53,9 +54,11 @@ Future<void> showSourceActions(
           context,
           title: l.sourcesDeleteTitle,
           child: _DeleteConfirm(
-            message: isActive
-                ? l.sourcesDeleteActiveMessage(source.name)
-                : l.sourcesDeleteMessage(source.name),
+            message: switch ((isActive, isOnlySource)) {
+              (_, true) => l.sourcesDeleteLastMessage(source.name),
+              (true, false) => l.sourcesDeleteActiveMessage(source.name),
+              (false, false) => l.sourcesDeleteMessage(source.name),
+            },
             onConfirm: () => _delete(context, notifier, source, onNoSourceLeft),
           ),
         );

@@ -139,10 +139,10 @@ class SourcesNotifier extends _$SourcesNotifier {
       _deleteActive(id),
       shouldSync: (DeleteOutcome o) => o == DeleteOutcome.deleted,
     );
-    final Either<SourceActionFailure, DeleteOutcome> settled =
-        await _settle<DeleteOutcome>(outcome);
-    await _load();
-    return settled;
+    // Reload before awaiting the takeover sync: the deleted row must leave
+    // the list now, not minutes later when the sync ends.
+    if (outcome is SyncGateRan<DeleteOutcome>) await _load();
+    return _settle<DeleteOutcome>(outcome);
   }
 
   Future<Either<Failures, DeleteOutcome>> Function() _deleteActive(

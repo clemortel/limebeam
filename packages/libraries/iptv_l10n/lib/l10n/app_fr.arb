@@ -290,6 +290,14 @@
       }
     }
   },
+  "sourcesDeleteLastMessage": "« {name} » est ta seule source : une fois supprimée, tu devras en ajouter une nouvelle.",
+  "@sourcesDeleteLastMessage": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "sourcesRefresh": "Actualiser le catalogue",
   "sourcesSyncBusy": "Une synchronisation est en cours. Réessaie dans un instant.",
   "sourcesRenameBlank": "Le nom ne peut pas être vide.",

@@ -52,6 +52,17 @@ class AddXtreamSourceNotifier extends _$AddXtreamSourceNotifier {
         passwordError: value.isEmpty ? FormFieldIssue.required : null,
       );
 
+  /// The connecting screen's Retry. When the source was already added and
+  /// only the sync failed, re-runs the sync alone: adding again would leave
+  /// one more copy in Settings > Sources per retry (each add gets a new id).
+  /// Re-submits only when the add itself did not succeed.
+  Future<SyncProgress?> retry() {
+    if (state.submission is AsyncSuccess<Source>) {
+      return ref.read(sourceSyncProvider.notifier).run();
+    }
+    return submit();
+  }
+
   /// Validates then connects. On success `state.submission` becomes
   /// `AsyncState.success(source)` and the sync starts under the same gate;
   /// the returned future completes with its final progress (null when
@@ -62,7 +73,10 @@ class AddXtreamSourceNotifier extends _$AddXtreamSourceNotifier {
       return null;
     }
     developer.log("submit start", name: "iptv.auth");
-    state = state.copyWith(submission: const AsyncState<Source>.loading());
+    state = state.copyWith(
+      submission: const AsyncState<Source>.loading(),
+      syncBusy: false,
+    );
 
     final SyncGateOutcome<Source> outcome =
         await ref.read(sourceSyncProvider.notifier).changeSource<Source>(
@@ -83,7 +97,8 @@ class AddXtreamSourceNotifier extends _$AddXtreamSourceNotifier {
       case SyncGateRefused<Source>():
         developer.log("submit refused: sync in flight", name: "iptv.auth");
         state = state.copyWith(
-          submission: const AsyncState<Source>.error(Failures.unexpected()),
+          submission: const AsyncState<Source>.idle(),
+          syncBusy: true,
         );
         return null;
       case SyncGateRan<Source>(

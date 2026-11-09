@@ -1406,6 +1406,12 @@ abstract class AppLocalizations {
   /// **'« {name} » est ta source active : l’app passera sur une autre source.'**
   String sourcesDeleteActiveMessage(String name);
 
+  /// No description provided for @sourcesDeleteLastMessage.
+  ///
+  /// In fr, this message translates to:
+  /// **'« {name} » est ta seule source : une fois supprimée, tu devras en ajouter une nouvelle.'**
+  String sourcesDeleteLastMessage(String name);
+
   /// No description provided for @sourcesRefresh.
   ///
   /// In fr, this message translates to:

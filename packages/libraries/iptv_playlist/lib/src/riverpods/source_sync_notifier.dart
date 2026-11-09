@@ -59,8 +59,8 @@ class SourceSyncNotifier extends _$SourceSyncNotifier {
     Either<Failures, T> result;
     try {
       result = await change();
-    } on Object {
-      result = left(const Failures.unexpected());
+    } on Object catch (error, stackTrace) {
+      result = left(catchError(error, stackTrace));
     }
     final bool sync = result.fold(
       (Failures _) => false,
@@ -78,6 +78,13 @@ class SourceSyncNotifier extends _$SourceSyncNotifier {
   Future<SyncProgress> _syncAndFinish(Completer<SyncProgress> done) async {
     try {
       await syncCatalog();
+    } on Object catch (error, stackTrace) {
+      // A throwing sync must still free the gate: otherwise `isRunning`
+      // stays true and every add/switch/refresh is refused until restart.
+      state = SyncProgress(
+        step: SyncStep.failed,
+        failure: catchError(error, stackTrace),
+      );
     } finally {
       _inFlight = null;
       done.complete(state);

@@ -10,6 +10,7 @@ import "package:iptv_playlist/iptv_playlist.dart";
 
 class _GatedSync extends SourceSyncNotifier {
   int syncs = 0;
+  bool throws = false;
   Completer<void> release = Completer<void>();
 
   @override
@@ -17,6 +18,7 @@ class _GatedSync extends SourceSyncNotifier {
     syncs++;
     state = const SyncProgress(step: SyncStep.live);
     await release.future;
+    if (throws) throw StateError("boom");
     state = const SyncProgress(step: SyncStep.done);
   }
 }
@@ -107,6 +109,21 @@ void main() {
     expect(sync.syncs, 0);
     expect(container.read(sourceSyncProvider).isRunning, isFalse);
     sync.release.complete();
+    expect((await gate().run()).isDone, isTrue);
+  });
+
+  test("should free the gate and report failure when the sync throws",
+      () async {
+    sync.throws = true;
+    final Future<SyncProgress> running = gate().run();
+    sync.release.complete();
+
+    final SyncProgress ended = await running;
+
+    expect(ended.isFailed, isTrue);
+    expect(container.read(sourceSyncProvider).isRunning, isFalse);
+    sync.throws = false;
+    sync.release = Completer<void>()..complete();
     expect((await gate().run()).isDone, isTrue);
   });
 }

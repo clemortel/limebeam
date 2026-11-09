@@ -712,6 +712,11 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
+  String sourcesDeleteLastMessage(String name) {
+    return '« $name » est ta seule source : une fois supprimée, tu devras en ajouter une nouvelle.';
+  }
+
+  @override
   String get sourcesRefresh => 'Actualiser le catalogue';
 
   @override

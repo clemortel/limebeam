@@ -372,4 +372,19 @@ void main() {
     expect(container.read(activeSourceIdProvider), isNull);
     expect(sync.runs, 0);
   });
+
+  test("should drop the deleted active source before the takeover sync ends",
+      () async {
+    final SourcesNotifier notifier = await loaded();
+    sync.gate = Completer<void>();
+
+    final Future<Either<SourceActionFailure, DeleteOutcome>> deleting =
+        notifier.delete("a");
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(sources().map((Source s) => s.id), <String>["b", "c"]);
+    sync.gate!.complete();
+    await deleting;
+  });
 }

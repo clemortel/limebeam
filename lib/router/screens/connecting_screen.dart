@@ -29,7 +29,7 @@ class _ConnectingScreenState extends ConsumerState<ConnectingScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _run());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _finish(_submit()));
   }
 
   bool get _isDemo => widget.kind == SourceType.demo;
@@ -42,10 +42,17 @@ class _ConnectingScreenState extends ConsumerState<ConnectingScreen> {
   /// Adds the source and syncs it under the one sync gate: the add itself
   /// starts the sync, so there is no second `run()` that could be a no-op.
   /// Reads nothing from [ref] after an await unless still [mounted].
-  Future<void> _run() async {
-    final SyncProgress? progress = await _submit();
+  Future<void> _finish(Future<SyncProgress?> attempt) async {
+    final SyncProgress? progress = await attempt;
     if (!mounted || progress == null || !progress.isDone) return;
     await context.router.replace(const SourceSuccessRoute());
+  }
+
+  /// Retry: the notifier decides between re-syncing an added source and
+  /// re-submitting a failed add, so a retry never duplicates the source.
+  Future<SyncProgress?> _retry() {
+    if (_isM3u) return ref.read(addM3uSourceProvider.notifier).retry();
+    return ref.read(addXtreamSourceProvider.notifier).retry();
   }
 
   Future<SyncProgress?> _submit() {
@@ -60,7 +67,11 @@ class _ConnectingScreenState extends ConsumerState<ConnectingScreen> {
     final AsyncState<Source> submission = _isM3u
         ? ref.watch(addM3uSourceProvider).submission
         : ref.watch(addXtreamSourceProvider).submission;
+    final bool syncBusy = _isM3u
+        ? ref.watch(addM3uSourceProvider).syncBusy
+        : ref.watch(addXtreamSourceProvider).syncBusy;
     final SyncProgress progress = ref.watch(sourceSyncProvider);
+    final AppLocalizations l = AppLocalizations.of(context);
 
     final Failures? failure = switch (submission) {
       AsyncError<Source>(:final Failures failure) => failure,
@@ -69,16 +80,18 @@ class _ConnectingScreenState extends ConsumerState<ConnectingScreen> {
       AsyncSuccess<Source>() => progress.isFailed ? progress.failure : null,
     };
 
+    final String? message = syncBusy ? l.sourcesSyncBusy : failure?.localized(l);
+
     return Scaffold(
       backgroundColor: t.colors.bgBase,
       body: SafeArea(
         child: Padding(
           padding: EdgeInsets.all(t.space.x4),
           child: Center(
-            child: failure != null
+            child: message != null
                 ? _ErrorState(
-                    failure: failure,
-                    onRetry: _run,
+                    message: message,
+                    onRetry: () => _finish(_retry()),
                     formRouteName: _isDemo
                         ? WelcomeRoute.name
                         : _isM3u
@@ -142,12 +155,12 @@ class _ProgressState extends StatelessWidget {
 
 class _ErrorState extends StatelessWidget {
   const _ErrorState({
-    required this.failure,
+    required this.message,
     required this.onRetry,
     required this.formRouteName,
   });
 
-  final Failures failure;
+  final String message;
   final VoidCallback onRetry;
   final String formRouteName;
 
@@ -157,7 +170,7 @@ class _ErrorState extends StatelessWidget {
     return EmptyState(
       icon: Icons.error_outline,
       title: l.connectingErrorTitle,
-      message: failure.localized(AppLocalizations.of(context)),
+      message: message,
       action: Column(
         children: <Widget>[
           PrimaryButton(

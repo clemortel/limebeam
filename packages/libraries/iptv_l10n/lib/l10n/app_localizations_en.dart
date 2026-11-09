@@ -703,6 +703,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String sourcesDeleteLastMessage(String name) {
+    return '\"$name\" is your only source: after deleting it you will need to add a new one.';
+  }
+
+  @override
   String get sourcesRefresh => 'Refresh catalog';
 
   @override
