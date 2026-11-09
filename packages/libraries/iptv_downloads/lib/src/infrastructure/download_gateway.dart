@@ -18,7 +18,8 @@ class GatewayEvent {
     this.reason = DownloadFailureReason.unknown,
   ]);
 
-  /// The download key (`DownloadRecord.key`): the native task id.
+  /// The native task id: `DownloadRecord.nativeTaskId` of the attempt that
+  /// emitted it (its key for records older than per-attempt ids).
   final String taskId;
   final GatewayStatus status;
 
@@ -48,9 +49,14 @@ abstract interface class DownloadGateway {
   /// Configures the queue and starts listening. Must not touch the network.
   Future<void> initialize();
 
-  /// Returns false when the native layer refused the task. The task id is
-  /// the request key, so two sources never collide.
-  Future<bool> enqueue(DownloadRequest request, String filename);
+  /// Returns false when the native layer refused the task. [taskId] is
+  /// unique per attempt (see `downloadTaskId`), so a late event of a removed
+  /// attempt cannot be taken for the new one.
+  Future<bool> enqueue(
+    DownloadRequest request,
+    String filename,
+    String taskId,
+  );
 
   Future<void> cancel(String taskId);
 
@@ -63,7 +69,7 @@ abstract interface class DownloadGateway {
   /// Size announced by the server (HEAD), null when unknown or unreachable.
   Future<int?> expectedSize(DownloadRequest request);
 
-  /// Task ids (download keys) the native layer still knows about.
+  /// Native task ids the native layer still knows about.
   Future<ISet<String>> activeIds();
 
   /// Best-effort: erases the plugin's stored copy of the task [taskId]
@@ -152,22 +158,33 @@ class BackgroundDownloaderGateway implements DownloadGateway {
   @override
   Stream<GatewayEvent> get events => _events.stream;
 
+  /// Set by [initialize]. Trap: background_downloader asserts that the
+  /// storage is injected by the very first `FileDownloader()` call, so every
+  /// other method goes through [_require] instead of building one itself.
+  FileDownloader? _downloader;
+
+  FileDownloader _require() =>
+      _downloader ?? (throw const DownloadGatewayException("not initialized"));
+
   @override
   Future<void> initialize() async {
     try {
       // First FileDownloader() call of the app: the only one that may
       // inject the storage.
-      await FileDownloader(persistentStorage: _storage).configure(
+      final FileDownloader downloader =
+          FileDownloader(persistentStorage: _storage);
+      _downloader = downloader;
+      await downloader.configure(
         globalConfig: <(String, dynamic)>[
           (Config.holdingQueue, _kHoldingQueue),
           (Config.resourceTimeout, _kResourceTimeout),
         ],
       );
       // Listener first: start() flushes updates from the suspended period.
-      FileDownloader().updates.listen(_onUpdate);
+      downloader.updates.listen(_onUpdate);
       // No tracking: the task database would keep the URL after the end.
       // Resume data and paused tasks are not covered: see [purgeStoredTask].
-      await FileDownloader().start(
+      await downloader.start(
         doTrackTasks: false,
         doRescheduleKilledTasks: false,
       );
@@ -217,9 +234,13 @@ class BackgroundDownloaderGateway implements DownloadGateway {
         _ => DownloadFailureReason.unknown,
       };
 
-  DownloadTask _taskFor(DownloadRequest request, String filename) =>
+  DownloadTask _taskFor(
+    DownloadRequest request,
+    String filename,
+    String taskId,
+  ) =>
       DownloadTask(
-        taskId: request.key,
+        taskId: taskId,
         url: request.url,
         filename: filename,
         directory: kDownloadsDirectory,
@@ -234,11 +255,16 @@ class BackgroundDownloaderGateway implements DownloadGateway {
       );
 
   @override
-  Future<bool> enqueue(DownloadRequest request, String filename) async {
+  Future<bool> enqueue(
+    DownloadRequest request,
+    String filename,
+    String taskId,
+  ) async {
     try {
-      final DownloadTask task = _taskFor(request, filename);
-      _tasks[request.key] = task;
-      return await FileDownloader().enqueue(task);
+      final FileDownloader downloader = _require();
+      final DownloadTask task = _taskFor(request, filename, taskId);
+      _tasks[taskId] = task;
+      return await downloader.enqueue(task);
     } catch (_) {
       throw const DownloadGatewayException("enqueue");
     }
@@ -247,7 +273,8 @@ class BackgroundDownloaderGateway implements DownloadGateway {
   @override
   Future<int?> expectedSize(DownloadRequest request) async {
     try {
-      final int size = await _taskFor(request, "probe")
+      _require();
+      final int size = await _taskFor(request, "probe", "probe")
           .expectedFileSize()
           .timeout(_kProbeTimeout);
       // -1: the panel sent no Content-Length. Unknown means accepted.
@@ -262,7 +289,7 @@ class BackgroundDownloaderGateway implements DownloadGateway {
   Future<DownloadTask?> _find(String taskId) async {
     final DownloadTask? known = _tasks[taskId];
     if (known != null) return known;
-    final Task? stored = await FileDownloader().taskForId(taskId);
+    final Task? stored = await _require().taskForId(taskId);
     return stored is DownloadTask ? stored : null;
   }
 
@@ -271,7 +298,7 @@ class BackgroundDownloaderGateway implements DownloadGateway {
     try {
       final DownloadTask? task = await _find(taskId);
       if (task == null) return false;
-      return await FileDownloader().pause(task);
+      return await _require().pause(task);
     } catch (_) {
       throw const DownloadGatewayException("pause");
     }
@@ -282,7 +309,7 @@ class BackgroundDownloaderGateway implements DownloadGateway {
     try {
       final DownloadTask? task = await _find(taskId);
       if (task == null) return false;
-      return await FileDownloader().resume(task);
+      return await _require().resume(task);
     } catch (_) {
       throw const DownloadGatewayException("resume");
     }
@@ -292,7 +319,7 @@ class BackgroundDownloaderGateway implements DownloadGateway {
   Future<void> cancel(String taskId) async {
     try {
       _tasks.remove(taskId);
-      await FileDownloader().cancelTaskWithId(taskId);
+      await _require().cancelTaskWithId(taskId);
     } catch (_) {
       throw const DownloadGatewayException("cancel");
     }
@@ -301,7 +328,7 @@ class BackgroundDownloaderGateway implements DownloadGateway {
   @override
   Future<ISet<String>> activeIds() async {
     try {
-      final List<Task> tasks = await FileDownloader().allTasks();
+      final List<Task> tasks = await _require().allTasks();
       return tasks.map((Task t) => t.taskId).toISet();
     } catch (_) {
       throw const DownloadGatewayException("activeIds");

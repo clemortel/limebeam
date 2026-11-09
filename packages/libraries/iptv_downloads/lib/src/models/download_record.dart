@@ -35,6 +35,11 @@ sealed class DownloadRecord with _$DownloadRecord {
     required DownloadPhase phase,
     @Default("") String seriesCoverUrl,
     @Default("") String duration,
+
+    /// Native task id of the current attempt (`<key>#<nonce>`). Empty on
+    /// records written before attempts got their own id: their task id is
+    /// the key, see [DownloadRecordKey.nativeTaskId].
+    @Default("") String taskId,
   }) = _DownloadRecord;
 
   factory DownloadRecord.fromJson(Map<String, dynamic> json) =>
@@ -47,8 +52,27 @@ sealed class DownloadRecord with _$DownloadRecord {
 String downloadKey(String sourceId, String contentId) =>
     sourceId.isEmpty ? contentId : "$sourceId:$contentId";
 
+/// Separates the record key from the per-attempt nonce in a native task id.
+/// Safe: content ids are validated to `[A-Za-z0-9_-]` before they get here.
+const String kTaskIdSeparator = "#";
+
+/// Task id of one enqueue. Trap: the key alone is not enough, a late event
+/// of a removed attempt would be taken for the re-download of the same key.
+String downloadTaskId(String key, String nonce) =>
+    "$key$kTaskIdSeparator$nonce";
+
+/// The record key a native task id belongs to. A bare key (legacy task)
+/// maps to itself.
+String keyOfTaskId(String taskId) {
+  final int cut = taskId.lastIndexOf(kTaskIdSeparator);
+  return cut < 0 ? taskId : taskId.substring(0, cut);
+}
+
 extension DownloadRecordKey on DownloadRecord {
   String get key => downloadKey(sourceId, contentId);
+
+  /// What the native layer knows this download as right now.
+  String get nativeTaskId => taskId.isEmpty ? key : taskId;
 }
 
 /// The records of [sourceId] only; none when there is no active source.
