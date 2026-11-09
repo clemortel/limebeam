@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Android 11 and older Auto Backup. background_downloader keeps the task
      JSON (Xtream URL with user and password) in these files: keep them off
-     Google's cloud backup. Everything else stays backed up as before. -->
+     Google's cloud backup. The downloaded videos (multi-GB, re-downloadable;
+     they would blow the 25 MB quota and stop the whole backup) and the Hive
+     downloads box are excluded too. Everything else stays backed up. -->
 <full-backup-content>
     <exclude domain="sharedpref" path="com.limebeam.app_preferences.xml"/>
     <exclude domain="database" path="androidx.work.workdb"/>
@@ -10,4 +12,8 @@
     <exclude domain="file" path="backgroundDownloaderResumeData"/>
     <exclude domain="file" path="backgroundDownloaderPausedTasks"/>
     <exclude domain="file" path="backgroundDownloaderTaskRecords"/>
+    <exclude domain="file" path="app_flutter/downloads"/>
+    <exclude domain="file" path="app_flutter/downloads.hive"/>
+    <exclude domain="file" path="app_flutter/downloads.hivec"/>
+    <exclude domain="file" path="app_flutter/downloads.lock"/>
 </full-backup-content>

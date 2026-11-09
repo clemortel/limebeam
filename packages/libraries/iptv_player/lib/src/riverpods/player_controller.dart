@@ -19,6 +19,7 @@ import "../infrastructure/exoplayer_engine.dart";
 import "../infrastructure/media_kit_engine.dart";
 import "../pip/media_session_service.dart";
 import "../player_init.dart";
+import "player_transitions.dart";
 import "player_ui_state.dart";
 
 part "player_controller.g.dart";
@@ -137,6 +138,9 @@ class PlaybackController extends _$PlaybackController {
   bool _externalPlayback = false;
 
   /// Polls the remote playhead while casting; null when playing locally.
+  /// Serialises engine swaps and cast hand-offs, see [TransitionQueue].
+  final TransitionQueue _transitions = TransitionQueue();
+
   Timer? _castPollTimer;
 
   /// Watches for the remote session ending externally (e.g. from the TV).
@@ -242,6 +246,8 @@ class PlaybackController extends _$PlaybackController {
 
   /// Begins (or replaces) playback with [queue].
   void start(PlaybackQueue queue) {
+    // Any swap or hand-off still in flight belongs to the old session.
+    _transitions.bump();
     _countdownTimer?.cancel();
     // New session: give ExoPlayer a fresh chance (a previous codec failure
     // shouldn't stick to unrelated new content).
@@ -299,19 +305,39 @@ class PlaybackController extends _$PlaybackController {
     await _swapEngine();
   }
 
+  /// Queues an engine rebuild behind every other swap and cast hand-off.
+  /// Used for the AirPlay handoff and the ExoPlayer fallback.
+  Future<void> _swapEngine({Duration? resumeFrom}) {
+    final int gen = _transitions.generation;
+    return _transitions.run(
+      () => _swapEngineNow(gen, resumeFrom: resumeFrom),
+      onError: _logTransitionError,
+    );
+  }
+
+  void _logTransitionError(Object error, StackTrace stackTrace) =>
+      debugPrint("Player transition failed: ${error.runtimeType}");
+
   /// Tears down the current engine and rebuilds it via [_createEngine] at the
-  /// current position, re-subscribing its streams. Used for the AirPlay handoff.
-  Future<void> _swapEngine({Duration? resumeFrom}) async {
-    final PlaybackQueue? q = _queue;
-    if (q == null) return;
+  /// current position, re-subscribing its streams. Runs inside the
+  /// [_transitions] queue only: it is the single place an engine is created
+  /// after [start]. A swap superseded while it disposes creates nothing and
+  /// leaves [_engine] null; the transition that superseded it rebuilds.
+  Future<void> _swapEngineNow(int gen, {Duration? resumeFrom}) async {
+    if (_disposed || _queue == null || !_transitions.isCurrent(gen)) return;
     final Duration resumeAt =
         resumeFrom ?? (state.isLive ? Duration.zero : state.position);
-    for (final StreamSubscription<dynamic> sub in _subscriptions) {
+    // Detached before the first await so nobody else disposes them again.
+    final List<StreamSubscription<dynamic>> subs = _subscriptions.toList();
+    _subscriptions.clear();
+    final PlaybackEngine? old = _engine;
+    _engine = null;
+    for (final StreamSubscription<dynamic> sub in subs) {
       await sub.cancel();
     }
-    _subscriptions.clear();
-    await _engine?.dispose();
-    if (_disposed) return;
+    await old?.dispose();
+    final PlaybackQueue? q = _queue;
+    if (_disposed || q == null || !_transitions.isCurrent(gen)) return;
     final PlaybackEngine engine = _createEngine(q.items[state.queueIndex]);
     _engine = engine;
     _listen(engine);
@@ -323,7 +349,7 @@ class PlaybackController extends _$PlaybackController {
         supportsSyncOffsets: engine.supportsSyncOffsets,
       ),
     );
-    await _openIndex(state.queueIndex, resumeAt);
+    unawaited(_openIndex(state.queueIndex, resumeAt));
   }
 
   /// Arms the stall watchdog: after [_kBufferTimeout] with no playing frame,
@@ -360,6 +386,7 @@ class PlaybackController extends _$PlaybackController {
 
   /// Stops playback and releases the engine (mini-player close).
   Future<void> stop() async {
+    _transitions.bump();
     _accrueWatchTime(resume: false);
     _maybeSaveProgress(force: true);
     _cancelBufferWatchdog();
@@ -374,13 +401,15 @@ class PlaybackController extends _$PlaybackController {
     _routeSub = null;
     _externalPlayback = false;
     if (isCasting) await _castRepo?.endSession();
-    for (final StreamSubscription<dynamic> sub in _subscriptions) {
-      await sub.cancel();
-    }
+    final List<StreamSubscription<dynamic>> subs = _subscriptions.toList();
     _subscriptions.clear();
-    await _engine?.dispose();
+    final PlaybackEngine? old = _engine;
     _engine = null;
     _queue = null;
+    for (final StreamSubscription<dynamic> sub in subs) {
+      await sub.cancel();
+    }
+    await old?.dispose();
     _set(const PlayerUiState());
   }
 
@@ -838,7 +867,6 @@ class PlaybackController extends _$PlaybackController {
     _maybeSaveProgress(force: true);
     final PlaybackRequest request = q.items[index];
     _lastSavedSeconds = 0;
-    final CastDevice? device = state.castDevice;
     _set(
       state.copyWith(
         queueIndex: index,
@@ -846,29 +874,59 @@ class PlaybackController extends _$PlaybackController {
         countdownSeconds: 0,
       ),
     );
-    if (device != null && !request.isLocal) {
-      // Casting: load the new item onto the receiver (session is reused).
-      unawaited(_castLoad(device, request, request.startAt));
-    } else if (device != null) {
-      // A receiver cannot read a file:// URL: leave the cast for this item.
-      unawaited(_leaveCastFor(index, request.startAt));
-    } else if (_engineMismatch(request)) {
-      unawaited(_swapEngine(resumeFrom: request.startAt));
-    } else {
-      unawaited(_openIndex(index, request.startAt));
-    }
+    // What to do depends on the cast and engine state when it is this
+    // item's turn, not now: earlier transitions may still be running.
+    final int gen = _transitions.bump();
+    unawaited(
+      _transitions.run(
+        () => _navigate(index, request.startAt, gen),
+        onError: _logTransitionError,
+      ),
+    );
     revealOverlay();
   }
 
-  /// Ends the cast session and plays queue item [index] locally.
-  Future<void> _leaveCastFor(int index, Duration startAt) async {
-    await _dropCastSession();
-    if (_disposed || state.queueIndex != index) return;
-    _set(state.copyWith(castDevice: null, buffering: true));
-    if (_engineMismatch(_queue!.items[index])) {
-      await _swapEngine(resumeFrom: startAt);
+  bool _engineReusableFor(PlaybackRequest item) => canReuseEngine(
+        hasEngine: _engine != null,
+        engineIsNative: _engine is ExoPlayerEngine,
+        wantsNative: _wantsNativeEngine(),
+        airPlayMismatch: _engineMismatch(item),
+      );
+
+  /// Reaches queue item [index]; runs inside the [_transitions] queue.
+  Future<void> _navigate(int index, Duration startAt, int gen) async {
+    final PlaybackQueue? q = _queue;
+    if (_disposed || q == null || !_transitions.isCurrent(gen)) return;
+    final PlaybackRequest request = q.items[index];
+    final CastDevice? device = state.castDevice;
+    NavigationAction action = decideNavigation(
+      casting: device != null,
+      itemIsLocal: request.isLocal,
+      engineReusable: _engineReusableFor(request),
+    );
+    switch (action) {
+      case NavigationAction.castLoad:
+        if (device == null) return;
+        await _castLoad(device, request, startAt, gen);
+        return;
+      case NavigationAction.leaveCast:
+        // A receiver cannot read a file:// URL: leave the cast for this item.
+        await _dropCastSession();
+        if (_disposed) return;
+        // The session is over whatever happened since: castDevice follows.
+        _set(state.copyWith(castDevice: null, buffering: true));
+        if (!_transitions.isCurrent(gen)) return;
+        action = decideAfterLeavingCast(
+          engineReusable: _engineReusableFor(request),
+        );
+      case NavigationAction.swapEngine:
+      case NavigationAction.openLocal:
+        break;
+    }
+    if (action == NavigationAction.swapEngine) {
+      await _swapEngineNow(gen, resumeFrom: startAt);
     } else {
-      await _openIndex(index, startAt);
+      unawaited(_openIndex(index, startAt));
     }
   }
 
@@ -969,21 +1027,34 @@ class PlaybackController extends _$PlaybackController {
   /// Hands the current item off to [device]: pauses local playback and starts
   /// remote playback at the current position. The overlay then drives the TV.
   Future<void> castTo(CastDevice device) async {
-    final PlaybackRequest? request = currentRequest;
-    if (_castRepo == null || request == null || request.isLocal) return;
-    final Duration startAt = state.isLive ? Duration.zero : state.position;
-    await _engine?.pause();
-    _accrueWatchTime(resume: false);
-    await _castLoad(device, request, startAt);
+    final PlaybackRequest? first = currentRequest;
+    if (_castRepo == null || first == null || first.isLocal) return;
+    final int gen = _transitions.bump();
+    await _transitions.run(
+      () async {
+        final PlaybackRequest? request = currentRequest;
+        if (_disposed || !_transitions.isCurrent(gen)) return;
+        if (request == null || request.isLocal) return;
+        final Duration startAt = state.isLive ? Duration.zero : state.position;
+        await _engine?.pause();
+        _accrueWatchTime(resume: false);
+        await _castLoad(device, request, startAt, gen);
+      },
+      onError: _logTransitionError,
+    );
     revealOverlay();
   }
 
   /// Loads [request] onto [device]. Reused for both the initial handoff and
-  /// queue changes while already casting (the SDK session is reused).
+  /// queue changes while already casting (the SDK session is reused). Runs
+  /// inside the [_transitions] queue. Trap: [state]'s castDevice must follow
+  /// the real session, so a successful load records it even when a newer
+  /// transition has superseded this one (that one then leaves or reloads).
   Future<void> _castLoad(
     CastDevice device,
     PlaybackRequest request,
     Duration startAt,
+    int gen,
   ) async {
     final ICastRepository? repo = _castRepo;
     // Every hand-off is guarded, not only the current item: see [playAt].
@@ -1000,9 +1071,17 @@ class PlaybackController extends _$PlaybackController {
       isLive: request.isLive,
     );
     if (_disposed) return;
+    if (_queue == null) {
+      // Stopped meanwhile: do not leave a session nobody tracks.
+      if (result.isRight()) unawaited(repo.endSession());
+      return;
+    }
     result.fold(
-      (Failures failure) =>
-          _set(state.copyWith(error: failure, buffering: false)),
+      (Failures failure) {
+        if (_transitions.isCurrent(gen)) {
+          _set(state.copyWith(error: failure, buffering: false));
+        }
+      },
       (_) {
         _set(
           state.copyWith(
@@ -1020,14 +1099,29 @@ class PlaybackController extends _$PlaybackController {
 
   /// Ends the cast session and resumes local playback at the remote position.
   Future<void> stopCasting() async {
-    final ICastRepository? repo = _castRepo;
-    if (repo == null || !isCasting) return;
-    final Duration resumeAt = await _dropCastSession();
-    if (_disposed) return;
-    final bool live = state.isLive;
-    _set(state.copyWith(castDevice: null, buffering: true));
-    // _openIndex re-opens the local engine and auto-plays; live restarts at 0.
-    unawaited(_openIndex(state.queueIndex, live ? Duration.zero : resumeAt));
+    if (_castRepo == null || !isCasting) return;
+    // Not a navigation: a playAt queued after this keeps its own say.
+    final int gen = _transitions.generation;
+    await _transitions.run(
+      () async {
+        if (_disposed || !isCasting) return;
+        final Duration resumeAt = await _dropCastSession();
+        if (_disposed) return;
+        final bool live = state.isLive;
+        _set(state.copyWith(castDevice: null, buffering: true));
+        if (!_transitions.isCurrent(gen)) return;
+        final PlaybackRequest? request = currentRequest;
+        if (request == null) return;
+        final Duration at = live ? Duration.zero : resumeAt;
+        if (_engineReusableFor(request)) {
+          // Re-opens the local engine and auto-plays; live restarts at 0.
+          unawaited(_openIndex(state.queueIndex, at));
+        } else {
+          await _swapEngineNow(gen, resumeFrom: at);
+        }
+      },
+      onError: _logTransitionError,
+    );
     revealOverlay();
   }
 
@@ -1065,6 +1159,7 @@ class PlaybackController extends _$PlaybackController {
 
   Future<void> _release() async {
     _disposed = true;
+    _transitions.bump();
     _accrueWatchTime(resume: false);
     _bufferWatchdog?.cancel();
     _hideTimer?.cancel();
@@ -1090,4 +1185,5 @@ bool canReuseEngine({
   required bool engineIsNative,
   required bool wantsNative,
   required bool airPlayMismatch,
-}) => hasEngine && engineIsNative == wantsNative && !airPlayMismatch;
+}) =>
+    hasEngine && engineIsNative == wantsNative && !airPlayMismatch;
