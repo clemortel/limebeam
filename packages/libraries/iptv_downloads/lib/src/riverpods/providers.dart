@@ -5,11 +5,13 @@ import "package:fast_immutable_collections/fast_immutable_collections.dart";
 import "package:flutter/foundation.dart";
 import "package:get_it/get_it.dart";
 import "package:iptv_core/iptv_core.dart";
-import "package:riverpod_annotation/riverpod_annotation.dart";
+import "package:riverpod_annotation/riverpod_annotation.dart"
+    hide AsyncData, AsyncError, AsyncLoading, AsyncValue;
 
 import "../infrastructure/downloads_repository.dart";
 import "../models/download_record.dart";
 import "../models/download_request.dart";
+import "../models/download_storage_info.dart";
 
 part "providers.g.dart";
 
@@ -54,6 +56,67 @@ class DownloadsNotifier extends _$DownloadsNotifier {
           .read(downloadFailuresProvider.notifier)
           .report(DownloadFailureKind.remove),
       (Unit _) {},
+    );
+  }
+
+  Future<void> pause(String key) =>
+      _run(() => ref.read(downloadsRepositoryProvider).pause(key));
+
+  Future<void> resume(String key) =>
+      _run(() => ref.read(downloadsRepositoryProvider).resume(key));
+
+  Future<void> _run(Future<Either<Failures, Unit>> Function() action) async {
+    // A refused pause or resume leaves the phase untouched, which is what
+    // the row shows; it must never replace the live list with an error.
+    // Trap: no new DownloadFailureKind, the toast mapping lives in the app.
+    await action();
+  }
+}
+
+/// Disk figures for the header. Recomputed whenever the list changes phase,
+/// not on every progress tick (those do not rebuild the record list).
+@riverpod
+class DownloadStorageNotifier extends _$DownloadStorageNotifier {
+  @override
+  AsyncState<DownloadStorageInfo> build(String? sourceId) {
+    // Phases only: a progress tick must not re-scan the disk each second.
+    ref.listen<AsyncState<IList<DownloadRecord>>>(
+      downloadsProvider,
+      (
+        AsyncState<IList<DownloadRecord>>? previous,
+        AsyncState<IList<DownloadRecord>> next,
+      ) {
+        if (_signature(previous) != _signature(next)) unawaited(_load());
+      },
+    );
+    unawaited(_load());
+    return const AsyncState<DownloadStorageInfo>.loading();
+  }
+
+  static String _signature(AsyncState<IList<DownloadRecord>>? state) =>
+      switch (state) {
+        AsyncSuccess<IList<DownloadRecord>>(
+          :final IList<DownloadRecord> data,
+        ) =>
+          data
+              .map(
+                (DownloadRecord r) => "${r.key}:${r.phase.runtimeType}",
+              )
+              .join(","),
+        null => "",
+        AsyncIdle<IList<DownloadRecord>>() => "",
+        AsyncLoading<IList<DownloadRecord>>() => "",
+        AsyncError<IList<DownloadRecord>>() => "",
+      };
+
+  Future<void> _load() async {
+    final Either<Failures, DownloadStorageInfo> result =
+        await ref.read(downloadsRepositoryProvider).storageInfo(sourceId);
+    if (!ref.mounted) return;
+    state = result.fold(
+      (Failures failure) => AsyncState<DownloadStorageInfo>.error(failure),
+      (DownloadStorageInfo info) =>
+          AsyncState<DownloadStorageInfo>.success(info),
     );
   }
 }

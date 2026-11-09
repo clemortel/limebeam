@@ -81,5 +81,6 @@ bool isPlayable(DownloadRecord record) => switch (record.phase) {
       DownloadCompleted() => true,
       DownloadQueued() => false,
       DownloadRunning() => false,
+      DownloadPaused() => false,
       DownloadFailed() => false,
     };

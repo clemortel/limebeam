@@ -23,6 +23,10 @@ import UIKit
     if let registrar = registry.registrar(forPlugin: "AVPlayerEngine") {
       AVPlayerEngineController.register(with: registrar)
     }
+    // Free space + iCloud backup exclusion for offline downloads.
+    if let registrar = registry.registrar(forPlugin: "DownloadStorage") {
+      DownloadStorage.register(with: registrar)
+    }
     // Output-route monitor: tells Dart when AirPlay is active so playback can
     // swap to the AVPlayer engine (libmpv otherwise, for codec coverage).
     if let registrar = registry.registrar(forPlugin: "AirPlayRouteMonitor") {

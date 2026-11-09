@@ -9,17 +9,53 @@ import "package:hive_flutter/hive_flutter.dart";
 import "package:iptv_core/iptv_core.dart";
 import "package:iptv_downloads/iptv_downloads.dart";
 import "package:iptv_downloads/src/infrastructure/download_gateway.dart";
+import "package:iptv_downloads/src/infrastructure/download_storage.dart";
 import "package:iptv_downloads/src/infrastructure/downloads_repository_impl.dart";
 
 const String _kSecretUrl = "http://panel.example/series/user/s3cr3t/42.mkv";
 
+/// Lets tests keep speaking in record keys: an event for a key is rewritten
+/// to the task id of the key's latest enqueue. [addRaw] sends it untouched.
+class EventFeed {
+  EventFeed(this._gateway);
+
+  final FakeGateway _gateway;
+
+  void add(GatewayEvent e) => addRaw(
+        GatewayEvent(
+          _gateway.taskIds[e.taskId] ?? e.taskId,
+          e.status,
+          e.progress,
+          e.reason,
+        ),
+      );
+
+  void addRaw(GatewayEvent e) => _gateway.raw.add(e);
+}
+
 class FakeGateway implements DownloadGateway {
-  final StreamController<GatewayEvent> controller =
+  final StreamController<GatewayEvent> raw =
       StreamController<GatewayEvent>.broadcast();
+  late final EventFeed controller = EventFeed(this);
+
+  /// Latest native task id per record key.
+  final Map<String, String> taskIds = <String, String>{};
+
+  /// Every call in order, with the raw task id.
+  final List<String> calls = <String>[];
+
+  /// When set, [initialize] waits on it.
+  Completer<void>? initGate;
   final List<String> enqueued = <String>[];
   final List<String> canceled = <String>[];
+  final List<String> canceledIds = <String>[];
+  final List<String> purgedIds = <String>[];
   Set<String> active = <String>{};
   bool accept = true;
+  final List<String> paused = <String>[];
+  final List<String> resumed = <String>[];
+  bool canResume = true;
+  int? size;
   final Set<String> throwing = <String>{};
   final Set<String> cancelThrowing = <String>{};
   final List<String> purged = <String>[];
@@ -34,13 +70,22 @@ class FakeGateway implements DownloadGateway {
   final List<Completer<void>> purgeGates = <Completer<void>>[];
 
   @override
-  Stream<GatewayEvent> get events => controller.stream;
+  Stream<GatewayEvent> get events => raw.stream;
 
   @override
-  Future<void> initialize() async {}
+  Future<void> initialize() async {
+    calls.add("initialize");
+    await initGate?.future;
+  }
 
   @override
-  Future<bool> enqueue(DownloadRequest request, String filename) async {
+  Future<bool> enqueue(
+    DownloadRequest request,
+    String filename,
+    String taskId,
+  ) async {
+    calls.add("enqueue:$taskId");
+    taskIds[request.key] = taskId;
     enqueued.add(request.contentId);
     if (throwing.contains(request.contentId)) {
       throw const DownloadGatewayException("enqueue");
@@ -50,7 +95,10 @@ class FakeGateway implements DownloadGateway {
   }
 
   @override
-  Future<void> cancel(String contentId) async {
+  Future<void> cancel(String taskId) async {
+    calls.add("cancel:$taskId");
+    canceledIds.add(taskId);
+    final String contentId = keyOfTaskId(taskId);
     canceled.add(contentId);
     if (cancelThrowing.contains(contentId)) {
       throw const DownloadGatewayException("cancel");
@@ -58,16 +106,44 @@ class FakeGateway implements DownloadGateway {
   }
 
   @override
-  Future<ISet<String>> activeIds() async {
-    await activeGate?.future;
-    return active.toISet();
+  Future<bool> pause(String taskId) async {
+    paused.add(keyOfTaskId(taskId));
+    return true;
   }
 
   @override
-  Future<void> purgeStoredTask(String contentId) async {
-    purged.add(contentId);
+  Future<bool> resume(String taskId) async {
+    resumed.add(keyOfTaskId(taskId));
+    return canResume;
+  }
+
+  @override
+  Future<int?> expectedSize(DownloadRequest request) async => size;
+
+  @override
+  Future<ISet<String>> activeIds() async {
+    await activeGate?.future;
+    return active.map((String k) => taskIds[k] ?? k).toISet();
+  }
+
+  @override
+  Future<void> purgeStoredTask(String taskId) async {
+    calls.add("purge:$taskId");
+    purgedIds.add(taskId);
+    purged.add(keyOfTaskId(taskId));
     if (purgeGates.isNotEmpty) await purgeGates.removeAt(0).future;
   }
+}
+
+class FakeStorage implements DownloadStorage {
+  int? free;
+  int excludeCalls = 0;
+
+  @override
+  Future<int?> freeBytes() async => free;
+
+  @override
+  Future<void> excludeFromBackup() async => excludeCalls++;
 }
 
 /// An empty [source] is the legacy, pre-scoping shape: key == content id.
@@ -89,12 +165,14 @@ void main() {
   late Directory dir;
   late Box<String> box;
   late FakeGateway gateway;
+  late FakeStorage storage;
   late DownloadsRepository repo;
 
   Future<DownloadsRepository> build() async {
     final DownloadsRepository r = DownloadsRepository(
       box: box,
       gateway: gateway,
+      storage: storage,
       documentsPath: () async => dir.path,
     );
     await r.initialize();
@@ -106,6 +184,7 @@ void main() {
     Hive.init(dir.path);
     box = await Hive.openBox<String>("downloads");
     gateway = FakeGateway();
+    storage = FakeStorage();
     repo = await build();
   });
 
@@ -120,7 +199,9 @@ void main() {
       const DownloadPhase.queued(),
       const DownloadPhase.running(0.5),
       const DownloadPhase.completed(),
+      const DownloadPhase.paused(),
       const DownloadPhase.failed(),
+      const DownloadPhase.failed(reason: DownloadFailureReason.storage),
     ]) {
       final DownloadPhase back = DownloadPhase.fromJson(
         jsonDecode(jsonEncode(p.toJson())) as Map<String, dynamic>,
@@ -213,9 +294,10 @@ void main() {
       ].toIList(),
     );
     File("${dir.path}/downloads/done.mkv").createSync(recursive: true);
+    final String aliveId = gateway.taskIds["alive"]!;
     await repo.dispose();
 
-    gateway = FakeGateway()..active = <String>{"alive"};
+    gateway = FakeGateway()..active = <String>{aliveId};
     repo = await build();
     final Map<String, DownloadPhase> phases = <String, DownloadPhase>{
       for (final DownloadRecord r in await repo.watch().first)
@@ -253,6 +335,111 @@ void main() {
       expect(box.get(key), isNot(contains("s3cr3t")));
       expect(box.get(key), isNot(contains("panel.example")));
     }
+  });
+
+  test("backup exclusion is applied on every launch", () async {
+    expect(storage.excludeCalls, 1);
+    await repo.dispose();
+    repo = await build();
+    expect(storage.excludeCalls, 2);
+  });
+
+  test("an episode that does not fit is refused with a storage reason",
+      () async {
+    gateway.size = 900 * 1024 * 1024;
+    storage.free = 1000 * 1024 * 1024;
+    await repo.enqueue(<DownloadRequest>[_request("a")].toIList());
+    expect(gateway.enqueued, isEmpty);
+    expect(
+      (await repo.watch().first).single.phase,
+      const DownloadPhase.failed(reason: DownloadFailureReason.storage),
+    );
+  });
+
+  test("a batch counts the episodes already accepted", () async {
+    gateway.size = 400 * 1024 * 1024;
+    storage.free = 1000 * 1024 * 1024;
+    await repo.enqueue(
+      <DownloadRequest>[_request("a"), _request("b")].toIList(),
+    );
+    expect(gateway.enqueued, <String>["a"]);
+  });
+
+  test("unknown size or unknown free space is accepted", () async {
+    storage.free = 1;
+    await repo.enqueue(<DownloadRequest>[_request("a")].toIList());
+    gateway.size = 10 * 1024 * 1024 * 1024;
+    storage.free = null;
+    await repo.enqueue(<DownloadRequest>[_request("b")].toIList());
+    expect(gateway.enqueued, <String>["a", "b"]);
+  });
+
+  test("pause waits for the native status, resume re-queues", () async {
+    await repo.enqueue(<DownloadRequest>[_request("a")].toIList());
+    gateway.controller.add(const GatewayEvent("a", GatewayStatus.running, 0.3));
+    await _settle();
+    await repo.pause("a");
+    expect(gateway.paused, <String>["a"]);
+    expect((await repo.watch().first).single.phase, isA<DownloadRunning>());
+    gateway.controller.add(const GatewayEvent("a", GatewayStatus.paused));
+    await _settle();
+    expect((await repo.watch().first).single.phase, isA<DownloadPaused>());
+    // A stale tick and a stale queued status do not undo the pause.
+    gateway.controller
+      ..add(const GatewayEvent("a", GatewayStatus.running, 0.31))
+      ..add(const GatewayEvent("a", GatewayStatus.queued));
+    await _settle();
+    expect((await repo.watch().first).single.phase, isA<DownloadPaused>());
+    await repo.resume("a");
+    expect(gateway.resumed, <String>["a"]);
+    expect((await repo.watch().first).single.phase, isA<DownloadQueued>());
+  });
+
+  test("resume of a lost transfer fails with a server reason", () async {
+    await repo.enqueue(<DownloadRequest>[_request("a")].toIList());
+    gateway.controller.add(const GatewayEvent("a", GatewayStatus.paused));
+    await _settle();
+    gateway.canResume = false;
+    await repo.resume("a");
+    expect(
+      (await repo.watch().first).single.phase,
+      const DownloadPhase.failed(reason: DownloadFailureReason.server),
+    );
+  });
+
+  test("a native failure keeps its typed reason", () async {
+    await repo.enqueue(<DownloadRequest>[_request("a")].toIList());
+    gateway.controller.add(
+      const GatewayEvent(
+        "a",
+        GatewayStatus.failed,
+        0,
+        DownloadFailureReason.network,
+      ),
+    );
+    await _settle();
+    expect(
+      (await repo.watch().first).single.phase,
+      const DownloadPhase.failed(reason: DownloadFailureReason.network),
+    );
+  });
+
+  test("storageInfo sums completed files and reports free space", () async {
+    await repo.enqueue(
+      <DownloadRequest>[_request("a"), _request("b")].toIList(),
+    );
+    gateway.controller.add(const GatewayEvent("a", GatewayStatus.completed));
+    await _settle();
+    File("${dir.path}/downloads/a.mkv")
+      ..createSync(recursive: true)
+      ..writeAsBytesSync(List<int>.filled(1000, 0));
+    File("${dir.path}/downloads/b.mkv")
+        .writeAsBytesSync(List<int>.filled(5, 0));
+    storage.free = 42;
+    final DownloadStorageInfo info =
+        (await repo.storageInfo(null)).getOrElse(() => throw StateError("x"));
+    expect(info.totalUsedBytes, 1000);
+    expect(info.freeBytes, 42);
   });
 
   group("source scoping", () {
@@ -365,6 +552,7 @@ void main() {
       final DownloadsRepository booting = DownloadsRepository(
         box: box,
         gateway: gateway,
+        storage: storage,
         documentsPath: () async => dir.path,
       );
       repo = booting;
@@ -402,6 +590,54 @@ void main() {
       expect(await repo.watch().first, isEmpty);
       expect(box.get("a"), isNull);
     });
+  });
+
+  test("storageInfo counts the active source, and the total", () async {
+    await repo.enqueue(
+      <DownloadRequest>[_request("1", "s1"), _request("2", "s2")].toIList(),
+    );
+    gateway.controller
+      ..add(const GatewayEvent("s1:1", GatewayStatus.completed))
+      ..add(const GatewayEvent("s2:2", GatewayStatus.completed));
+    await _settle();
+    await _settle();
+    File("${dir.path}/downloads/s1_1.mkv")
+      ..createSync(recursive: true)
+      ..writeAsBytesSync(List<int>.filled(100, 0));
+    File("${dir.path}/downloads/s2_2.mkv")
+        .writeAsBytesSync(List<int>.filled(30, 0));
+    final DownloadStorageInfo info = (await repo.storageInfo("s1"))
+        .getOrElse(() => throw StateError("storageInfo"));
+    expect(info.usedBytes, 100);
+    expect(info.totalUsedBytes, 130);
+  });
+
+  test("pause and resume address the source-scoped task id", () async {
+    await repo.enqueue(<DownloadRequest>[_request("7", "s1")].toIList());
+    gateway.controller.add(const GatewayEvent("s1:7", GatewayStatus.running));
+    await _settle();
+    await repo.pause("s1:7");
+    gateway.controller.add(const GatewayEvent("s1:7", GatewayStatus.paused));
+    await _settle();
+    await repo.resume("s1:7");
+    expect(gateway.paused, <String>["s1:7"]);
+    expect(gateway.resumed, <String>["s1:7"]);
+  });
+
+  test("a queued row is not paused: the holding queue cannot", () async {
+    await repo.enqueue(<DownloadRequest>[_request("q")].toIList());
+    await repo.pause("q");
+    expect(gateway.paused, isEmpty);
+  });
+
+  test("a resume that cannot continue purges the stored task", () async {
+    await repo.enqueue(<DownloadRequest>[_request("a")].toIList());
+    gateway.controller.add(const GatewayEvent("a", GatewayStatus.paused));
+    await _settle();
+    gateway.purged.clear();
+    gateway.canResume = false;
+    await repo.resume("a");
+    expect(gateway.purged, contains("a"));
   });
 
   group("per-key serialisation", () {
@@ -453,6 +689,33 @@ void main() {
       expect(box.get("a"), isNull);
       expect((await repo.watch().first), isEmpty);
     });
+
+    test("pause waits for an enqueue in flight on the same key", () async {
+      await repo.enqueue(<DownloadRequest>[_request("a")].toIList());
+      gateway.controller
+        ..add(const GatewayEvent("a", GatewayStatus.running))
+        ..add(const GatewayEvent("a", GatewayStatus.failed));
+      await _settle();
+      gateway.enqueueGate = Completer<void>();
+      final Future<Either<Failures, Unit>> enqueuing =
+          repo.enqueue(<DownloadRequest>[_request("a")].toIList());
+      // Hive writes are real I/O: wait until the gateway has the new task.
+      while (gateway.enqueued.length < 2) {
+        await _settle();
+      }
+      gateway.controller.add(const GatewayEvent("a", GatewayStatus.running));
+      // Let the event reach its lock slot before the pause asks for its own.
+      await _settle();
+      final Future<Either<Failures, Unit>> pausing = repo.pause("a");
+      await _settle();
+      // Parked behind the enqueue: the record is still queued, not paused.
+      expect(gateway.paused, isEmpty);
+      gateway.enqueueGate!.complete();
+      await enqueuing;
+      await _settle();
+      await pausing;
+      expect(gateway.paused, <String>["a"]);
+    });
   });
 
   test("reconcile fails a restored completed record without its file",
@@ -463,5 +726,144 @@ void main() {
     await repo.dispose();
     repo = await build();
     expect((await repo.watch().first).single.phase, isA<DownloadFailed>());
+  });
+
+  group("gate round 9", () {
+    Future<DownloadsRepository> bootWithHeldInit() async {
+      await repo.enqueue(<DownloadRequest>[_request("a", "gone")].toIList());
+      await repo.dispose();
+      gateway = FakeGateway()..initGate = Completer<void>();
+      repo = DownloadsRepository(
+        box: box,
+        gateway: gateway,
+        storage: storage,
+        documentsPath: () async => dir.path,
+      );
+      return repo;
+    }
+
+    test("should make retainSources wait for initialize", () async {
+      final DownloadsRepository booting = await bootWithHeldInit();
+      final Future<void> init = booting.initialize();
+      final Future<Either<Failures, Unit>> retained =
+          booting.retainSources(<String>{}.toISet());
+      await _settle();
+      await _settle();
+      expect(gateway.calls, <String>["initialize"]);
+      gateway.initGate!.complete();
+      await init;
+      await retained;
+      final int cancel = gateway.calls
+          .indexWhere((String c) => c.startsWith("cancel:"));
+      expect(cancel, greaterThan(gateway.calls.indexOf("initialize")));
+    });
+
+    test("should make remove wait for initialize", () async {
+      final DownloadsRepository booting = await bootWithHeldInit();
+      final Future<void> init = booting.initialize();
+      final Future<Either<Failures, Unit>> removed = booting.remove("gone:a");
+      await _settle();
+      await _settle();
+      expect(gateway.calls, <String>["initialize"]);
+      gateway.initGate!.complete();
+      await init;
+      await removed;
+      expect(gateway.canceled, contains("gone:a"));
+    });
+
+    test("should ignore a late cancel of a removed attempt", () async {
+      await repo.enqueue(<DownloadRequest>[_request("a", "s1")].toIList());
+      final String oldId = gateway.taskIds["s1:a"]!;
+      await repo.remove("s1:a");
+      await repo.enqueue(<DownloadRequest>[_request("a", "s1")].toIList());
+      final String newId = gateway.taskIds["s1:a"]!;
+      expect(newId, isNot(oldId));
+      gateway.controller
+          .addRaw(GatewayEvent(oldId, GatewayStatus.canceled));
+      await _settle();
+      await _settle();
+      expect((await repo.watch().first).single.phase, isA<DownloadQueued>());
+      // The stale task's stored copy goes, the live one's stays.
+      expect(gateway.purgedIds, contains(oldId));
+      expect(gateway.purgedIds, isNot(contains(newId)));
+      gateway.controller
+          .addRaw(GatewayEvent(newId, GatewayStatus.running, 0.5));
+      await _settle();
+      await _settle();
+      expect((await repo.watch().first).single.phase, isA<DownloadRunning>());
+    });
+
+    test("should give each enqueue its own task id", () async {
+      await repo.enqueue(<DownloadRequest>[_request("a", "s1")].toIList());
+      final String first = gateway.taskIds["s1:a"]!;
+      gateway.controller.add(const GatewayEvent("s1:a", GatewayStatus.failed));
+      await _settle();
+      await repo.enqueue(<DownloadRequest>[_request("a", "s1")].toIList());
+      expect(gateway.taskIds["s1:a"], isNot(first));
+      expect(keyOfTaskId(first), "s1:a");
+    });
+
+    test("should delete a legacy record the source already owns", () async {
+      await repo.enqueue(
+        <DownloadRequest>[_request("a"), _request("a", "s1")].toIList(),
+      );
+      final File legacyFile = File("${dir.path}/downloads/a.mkv")
+        ..createSync(recursive: true);
+      final File ownedFile = File("${dir.path}/downloads/s1_a.mkv")
+        ..createSync(recursive: true);
+      await repo.adoptLegacy("s1");
+      expect(box.keys, <String>["s1:a"]);
+      expect(legacyFile.existsSync(), isFalse);
+      expect(ownedFile.existsSync(), isTrue);
+      expect((await repo.watch().first).single.key, "s1:a");
+    });
+
+    test("should reject an unsafe id or extension and write nothing", () async {
+      for (final DownloadRequest bad in <DownloadRequest>[
+        _request("../x", "s1"),
+        _request("a", "s1").copyWith(containerExtension: "mkv/.."),
+        _request("a", "s1").copyWith(containerExtension: ""),
+        _request("", "s1"),
+      ]) {
+        final Either<Failures, Unit> result = await repo.enqueue(
+          <DownloadRequest>[_request("ok", "s1"), bad].toIList(),
+        );
+        expect(result.isLeft(), isTrue);
+      }
+      expect(gateway.enqueued, isEmpty);
+      expect(box.keys, isEmpty);
+      expect(await repo.watch().first, isEmpty);
+    });
+
+    test("should keep the password out of DownloadRequest.toString", () {
+      expect(_request("a", "s1").toString(), isNot(contains("s3cr3t")));
+      expect(_request("a", "s1").toString(), contains("s1:a"));
+    });
+
+    test("should load a record without a task id and map its events",
+        () async {
+      await repo.dispose();
+      const DownloadRecord seed = DownloadRecord(
+        contentId: "9",
+        sourceId: "s1",
+        seriesId: "s",
+        seriesTitle: "Show",
+        seasonNumber: 1,
+        episodeNumber: 1,
+        title: "T",
+        containerExtension: "mkv",
+        relativePath: "downloads/s1_9.mkv",
+        phase: DownloadPhase.queued(),
+      );
+      final Map<String, dynamic> json = seed.toJson()..remove("taskId");
+      await box.put(seed.key, jsonEncode(json));
+      gateway = FakeGateway()..active = <String>{"s1:9"};
+      repo = await build();
+      expect(seed.nativeTaskId, "s1:9");
+      gateway.controller.add(const GatewayEvent("s1:9", GatewayStatus.paused));
+      await _settle();
+      await _settle();
+      expect((await repo.watch().first).single.phase, isA<DownloadPaused>());
+    });
   });
 }

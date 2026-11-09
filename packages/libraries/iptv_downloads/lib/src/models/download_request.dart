@@ -11,6 +11,8 @@ part "download_request.freezed.dart";
 /// `BackgroundDownloaderGateway` for what is purged and what remains.
 @freezed
 sealed class DownloadRequest with _$DownloadRequest {
+  const DownloadRequest._();
+
   const factory DownloadRequest({
     required String contentId,
     required String sourceId,
@@ -24,6 +26,12 @@ sealed class DownloadRequest with _$DownloadRequest {
     @Default("") String seriesCoverUrl,
     @Default("") String duration,
   }) = _DownloadRequest;
+
+  /// Trap: the generated toString prints every field, [url] included.
+  @override
+  String toString() =>
+      "DownloadRequest(key: ${downloadKey(sourceId, contentId)}, "
+      "url: <redacted>)";
 }
 
 extension DownloadRequestKey on DownloadRequest {

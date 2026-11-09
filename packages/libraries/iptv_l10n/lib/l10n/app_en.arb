@@ -230,5 +230,37 @@
   "downloadsUnavailable": "Download unavailable",
   "downloadsEnqueueFailed": "Could not start the download.",
   "downloadsRemoveFailed": "Could not delete the download.",
-  "sourceUnavailable": "Source unavailable"
+  "sourceUnavailable": "Source unavailable",
+  "downloadsPause": "Pause",
+  "downloadsResume": "Resume",
+  "downloadsEpisodePaused": "Download paused",
+  "downloadsReasonStorage": "Not enough space on this device",
+  "downloadsReasonNetwork": "Network problem",
+  "downloadsReasonServer": "The provider refused or cannot resume",
+  "downloadsReasonUnknown": "Download failed",
+  "downloadsRetryNoSource": "Select a provider to retry this download",
+  "downloadsStorageUsed": "Downloads: {size}",
+  "@downloadsStorageUsed": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadsStorageFree": "{size} free",
+  "@downloadsStorageFree": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadsStorageTotal": "{size} across all sources",
+  "@downloadsStorageTotal": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  }
 }

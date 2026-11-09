@@ -646,4 +646,44 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sourceUnavailable => 'Source unavailable';
+
+  @override
+  String get downloadsPause => 'Pause';
+
+  @override
+  String get downloadsResume => 'Resume';
+
+  @override
+  String get downloadsEpisodePaused => 'Download paused';
+
+  @override
+  String get downloadsReasonStorage => 'Not enough space on this device';
+
+  @override
+  String get downloadsReasonNetwork => 'Network problem';
+
+  @override
+  String get downloadsReasonServer => 'The provider refused or cannot resume';
+
+  @override
+  String get downloadsReasonUnknown => 'Download failed';
+
+  @override
+  String get downloadsRetryNoSource =>
+      'Select a provider to retry this download';
+
+  @override
+  String downloadsStorageUsed(String size) {
+    return 'Downloads: $size';
+  }
+
+  @override
+  String downloadsStorageFree(String size) {
+    return '$size free';
+  }
+
+  @override
+  String downloadsStorageTotal(String size) {
+    return '$size across all sources';
+  }
 }
