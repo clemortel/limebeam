@@ -26,6 +26,7 @@ class FakeGateway implements DownloadGateway {
   bool canResume = true;
   int? size;
   final Set<String> throwing = <String>{};
+  final Set<String> cancelThrowing = <String>{};
   final List<String> purged = <String>[];
 
   /// When set, [activeIds] waits on it (boot reconcile window).
@@ -54,7 +55,12 @@ class FakeGateway implements DownloadGateway {
   }
 
   @override
-  Future<void> cancel(String contentId) async => canceled.add(contentId);
+  Future<void> cancel(String contentId) async {
+    canceled.add(contentId);
+    if (cancelThrowing.contains(contentId)) {
+      throw const DownloadGatewayException("cancel");
+    }
+  }
 
   @override
   Future<bool> pause(String contentId) async {
@@ -484,12 +490,10 @@ void main() {
       // The cancel event reads "queued" then waits on its purge...
       gateway.controller.add(const GatewayEvent("a", GatewayStatus.canceled));
       await _settle();
-      // ...the completion lands meanwhile...
+      // ...the completion lands meanwhile and queues behind it (per-key
+      // lock), so the cancel never acts on a stale view...
       gateway.controller.add(const GatewayEvent("a", GatewayStatus.completed));
       await _settle();
-      await _settle();
-      expect((await repo.watch().first).single.phase, isA<DownloadCompleted>());
-      // ...and the cancel resumes with its stale view.
       slowPurge.complete();
       await _settle();
       await _settle();
@@ -527,12 +531,14 @@ void main() {
       await _settle();
       await _settle();
       expect(gateway.enqueued, <String>["a"]);
-      expect((await repo.remove("a")).isRight(), isTrue);
-      gateway.canceled.clear();
-      gateway.purged.clear();
+      // The remove waits for the in-flight enqueue, then tears it down.
+      final Future<Either<Failures, Unit>> removing = repo.remove("a");
+      await _settle();
+      expect(gateway.canceled, isEmpty);
       gateway.enqueueGate!.complete();
       expect((await enqueued).isRight(), isTrue);
-      // The task created after the removal is torn down, not orphaned.
+      expect((await removing).isRight(), isTrue);
+      // The task created before the removal is torn down, not orphaned.
       expect(gateway.canceled, <String>["a"]);
       expect(gateway.purged, <String>["a"]);
       expect(await repo.watch().first, isEmpty);
@@ -586,5 +592,89 @@ void main() {
     gateway.canResume = false;
     await repo.resume("a");
     expect(gateway.purged, contains("a"));
+  });
+
+  group("per-key serialisation", () {
+    test("remove then immediate re-enqueue keeps the new record", () async {
+      await repo.enqueue(<DownloadRequest>[_request("a")].toIList());
+      final Future<Either<Failures, Unit>> removing = repo.remove("a");
+      final Future<Either<Failures, Unit>> enqueuing =
+          repo.enqueue(<DownloadRequest>[_request("a")].toIList());
+      await removing;
+      await enqueuing;
+      expect(gateway.enqueued, <String>["a", "a"]);
+      // The old purge must not hit the new task: cancel precedes enqueue.
+      expect(gateway.canceled, <String>["a"]);
+      expect(box.get("a"), isNotNull);
+      final IList<DownloadRecord> list = await repo.watch().first;
+      expect(list.single.phase, const DownloadPhase.queued());
+    });
+
+    test("failing remove does not overwrite a new enqueue", () async {
+      await repo.enqueue(<DownloadRequest>[_request("a")].toIList());
+      gateway.cancelThrowing.add("a");
+      final Future<Either<Failures, Unit>> removing = repo.remove("a");
+      gateway.enqueueGate = Completer<void>();
+      final Future<Either<Failures, Unit>> enqueuing =
+          repo.enqueue(<DownloadRequest>[_request("a")].toIList());
+      await _settle();
+      // The enqueue is parked behind the remove, not racing it.
+      expect(gateway.enqueued, <String>["a"]);
+      expect((await removing).isLeft(), isTrue);
+      gateway.enqueueGate!.complete();
+      await enqueuing;
+      expect(box.get("a"), isNotNull);
+      final IList<DownloadRecord> list = await repo.watch().first;
+      expect(list.single.phase, const DownloadPhase.queued());
+    });
+
+    test("remove waits for an enqueue in flight", () async {
+      gateway.enqueueGate = Completer<void>();
+      final Future<Either<Failures, Unit>> enqueuing =
+          repo.enqueue(<DownloadRequest>[_request("a")].toIList());
+      await _settle();
+      final Future<Either<Failures, Unit>> removing = repo.remove("a");
+      await _settle();
+      expect(gateway.canceled, isEmpty);
+      gateway.enqueueGate!.complete();
+      await enqueuing;
+      await removing;
+      expect(gateway.canceled, <String>["a"]);
+      expect(box.get("a"), isNull);
+      expect((await repo.watch().first), isEmpty);
+    });
+
+    test("pause waits for an enqueue in flight on the same key", () async {
+      await repo.enqueue(<DownloadRequest>[_request("a")].toIList());
+      gateway.controller
+        ..add(const GatewayEvent("a", GatewayStatus.running))
+        ..add(const GatewayEvent("a", GatewayStatus.failed));
+      await _settle();
+      gateway.enqueueGate = Completer<void>();
+      final Future<Either<Failures, Unit>> enqueuing =
+          repo.enqueue(<DownloadRequest>[_request("a")].toIList());
+      await _settle();
+      gateway.controller.add(const GatewayEvent("a", GatewayStatus.running));
+      // Let the event reach its lock slot before the pause asks for its own.
+      await _settle();
+      final Future<Either<Failures, Unit>> pausing = repo.pause("a");
+      await _settle();
+      // Parked behind the enqueue: the record is still queued, not paused.
+      expect(gateway.paused, isEmpty);
+      gateway.enqueueGate!.complete();
+      await enqueuing;
+      await pausing;
+      expect(gateway.paused, <String>["a"]);
+    });
+  });
+
+  test("reconcile fails a restored completed record without its file",
+      () async {
+    await repo.enqueue(<DownloadRequest>[_request("a")].toIList());
+    gateway.controller.add(const GatewayEvent("a", GatewayStatus.completed));
+    await _settle();
+    await repo.dispose();
+    repo = await build();
+    expect((await repo.watch().first).single.phase, isA<DownloadFailed>());
   });
 }
