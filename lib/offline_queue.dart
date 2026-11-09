@@ -9,7 +9,10 @@ import "package:iptv_series/iptv_series.dart";
 /// "getSeriesInfo failed" no longer means offline.
 bool isServedFromCache(AsyncState<SeriesDetail> state) => switch (state) {
       AsyncSuccess<SeriesDetail>(:final SeriesDetail data) => data.fromCache,
-      _ => false,
+      AsyncIdle<SeriesDetail>() ||
+      AsyncLoading<SeriesDetail>() ||
+      AsyncError<SeriesDetail>() =>
+        false,
     };
 
 /// The completed downloads of [tapped]'s season (same source), in episode

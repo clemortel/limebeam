@@ -6,6 +6,14 @@ import "season.dart";
 
 part "series_detail.freezed.dart";
 
+const Set<String> _kSecretParams = <String>{
+  "username",
+  "password",
+  "user",
+  "pass",
+  "token",
+};
+
 /// Full series details from `get_series_info`: plot/cover + seasons/episodes.
 ///
 /// Run `melos run build_runner` after editing.
@@ -98,7 +106,13 @@ sealed class SeriesDetail with _$SeriesDetail {
     final Uri? uri = Uri.tryParse(raw);
     if (uri == null) return null;
     final bool http = uri.scheme == "http" || uri.scheme == "https";
-    return http && uri.host.isNotEmpty ? raw : null;
+    if (!http || uri.host.isEmpty) return null;
+    // Credentials in a poster URL would be cached and sent to image hosts.
+    if (uri.userInfo.isNotEmpty) return null;
+    final bool secretQuery = uri.queryParameters.keys.any(
+      (String k) => _kSecretParams.contains(k.toLowerCase()),
+    );
+    return secretQuery ? null : raw;
   }
 
   /// Null for absent/blank values (providers send "" instead of omitting).

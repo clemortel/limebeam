@@ -68,7 +68,8 @@ class _FakeHttp implements HttpService {
     String path, {
     Map<String, dynamic>? queryParameters,
     Map<String, String>? headers,
-  }) async => throw UnimplementedError();
+  }) async =>
+      throw UnimplementedError();
 }
 
 const Map<String, dynamic> _payload = <String, dynamic>{
@@ -164,8 +165,7 @@ void main() {
       expect(detail.seasons.first.episodes.first.containerExtension, "mkv");
     });
 
-    test("should fail with the network error when nothing is cached",
-        () async {
+    test("should fail with the network error when nothing is cached", () async {
       http.error = const SocketException("offline");
 
       final Either<Failures, SeriesDetail> result =
@@ -197,8 +197,7 @@ void main() {
       expect(cache.data["series_info_src1_42"], good);
     });
 
-    test("should still return the detail when the cache write fails",
-        () async {
+    test("should still return the detail when the cache write fails", () async {
       cache.failWrites = true;
 
       final Either<Failures, SeriesDetail> result =
@@ -293,6 +292,10 @@ void main() {
       expect(SeriesDetail.safeHttpUrl("javascript:alert(1)"), isNull);
       expect(SeriesDetail.safeHttpUrl("http:///x.jpg"), isNull);
       expect(SeriesDetail.safeHttpUrl("  "), isNull);
+      expect(SeriesDetail.safeHttpUrl("https://u:p@i/e.jpg"), isNull);
+      expect(SeriesDetail.safeHttpUrl("https://i/e.jpg?token=abc"), isNull);
+      expect(SeriesDetail.safeHttpUrl("https://i/e.jpg?Password=x"), isNull);
+      expect(SeriesDetail.safeHttpUrl("https://i/e.jpg?w=200"), isNotNull);
     });
   });
 
@@ -348,7 +351,7 @@ void main() {
       http.error = const SocketException("offline");
 
       final ProviderContainer container = makeContainer();
-      container.listen(seriesDetailProvider("42"), (AsyncState<SeriesDetail>? _, AsyncState<SeriesDetail> __) {});
+      container.listen(seriesDetailProvider("42"), _ignore);
       await settle();
       await settle();
 
@@ -362,7 +365,7 @@ void main() {
       await repository.getSeriesInfo("42");
 
       final ProviderContainer container = makeContainer();
-      container.listen(seriesDetailProvider("42"), (AsyncState<SeriesDetail>? _, AsyncState<SeriesDetail> __) {});
+      container.listen(seriesDetailProvider("42"), _ignore);
       await settle();
       await settle();
 
@@ -375,7 +378,7 @@ void main() {
       http.error = const SocketException("offline");
 
       final ProviderContainer container = makeContainer();
-      container.listen(seriesDetailProvider("42"), (AsyncState<SeriesDetail>? _, AsyncState<SeriesDetail> __) {});
+      container.listen(seriesDetailProvider("42"), _ignore);
       await settle();
       await settle();
 
@@ -391,7 +394,7 @@ void main() {
       http.error = const SocketException("offline");
 
       final ProviderContainer container = makeContainer();
-      container.listen(seriesDetailProvider("42"), (AsyncState<SeriesDetail>? _, AsyncState<SeriesDetail> __) {});
+      container.listen(seriesDetailProvider("42"), _ignore);
       await settle();
       await settle();
 
@@ -460,7 +463,7 @@ void main() {
       http.error = const HttpStatusException(503);
 
       final ProviderContainer container = makeContainer();
-      container.listen(seriesDetailProvider("42"), (AsyncState<SeriesDetail>? _, AsyncState<SeriesDetail> __) {});
+      container.listen(seriesDetailProvider("42"), _ignore);
       await settle();
       await settle();
 
