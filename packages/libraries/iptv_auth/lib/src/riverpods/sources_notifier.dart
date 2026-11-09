@@ -46,14 +46,28 @@ class SourcesNotifier extends _$SourcesNotifier {
     return const AsyncState<IList<Source>>.loading();
   }
 
-  Future<void> _load() async {
-    final IList<Source> sources =
-        await ref.read(sourceRepositoryProvider).getSources();
-    state = AsyncState<IList<Source>>.success(sources);
-    ref.read(activeSourceIdProvider.notifier).sync();
+  /// Reloads the list. The repository reads storage without a guard, so a
+  /// corrupt or unreadable store is funnelled through [catchError] into
+  /// [AsyncState.error] (the Retry branch) instead of escaping to the UI.
+  Future<Either<Failures, Unit>> _load() async {
+    try {
+      final IList<Source> sources =
+          await ref.read(sourceRepositoryProvider).getSources();
+      state = AsyncState<IList<Source>>.success(sources);
+      ref.read(activeSourceIdProvider.notifier).sync();
+      return right(unit);
+    } on Object catch (error, stackTrace) {
+      final Failures failure = catchError(error, stackTrace);
+      state = AsyncState<IList<Source>>.error(failure);
+      return left(failure);
+    }
   }
 
-  Future<void> refresh() => _load();
+  /// Reloads from storage, showing the skeleton meanwhile (Retry).
+  Future<void> refresh() async {
+    state = const AsyncState<IList<Source>>.loading();
+    await _load();
+  }
 
   SourceSyncNotifier get _gate => ref.read(sourceSyncProvider.notifier);
 
@@ -114,8 +128,10 @@ class SourcesNotifier extends _$SourcesNotifier {
     if (name.trim().isEmpty) return left(const SourceActionFailure.blankName());
     final Either<Failures, Unit> result =
         await ref.read(sourceRepositoryProvider).renameSource(id, name);
-    await _load();
-    return result.leftMap(SourceActionFailure.failed);
+    final Either<Failures, Unit> reloaded = await _load();
+    return result.flatMap((Unit _) => reloaded).leftMap(
+          SourceActionFailure.failed,
+        );
   }
 
   /// Deletes [id]. When it was the active source, the first remaining one
@@ -129,10 +145,11 @@ class SourcesNotifier extends _$SourcesNotifier {
     if (!wasActive) {
       final Either<Failures, Unit> result =
           await ref.read(sourceRepositoryProvider).deleteSource(id);
-      await _load();
-      return result.map((Unit _) => DeleteOutcome.deleted).leftMap(
-            SourceActionFailure.failed,
-          );
+      final Either<Failures, Unit> reloaded = await _load();
+      return result
+          .flatMap((Unit _) => reloaded)
+          .map((Unit _) => DeleteOutcome.deleted)
+          .leftMap(SourceActionFailure.failed);
     }
     final SyncGateOutcome<DeleteOutcome> outcome =
         await _gate.changeSource<DeleteOutcome>(

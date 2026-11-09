@@ -62,6 +62,7 @@ Future<void> bootstrap(Flavor flavor) async {
       overrides: <Override>[
         televisionDetectedProvider.overrideWithValue(isTelevision),
         sourceScopedProvidersOverride(),
+        beforeSourceSwitchHooksOverride(),
       ],
       child: IptvApp(appRouter: AppRouter()),
     ),

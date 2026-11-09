@@ -1,6 +1,7 @@
 import "dart:async";
 
 import "package:dartz/dartz.dart" hide IList, IMap, ISet;
+import "package:fast_immutable_collections/fast_immutable_collections.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart"
     hide AsyncData, AsyncError, AsyncLoading, AsyncValue;
 import "package:flutter_riverpod/misc.dart" show Override;
@@ -125,5 +126,60 @@ void main() {
     sync.throws = false;
     sync.release = Completer<void>()..complete();
     expect((await gate().run()).isDone, isTrue);
+  });
+
+  test("should run the before-switch hooks first, in order, then change",
+      () async {
+    final List<String> order = <String>[];
+    final _GatedSync local = _GatedSync();
+    final ProviderContainer hooked = ProviderContainer(
+      overrides: <Override>[
+        sourceSyncProvider.overrideWith(() => local),
+        beforeSourceSwitchHooksProvider.overrideWithValue(
+          IList<BeforeSourceSwitchHook>(<BeforeSourceSwitchHook>[
+            (Ref ref) async => order.add("hook1"),
+            (Ref ref) async => throw StateError("a failing hook"),
+            (Ref ref) async => order.add("hook2"),
+          ]),
+        ),
+      ],
+    );
+    addTearDown(hooked.dispose);
+
+    final Future<SyncGateOutcome<Unit>> outcome =
+        hooked.read(sourceSyncProvider.notifier).changeSource<Unit>(() async {
+      order.add("change");
+      return right(unit);
+    });
+    local.release.complete();
+    await outcome;
+
+    expect(order, <String>["hook1", "hook2", "change"]);
+  });
+
+  test("should run no hook for a change refused mid-sync", () async {
+    int hooks = 0;
+    final _GatedSync local = _GatedSync();
+    final ProviderContainer hooked = ProviderContainer(
+      overrides: <Override>[
+        sourceSyncProvider.overrideWith(() => local),
+        beforeSourceSwitchHooksProvider.overrideWithValue(
+          IList<BeforeSourceSwitchHook>(<BeforeSourceSwitchHook>[
+            (Ref ref) async => hooks++,
+          ]),
+        ),
+      ],
+    );
+    addTearDown(hooked.dispose);
+    final SourceSyncNotifier gate2 = hooked.read(sourceSyncProvider.notifier);
+    final Future<SyncProgress> running = gate2.run();
+
+    final SyncGateOutcome<Unit> outcome =
+        await gate2.changeSource<Unit>(() async => right(unit));
+    local.release.complete();
+    await running;
+
+    expect(outcome, isA<SyncGateRefused<Unit>>());
+    expect(hooks, 0);
   });
 }

@@ -9,6 +9,7 @@ import "package:iptv_series/iptv_series.dart";
 import "package:iptv_vod/iptv_vod.dart";
 import "package:riverpod_annotation/riverpod_annotation.dart";
 
+import "before_source_switch_hooks.dart";
 import "sync_gate_outcome.dart";
 import "sync_progress.dart";
 
@@ -58,6 +59,7 @@ class SourceSyncNotifier extends _$SourceSyncNotifier {
 
     Either<Failures, T> result;
     try {
+      await _runBeforeSwitchHooks();
       result = await change();
     } on Object catch (error, stackTrace) {
       result = left(catchError(error, stackTrace));
@@ -73,6 +75,20 @@ class SourceSyncNotifier extends _$SourceSyncNotifier {
       return SyncGateRan<T>(result);
     }
     return SyncGateRan<T>(result, sync: _syncAndFinish(done));
+  }
+
+  /// Runs the hooks one by one, the old source still active. A failing hook
+  /// is reported but never blocks the switch: it would strand the user on a
+  /// source they asked to leave.
+  Future<void> _runBeforeSwitchHooks() async {
+    for (final BeforeSourceSwitchHook hook
+        in ref.read(beforeSourceSwitchHooksProvider)) {
+      try {
+        await hook(ref);
+      } on Object catch (error, stackTrace) {
+        catchError(error, stackTrace); // logs; the result is not needed
+      }
+    }
   }
 
   Future<SyncProgress> _syncAndFinish(Completer<SyncProgress> done) async {

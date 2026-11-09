@@ -70,7 +70,7 @@ class SourcesSettingsView extends ConsumerWidget {
               action: PrimaryButton(
                 label: l.commonRetry,
                 expand: false,
-                onPressed: ref.read(sourcesProvider.notifier).refresh,
+                onPressed: () => ref.read(sourcesProvider.notifier).refresh(),
               ),
             ),
           ),

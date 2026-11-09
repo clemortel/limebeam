@@ -1,20 +1,26 @@
+import "package:flutter/widgets.dart" show Locale;
 import "package:flutter_test/flutter_test.dart";
 import "package:green_iptv/bootstrap.dart";
 import "package:green_iptv/flavors/flavor.dart";
 import "package:integration_test/integration_test.dart";
+import "package:iptv_l10n/iptv_l10n.dart";
 
 const Duration _kSettle = Duration(seconds: 2);
 const Duration _kDemoLoad = Duration(seconds: 15);
 
+/// Locale of the store screenshots; tab labels are looked up in its
+/// localizations, so renaming a tab in the ARB files never breaks the script.
+const Locale _kLocale = Locale("fr");
+
 /// One screenshot per tab, each taken after a real tap on the tab label, so
-/// no two store screenshots can be identical by construction. Tab labels
-/// follow the current bar (Accueil, Direct, Films, Séries, Recherche); a
-/// missing label skips the tap and the assert below then fails loudly.
-const List<(String, String)> _kTabs = <(String, String)>[
-  ("Direct", "03_live"),
-  ("Films", "04_movies"),
-  ("Séries", "05_series"),
-  ("Recherche", "06_search"),
+/// no two store screenshots can be identical by construction. A label that is
+/// not on screen fails the run at once (see [_tap]); it does not skip.
+final List<(String Function(AppLocalizations), String)> _kTabs =
+    <(String Function(AppLocalizations), String)>[
+  ((AppLocalizations l) => l.tabTv, "03_live"),
+  ((AppLocalizations l) => l.browseMovies, "04_movies"),
+  ((AppLocalizations l) => l.browseSeries, "05_series"),
+  ((AppLocalizations l) => l.tabSearch, "06_search"),
 ];
 
 void main() {
@@ -34,8 +40,10 @@ void main() {
     await _settle(tester, _kSettle);
     await binding.takeScreenshot("02_home");
 
-    for (final (String label, String name) in _kTabs) {
-      await _tap(tester, label);
+    final AppLocalizations l10n = lookupAppLocalizations(_kLocale);
+    for (final (String Function(AppLocalizations) label, String name)
+        in _kTabs) {
+      await _tap(tester, label(l10n));
       await _settle(tester, _kSettle);
       await binding.takeScreenshot(name);
     }

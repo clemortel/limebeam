@@ -26,7 +26,12 @@ class _FakeRepository implements ISourceRepository {
   final List<Source> _sources;
 
   @override
-  Future<IList<Source>> getSources() async => _sources.toIList();
+  Future<IList<Source>> getSources() async {
+    if (failLoad) throw const FormatException("corrupt sources");
+    return _sources.toIList();
+  }
+
+  bool failLoad = false;
 
   @override
   Future<Either<Failures, Unit>> setActive(String id) async {
@@ -117,8 +122,11 @@ void main() {
   late _FakeSync sync;
   late _FakeRepository repository;
   late ProviderContainer container;
+  // Active source id seen by each before-switch hook, in call order.
+  late List<String?> hookSaw;
 
   setUp(() {
+    hookSaw = <String?>[];
     _scopedBuilds = 0;
     store = ActiveSourceStore()
       ..set(sourceId: "a", config: const SourceConfig.demo());
@@ -134,6 +142,11 @@ void main() {
         sourceScopedProvidersProvider.overrideWithValue(
           IList<ProviderOrFamily>(<ProviderOrFamily>[_scoped]),
         ),
+        beforeSourceSwitchHooksProvider.overrideWithValue(
+          IList<BeforeSourceSwitchHook>(<BeforeSourceSwitchHook>[
+            (Ref ref) async => hookSaw.add(store.sourceId),
+          ]),
+        ),
         sourceSyncProvider.overrideWith(() => sync),
       ],
     );
@@ -148,7 +161,10 @@ void main() {
 
   IList<Source> sources() => switch (container.read(sourcesProvider)) {
         AsyncSuccess<IList<Source>>(:final IList<Source> data) => data,
-        _ => IList<Source>(),
+        AsyncIdle<IList<Source>>() => fail("sources still idle"),
+        AsyncLoading<IList<Source>>() => fail("sources still loading"),
+        AsyncError<IList<Source>>(:final Failures failure) =>
+          fail("sources failed to load: $failure"),
       };
 
   test("activate switches the active source and re-syncs the catalog",
@@ -161,6 +177,64 @@ void main() {
     expect(result.isRight(), isTrue);
     expect(container.read(activeSourceIdProvider), "b");
     expect(sync.runs, 1);
+  });
+
+  test("should run the before-switch hooks with the old source active",
+      () async {
+    final SourcesNotifier notifier = await loaded();
+
+    await notifier.activate("b");
+
+    expect(hookSaw, <String?>["a"]);
+    expect(store.sourceId, "b");
+  });
+
+  test("should run the before-switch hooks before deleting the active one",
+      () async {
+    final SourcesNotifier notifier = await loaded();
+
+    await notifier.delete("a");
+
+    expect(hookSaw, <String?>["a"]);
+  });
+
+  test("should run no hook when the switch is refused or a no-op", () async {
+    final SourcesNotifier notifier = await loaded();
+    sync.gate = Completer<void>();
+    final Future<SyncProgress> running = sync.run();
+
+    await notifier.activate("b");
+    sync.gate!.complete();
+    await running;
+    await notifier.activate("a");
+
+    expect(hookSaw, isEmpty);
+  });
+
+  test("should turn a failed reload into an error state", () async {
+    final SourcesNotifier notifier = await loaded();
+    repository.failLoad = true;
+
+    await notifier.refresh();
+
+    expect(container.read(sourcesProvider), isA<AsyncError<IList<Source>>>());
+    repository.failLoad = false;
+    await notifier.refresh();
+    expect(container.read(sourcesProvider), isA<AsyncSuccess<IList<Source>>>());
+  });
+
+  test("should return a failure instead of throwing when rename reloads badly",
+      () async {
+    final SourcesNotifier notifier = await loaded();
+    repository.failLoad = true;
+
+    final Either<SourceActionFailure, Unit> renamed =
+        await notifier.rename("b", "New");
+    final Either<SourceActionFailure, DeleteOutcome> deleted =
+        await notifier.delete("c");
+
+    expect(renamed.isLeft(), isTrue);
+    expect(deleted.isLeft(), isTrue);
   });
 
   test("activate on the already active source does nothing", () async {
