@@ -316,7 +316,7 @@ void main() {
     ).thenAnswer(
       (_) async => right(() async {
         events.add("commit");
-        throw StateError("disk full");
+        return left(const Failures.unexpected());
       }),
     );
     final ProviderContainer container = makeContainer();

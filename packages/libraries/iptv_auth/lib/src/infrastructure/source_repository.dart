@@ -91,10 +91,7 @@ class SourceRepository implements ISourceRepository {
     required String username,
     required String password,
   }) async {
-    developer.log(
-      "prepareXtreamSource name='$name' host='$host' user='$username'",
-      name: "iptv.auth",
-    );
+    developer.log("prepareXtreamSource name='$name'", name: "iptv.auth");
     try {
       final SourceConfig config = SourceConfig.xtream(
         host: host,
@@ -113,19 +110,23 @@ class SourceRepository implements ISourceRepository {
         },
         (Map<String, dynamic> _) =>
             right<Failures, SourceSwitchCommit<Source>>(() async {
-          final Source source = _newSource(name, SourceType.xtream);
-          await _persist(
-            source: source,
-            host: host,
-            username: username,
-            password: password,
-          );
-          await _setActiveInternal(source.id, config);
-          developer.log(
-            "addXtreamSource success id=${source.id} (active set)",
-            name: "iptv.auth",
-          );
-          return right<Failures, Source>(source);
+          try {
+            final Source source = _newSource(name, SourceType.xtream);
+            await _persist(
+              source: source,
+              host: host,
+              username: username,
+              password: password,
+            );
+            await _setActiveInternal(source.id, config);
+            developer.log(
+              "addXtreamSource success id=${source.id} (active set)",
+              name: "iptv.auth",
+            );
+            return right<Failures, Source>(source);
+          } catch (error, stackTrace) {
+            return left<Failures, Source>(catchError(error, stackTrace));
+          }
         }),
       );
     } catch (error, stackTrace) {
@@ -139,8 +140,9 @@ class SourceRepository implements ISourceRepository {
     required String url,
     String? epgUrl,
   }) async {
+    // Host only: the full URL often embeds credentials or a token.
     developer.log(
-      "prepareM3uSource name='$name' url='$url'",
+      "prepareM3uSource name='$name' host='${Uri.tryParse(url)?.host}'",
       name: "iptv.auth",
     );
     try {
@@ -154,14 +156,18 @@ class SourceRepository implements ISourceRepository {
         },
         (Map<String, dynamic> _) =>
             right<Failures, SourceSwitchCommit<Source>>(() async {
-          final Source source = _newSource(name, SourceType.m3u);
-          await _persistM3u(source: source, url: url, epgUrl: epgUrl);
-          await _setActiveInternal(source.id, config);
-          developer.log(
-            "addM3uSource success id=${source.id}",
-            name: "iptv.auth",
-          );
-          return right<Failures, Source>(source);
+          try {
+            final Source source = _newSource(name, SourceType.m3u);
+            await _persistM3u(source: source, url: url, epgUrl: epgUrl);
+            await _setActiveInternal(source.id, config);
+            developer.log(
+              "addM3uSource success id=${source.id}",
+              name: "iptv.auth",
+            );
+            return right<Failures, Source>(source);
+          } catch (error, stackTrace) {
+            return left<Failures, Source>(catchError(error, stackTrace));
+          }
         }),
       );
     } catch (error, stackTrace) {
@@ -173,12 +179,20 @@ class SourceRepository implements ISourceRepository {
   Future<Either<Failures, SourceSwitchCommit<Source>>>
       prepareDemoSource() async {
     developer.log("prepareDemoSource", name: "iptv.auth");
-    return right<Failures, SourceSwitchCommit<Source>>(() async {
-      final Source source = _newSource(kDemoSourceName, SourceType.demo);
-      await _persistDemo(source);
-      await _setActiveInternal(source.id, const SourceConfig.demo());
-      return right<Failures, Source>(source);
-    });
+    try {
+      return right<Failures, SourceSwitchCommit<Source>>(() async {
+        try {
+          final Source source = _newSource(kDemoSourceName, SourceType.demo);
+          await _persistDemo(source);
+          await _setActiveInternal(source.id, const SourceConfig.demo());
+          return right<Failures, Source>(source);
+        } catch (error, stackTrace) {
+          return left<Failures, Source>(catchError(error, stackTrace));
+        }
+      });
+    } catch (error, stackTrace) {
+      return left(catchError(error, stackTrace));
+    }
   }
 
   @override
@@ -189,8 +203,12 @@ class SourceRepository implements ISourceRepository {
       final SourceConfig? config = await _readConfig(id);
       if (config == null) return left(const Failures.notFound());
       return right<Failures, SourceSwitchCommit<Unit>>(() async {
-        await _setActiveInternal(id, config);
-        return right<Failures, Unit>(unit);
+        try {
+          await _setActiveInternal(id, config);
+          return right<Failures, Unit>(unit);
+        } catch (error, stackTrace) {
+          return left<Failures, Unit>(catchError(error, stackTrace));
+        }
       });
     } catch (error, stackTrace) {
       return left(catchError(error, stackTrace));
