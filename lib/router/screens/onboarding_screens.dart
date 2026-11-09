@@ -8,9 +8,10 @@ import "package:iptv_ui/iptv_ui.dart";
 
 import "../router.gr.dart";
 
-/// Starts the add flow from a link in the clipboard. A recognised link
-/// skips the type picker, the form and the summary; anything else falls back
-/// to [fallback] so the user is never stuck.
+/// Starts the add flow from a link in the clipboard. A recognised link opens
+/// the matching form, pre-filled, for the user to review: nothing connects
+/// until they submit. Anything else falls back to [fallback] so the user is
+/// never stuck.
 Future<void> _startFromClipboard(
   BuildContext context,
   WidgetRef ref, {
@@ -20,7 +21,12 @@ Future<void> _startFromClipboard(
   final SourceType? type =
       await ref.read(sourceLinkProvider.notifier).applyClipboard();
   if (!context.mounted) return;
-  if (type == null) {
+  final PageRouteInfo<Object?>? form = switch (type) {
+    SourceType.xtream => const XtreamFormRoute(),
+    SourceType.m3u => const M3uFormRoute(),
+    SourceType.demo || null => null,
+  };
+  if (form == null) {
     if (toastOnInvalid) {
       AppToast.show(
         context,
@@ -31,7 +37,7 @@ Future<void> _startFromClipboard(
     fallback();
     return;
   }
-  await context.pushRoute(ConnectingRoute(kind: type));
+  await context.pushRoute(form);
 }
 
 /// Bienvenue (§4.1.1).

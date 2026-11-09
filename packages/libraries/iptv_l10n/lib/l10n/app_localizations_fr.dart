@@ -615,6 +615,10 @@ class AppLocalizationsFr extends AppLocalizations {
       'Colle l\'adresse complète de ta liste M3U ou de ton portail Xtream, on s\'occupe du reste.';
 
   @override
+  String get onboardingPasteLinkReviewSub =>
+      'Colle l\'adresse complète de ta liste M3U ou de ton portail Xtream : on remplit le formulaire, tu vérifies.';
+
+  @override
   String get onboardingPasteInvalid =>
       'Ce lien n\'est pas reconnu. Vérifie qu\'il commence par http.';
 

@@ -189,6 +189,7 @@
   "onboardingSyncStepOf": "Step {current} of {total}",
   "onboardingPasteLink": "Paste a link",
   "onboardingPasteLinkSub": "Paste the full address of your M3U list or Xtream portal and we'll do the rest.",
+  "onboardingPasteLinkReviewSub": "Paste the full address of your M3U list or Xtream portal. We'll fill the form in for you to check.",
   "onboardingPasteInvalid": "This link isn't recognised. Check that it starts with http.",
   "onboardingNameOptional": "Optional",
   "onboardingErrorRequired": "This field is required.",

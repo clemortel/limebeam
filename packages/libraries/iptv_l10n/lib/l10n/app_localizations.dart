@@ -1232,6 +1232,12 @@ abstract class AppLocalizations {
   /// **'Colle l\'adresse complète de ta liste M3U ou de ton portail Xtream, on s\'occupe du reste.'**
   String get onboardingPasteLinkSub;
 
+  /// No description provided for @onboardingPasteLinkReviewSub.
+  ///
+  /// In fr, this message translates to:
+  /// **'Colle l\'adresse complète de ta liste M3U ou de ton portail Xtream : on remplit le formulaire, tu vérifies.'**
+  String get onboardingPasteLinkReviewSub;
+
   /// No description provided for @onboardingPasteInvalid.
   ///
   /// In fr, this message translates to:

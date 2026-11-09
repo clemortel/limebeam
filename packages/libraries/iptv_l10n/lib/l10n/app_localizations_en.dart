@@ -608,6 +608,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Paste the full address of your M3U list or Xtream portal and we\'ll do the rest.';
 
   @override
+  String get onboardingPasteLinkReviewSub =>
+      'Paste the full address of your M3U list or Xtream portal. We\'ll fill the form in for you to check.';
+
+  @override
   String get onboardingPasteInvalid =>
       'This link isn\'t recognised. Check that it starts with http.';
 

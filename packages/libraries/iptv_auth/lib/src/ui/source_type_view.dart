@@ -38,7 +38,7 @@ class SourceTypeView extends StatelessWidget {
                 _TypeCard(
                   icon: Icons.content_paste,
                   title: l.onboardingPasteLink,
-                  subtitle: l.onboardingPasteLinkSub,
+                  subtitle: l.onboardingPasteLinkReviewSub,
                   autofocus: FormFactorScope.isTv(context),
                   onTap: onPasteLink,
                 ),
