@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+ (cloud backup and device-to-device transfer). Same files as
+     backup_rules.xml: they hold the Xtream URL with user and password. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="com.limebeam.app_preferences.xml"/>
+        <exclude domain="database" path="androidx.work.workdb"/>
+        <exclude domain="database" path="androidx.work.workdb-wal"/>
+        <exclude domain="database" path="androidx.work.workdb-shm"/>
+        <exclude domain="file" path="backgroundDownloaderResumeData"/>
+        <exclude domain="file" path="backgroundDownloaderPausedTasks"/>
+        <exclude domain="file" path="backgroundDownloaderTaskRecords"/>
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="com.limebeam.app_preferences.xml"/>
+        <exclude domain="database" path="androidx.work.workdb"/>
+        <exclude domain="database" path="androidx.work.workdb-wal"/>
+        <exclude domain="database" path="androidx.work.workdb-shm"/>
+        <exclude domain="file" path="backgroundDownloaderResumeData"/>
+        <exclude domain="file" path="backgroundDownloaderPausedTasks"/>
+        <exclude domain="file" path="backgroundDownloaderTaskRecords"/>
+    </device-transfer>
+</data-extraction-rules>

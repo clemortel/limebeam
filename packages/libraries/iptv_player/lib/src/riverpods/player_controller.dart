@@ -250,8 +250,12 @@ class PlaybackController extends _$PlaybackController {
     // device (ExoPlayer on TV vs media_kit elsewhere). Otherwise tear it down
     // and build the correct one — handles a leftover keepAlive engine of the
     // wrong type without a stop() in between.
-    final bool engineMatches =
-        _engine != null && (_engine is ExoPlayerEngine) == _wantsNativeEngine();
+    final bool engineMatches = canReuseEngine(
+      hasEngine: _engine != null,
+      engineIsNative: _engine is ExoPlayerEngine,
+      wantsNative: _wantsNativeEngine(),
+      airPlayMismatch: _engineMismatch(queue.current),
+    );
     if (!engineMatches) {
       _replaceEngineSubscriptions();
       final PlaybackEngine engine = _createEngine(queue.current);
@@ -1074,3 +1078,16 @@ class PlaybackController extends _$PlaybackController {
     await _engine?.dispose();
   }
 }
+
+/// Whether [PlayerController.start] may keep the running engine. Trap: the
+/// phone mini-player leaves the engine and the AirPlay flag alive between
+/// sessions, so the AirPlay/local-file mismatch must be checked here too —
+/// otherwise a download opens on AVPlayer, or an online item under AirPlay
+/// stays on libmpv and never reaches the TV.
+@visibleForTesting
+bool canReuseEngine({
+  required bool hasEngine,
+  required bool engineIsNative,
+  required bool wantsNative,
+  required bool airPlayMismatch,
+}) => hasEngine && engineIsNative == wantsNative && !airPlayMismatch;

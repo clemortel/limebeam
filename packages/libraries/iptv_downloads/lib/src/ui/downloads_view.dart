@@ -374,7 +374,8 @@ class _ActionButton extends StatelessWidget {
     final AppLocalizations l = AppLocalizations.of(context);
     final (String, IconData, VoidCallback)? action = switch (phase) {
       DownloadRunning() => (l.downloadsPause, Icons.pause, onPause),
-      DownloadQueued() => (l.downloadsPause, Icons.pause, onPause),
+      // Queued: waiting in the plugin's holding queue, which cannot pause.
+      DownloadQueued() => null,
       DownloadPaused() => (
           l.downloadsResume,
           Icons.play_arrow_outlined,

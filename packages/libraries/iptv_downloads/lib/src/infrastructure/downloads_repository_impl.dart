@@ -20,8 +20,9 @@ import "downloads_repository.dart";
 /// Progress ticks arrive many times a second; the UI needs one per second.
 const Duration _kProgressThrottle = Duration(seconds: 1);
 
-/// Headroom kept free on top of an episode: the OS and the player need room.
 const int _kBytesPerMegabyte = 1024 * 1024;
+
+/// Headroom kept free on top of an episode: the OS and the player need room.
 const int _kSpaceMarginBytes = 300 * _kBytesPerMegabyte;
 
 /// Hive-backed store. Hive is the source of truth; the native layer only
@@ -283,6 +284,10 @@ class DownloadsRepository implements IDownloadsRepository {
         _emit();
         final int? size = await _gateway.expectedSize(request);
         final int? free = await _storage.freeBytes();
+        // Trap: remove()/removeSource() during an await above deletes the
+        // record; a native task created afterwards would be an orphan whose
+        // events are all dropped and whose URL is never purged.
+        if (!identical(_records[key], record)) continue;
         // Unknown size or unknown free space: accept, the native layer
         // reports a write failure if the disk really is full.
         if (size != null &&
@@ -302,6 +307,18 @@ class DownloadsRepository implements IDownloadsRepository {
           // No native task exists, so no event will ever fix the phase.
           firstFailure ??= catchError(error, stackTrace);
         }
+        if (!identical(_records[key], record)) {
+          // Removed while the gateway was working: undo the task it made.
+          if (accepted) {
+            try {
+              await _gateway.cancel(key);
+            } catch (_) {
+              // Best effort; the purge below still runs.
+            }
+            await _gateway.purgeStoredTask(key);
+          }
+          continue;
+        }
         if (!accepted) {
           await _setPhase(key, const DownloadPhase.failed());
         }
@@ -317,10 +334,9 @@ class DownloadsRepository implements IDownloadsRepository {
   Future<Either<Failures, Unit>> pause(String key) async {
     try {
       final DownloadRecord? record = _records[key];
-      final bool pausable = record != null &&
-          record.phase is! DownloadCompleted &&
-          record.phase is! DownloadFailed &&
-          record.phase is! DownloadPaused;
+      // Running only: a queued task is still in the plugin's holding queue
+      // and the native pause refuses it.
+      final bool pausable = record != null && record.phase is DownloadRunning;
       // The paused status event flips the phase, not this call.
       if (pausable) await _gateway.pause(key);
       return right(unit);
@@ -338,8 +354,18 @@ class DownloadsRepository implements IDownloadsRepository {
       }
       // Queued first: the native layer re-enters the holding queue.
       await _setPhase(key, const DownloadPhase.queued());
-      final bool resumed = await _gateway.resume(key);
+      bool resumed = false;
+      try {
+        resumed = await _gateway.resume(key);
+      } catch (_) {
+        // Nothing was restarted: show the row as it really is.
+        await _setPhase(key, const DownloadPhase.paused());
+        rethrow;
+      }
       if (!resumed) {
+        // The paused task and its resume data embed the URL: do not leave
+        // them behind a record that is now failed.
+        await _gateway.purgeStoredTask(key);
         await _setPhase(
           key,
           const DownloadPhase.failed(reason: DownloadFailureReason.server),

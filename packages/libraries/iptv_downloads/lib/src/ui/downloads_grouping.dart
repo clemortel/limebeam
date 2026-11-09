@@ -1,29 +1,29 @@
 import "package:fast_immutable_collections/fast_immutable_collections.dart";
+import "package:freezed_annotation/freezed_annotation.dart";
 
 import "../models/download_phase.dart";
 import "../models/download_record.dart";
 
-/// One season of one series, episodes sorted by number.
-class DownloadSeasonGroup {
-  const DownloadSeasonGroup({required this.number, required this.episodes});
+part "downloads_grouping.freezed.dart";
 
-  final int number;
-  final IList<DownloadRecord> episodes;
+/// One season of one series, episodes sorted by number.
+@freezed
+sealed class DownloadSeasonGroup with _$DownloadSeasonGroup {
+  const factory DownloadSeasonGroup({
+    required int number,
+    required IList<DownloadRecord> episodes,
+  }) = _DownloadSeasonGroup;
 }
 
 /// One series with its seasons, sorted by number.
-class DownloadSeriesGroup {
-  const DownloadSeriesGroup({
-    required this.seriesId,
-    required this.title,
-    required this.coverUrl,
-    required this.seasons,
-  });
-
-  final String seriesId;
-  final String title;
-  final String coverUrl;
-  final IList<DownloadSeasonGroup> seasons;
+@freezed
+sealed class DownloadSeriesGroup with _$DownloadSeriesGroup {
+  const factory DownloadSeriesGroup({
+    required String seriesId,
+    required String title,
+    required String coverUrl,
+    required IList<DownloadSeasonGroup> seasons,
+  }) = _DownloadSeriesGroup;
 }
 
 /// Groups records series > season > episode, series ordered by title.

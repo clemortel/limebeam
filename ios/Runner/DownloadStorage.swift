@@ -19,7 +19,10 @@ enum DownloadStorage {
         result(freeBytes())
       case "excludeFromBackup":
         let args = call.arguments as? [String: String]
-        result(excludeFromBackup(directory: args?["directory"] ?? "downloads"))
+        result(
+          excludeFromBackup(
+            base: args?["base"] ?? "documents",
+            directory: args?["directory"] ?? "downloads"))
       default:
         result(FlutterMethodNotImplemented)
       }
@@ -39,13 +42,18 @@ enum DownloadStorage {
     return NSNumber(value: bytes)
   }
 
-  private static func excludeFromBackup(directory: String) -> Bool {
+  /// [base] is "documents" or "support" (Application Support, where the
+  /// plugin keeps its local store). The folder is created if missing so the
+  /// flag is in place before the plugin first writes to it.
+  private static func excludeFromBackup(base: String, directory: String) -> Bool {
+    let search: FileManager.SearchPathDirectory =
+      base == "support" ? .applicationSupportDirectory : .documentDirectory
     guard
-      let documents = FileManager.default.urls(
-        for: .documentDirectory, in: .userDomainMask
+      let root = FileManager.default.urls(
+        for: search, in: .userDomainMask
       ).first
     else { return false }
-    var url = documents.appendingPathComponent(directory, isDirectory: true)
+    var url = root.appendingPathComponent(directory, isDirectory: true)
     do {
       try FileManager.default.createDirectory(
         at: url, withIntermediateDirectories: true)

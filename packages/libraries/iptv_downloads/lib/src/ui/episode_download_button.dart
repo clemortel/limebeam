@@ -57,9 +57,7 @@ class EpisodeDownloadButton extends ConsumerWidget {
                   size: _kGlyphSize,
                   color: t.colors.textSecondary,
                 ),
-                () => ref
-                    .read(downloadsProvider.notifier)
-                    .resume(current.key),
+                () => ref.read(downloadsProvider.notifier).resume(current.key),
               ),
             DownloadQueued() => (
                 l.downloadsEpisodeQueued,
@@ -85,9 +83,7 @@ class EpisodeDownloadButton extends ConsumerWidget {
                     backgroundColor: t.colors.borderDefault,
                   ),
                 ),
-                () => ref
-                    .read(downloadsProvider.notifier)
-                    .pause(current.key),
+                () => ref.read(downloadsProvider.notifier).pause(current.key),
               ),
             DownloadCompleted() => (
                 l.downloadsEpisodeDone,

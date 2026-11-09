@@ -31,6 +31,9 @@ class FakeGateway implements DownloadGateway {
   /// When set, [activeIds] waits on it (boot reconcile window).
   Completer<void>? activeGate;
 
+  /// When set, [enqueue] waits on it after recording the call.
+  Completer<void>? enqueueGate;
+
   /// Each purge call takes the next gate, if any, and waits on it.
   final List<Completer<void>> purgeGates = <Completer<void>>[];
 
@@ -46,6 +49,7 @@ class FakeGateway implements DownloadGateway {
     if (throwing.contains(request.contentId)) {
       throw const DownloadGatewayException("enqueue");
     }
+    await enqueueGate?.future;
     return accept;
   }
 
@@ -377,7 +381,8 @@ void main() {
     File("${dir.path}/downloads/a.mkv")
       ..createSync(recursive: true)
       ..writeAsBytesSync(List<int>.filled(1000, 0));
-    File("${dir.path}/downloads/b.mkv").writeAsBytesSync(List<int>.filled(5, 0));
+    File("${dir.path}/downloads/b.mkv")
+        .writeAsBytesSync(List<int>.filled(5, 0));
     storage.free = 42;
     final DownloadStorageInfo info =
         (await repo.storageInfo(null)).getOrElse(() => throw StateError("x"));
@@ -514,6 +519,25 @@ void main() {
       expect(gateway.purged, isNot(contains("s1:late")));
       expect((await booting.watch().first).single.phase, isA<DownloadQueued>());
     });
+
+    test("remove during the gateway enqueue cancels the new task", () async {
+      gateway.enqueueGate = Completer<void>();
+      final Future<Either<Failures, Unit>> enqueued =
+          repo.enqueue(<DownloadRequest>[_request("a")].toIList());
+      await _settle();
+      await _settle();
+      expect(gateway.enqueued, <String>["a"]);
+      expect((await repo.remove("a")).isRight(), isTrue);
+      gateway.canceled.clear();
+      gateway.purged.clear();
+      gateway.enqueueGate!.complete();
+      expect((await enqueued).isRight(), isTrue);
+      // The task created after the removal is torn down, not orphaned.
+      expect(gateway.canceled, <String>["a"]);
+      expect(gateway.purged, <String>["a"]);
+      expect(await repo.watch().first, isEmpty);
+      expect(box.get("a"), isNull);
+    });
   });
 
   test("storageInfo counts the active source, and the total", () async {
@@ -546,5 +570,21 @@ void main() {
     await repo.resume("s1:7");
     expect(gateway.paused, <String>["s1:7"]);
     expect(gateway.resumed, <String>["s1:7"]);
+  });
+
+  test("a queued row is not paused: the holding queue cannot", () async {
+    await repo.enqueue(<DownloadRequest>[_request("q")].toIList());
+    await repo.pause("q");
+    expect(gateway.paused, isEmpty);
+  });
+
+  test("a resume that cannot continue purges the stored task", () async {
+    await repo.enqueue(<DownloadRequest>[_request("a")].toIList());
+    gateway.controller.add(const GatewayEvent("a", GatewayStatus.paused));
+    await _settle();
+    gateway.purged.clear();
+    gateway.canResume = false;
+    await repo.resume("a");
+    expect(gateway.purged, contains("a"));
   });
 }

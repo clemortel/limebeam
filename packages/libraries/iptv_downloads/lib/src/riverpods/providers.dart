@@ -5,7 +5,8 @@ import "package:fast_immutable_collections/fast_immutable_collections.dart";
 import "package:flutter/foundation.dart";
 import "package:get_it/get_it.dart";
 import "package:iptv_core/iptv_core.dart";
-import "package:riverpod_annotation/riverpod_annotation.dart";
+import "package:riverpod_annotation/riverpod_annotation.dart"
+    hide AsyncData, AsyncError, AsyncLoading, AsyncValue;
 
 import "../infrastructure/downloads_repository.dart";
 import "../models/download_record.dart";
@@ -102,7 +103,10 @@ class DownloadStorageNotifier extends _$DownloadStorageNotifier {
                 (DownloadRecord r) => "${r.key}:${r.phase.runtimeType}",
               )
               .join(","),
-        _ => "",
+        null => "",
+        AsyncIdle<IList<DownloadRecord>>() => "",
+        AsyncLoading<IList<DownloadRecord>>() => "",
+        AsyncError<IList<DownloadRecord>>() => "",
       };
 
   Future<void> _load() async {

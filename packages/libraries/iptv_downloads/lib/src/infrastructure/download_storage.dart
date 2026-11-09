@@ -2,8 +2,20 @@ import "dart:io";
 
 import "package:flutter/services.dart";
 
+import "download_gateway.dart" show kDownloadsDirectory;
+
 const String _kChannel = "limebeam/download_storage";
-const String _kDirectory = "downloads";
+
+/// background_downloader 9.5.9 local-store folders in Application Support
+/// (persistent_storage.dart:381-384). They hold the paused task and resume
+/// data, URL included. Trap: names come from the plugin; if an upgrade
+/// renames them, the exclusion silently stops covering them.
+const List<String> _kPluginStores = <String>[
+  "backgroundDownloaderResumeData",
+  "backgroundDownloaderPausedTasks",
+  "backgroundDownloaderTaskRecords",
+  "backgroundDownloaderDatabase",
+];
 
 /// Device storage seam: free space and iCloud backup exclusion.
 abstract interface class DownloadStorage {
@@ -38,8 +50,14 @@ class ChannelDownloadStorage implements DownloadStorage {
     try {
       await _channel.invokeMethod<void>(
         "excludeFromBackup",
-        <String, String>{"directory": _kDirectory},
+        <String, String>{"base": "documents", "directory": kDownloadsDirectory},
       );
+      for (final String store in _kPluginStores) {
+        await _channel.invokeMethod<void>(
+          "excludeFromBackup",
+          <String, String>{"base": "support", "directory": store},
+        );
+      }
     } catch (_) {
       // Best effort: a failure only costs backup size.
     }
