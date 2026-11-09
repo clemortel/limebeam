@@ -274,8 +274,40 @@
       }
     }
   },
+  "downloadsPause": "Mettre en pause",
+  "downloadsResume": "Reprendre",
+  "downloadsEpisodePaused": "Téléchargement en pause",
+  "downloadsReasonStorage": "Pas assez de place sur cet appareil",
+  "downloadsReasonNetwork": "Problème de réseau",
+  "downloadsReasonServer": "Le fournisseur a refusé ou ne peut pas reprendre",
+  "downloadsReasonUnknown": "Échec du téléchargement",
+  "downloadsRetryNoSource": "Choisissez un fournisseur pour relancer ce téléchargement",
+  "downloadsStorageUsed": "Téléchargements : {size}",
+  "@downloadsStorageUsed": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadsStorageFree": "{size} libres",
+  "@downloadsStorageFree": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
   "downloadsUnavailable": "Téléchargement indisponible",
   "downloadsEnqueueFailed": "Impossible de lancer le téléchargement.",
   "downloadsRemoveFailed": "Impossible de supprimer le téléchargement.",
-  "sourceUnavailable": "Source indisponible"
+  "sourceUnavailable": "Source indisponible",
+  "downloadsStorageTotal": "{size} au total, toutes sources",
+  "@downloadsStorageTotal": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  }
 }

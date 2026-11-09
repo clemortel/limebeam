@@ -5,6 +5,7 @@ import "package:hive_flutter/hive_flutter.dart";
 import "package:path_provider/path_provider.dart";
 
 import "infrastructure/download_gateway.dart";
+import "infrastructure/download_storage.dart";
 import "infrastructure/downloads_repository.dart";
 import "infrastructure/downloads_repository_impl.dart";
 
@@ -23,6 +24,7 @@ Future<void> registerDownloads(GetIt getIt) async {
   final DownloadsRepository repository = DownloadsRepository(
     box: box,
     gateway: BackgroundDownloaderGateway(),
+    storage: ChannelDownloadStorage(),
     documentsPath: _documentsPath,
   );
   getIt.registerSingleton<IDownloadsRepository>(repository);

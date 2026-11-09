@@ -6,9 +6,12 @@ import "package:iptv_core/iptv_core.dart";
 import "package:iptv_l10n/iptv_l10n.dart";
 import "package:iptv_ui/iptv_ui.dart";
 
+import "../models/download_failure_reason.dart";
 import "../models/download_phase.dart";
 import "../models/download_record.dart";
+import "../models/download_storage_info.dart";
 import "../riverpods/providers.dart";
+import "byte_format.dart";
 import "downloads_grouping.dart";
 import "remove_download_sheet.dart";
 
@@ -27,11 +30,16 @@ const double _kGlyphSize = 24;
 class DownloadsView extends ConsumerWidget {
   const DownloadsView({
     required this.onPlay,
+    required this.onRetry,
     required this.sourceId,
     super.key,
   });
 
   final void Function(DownloadRecord record) onPlay;
+
+  /// A failed record cannot restart from here: its URL is not stored, so
+  /// the app layer rebuilds it from the record's own source.
+  final void Function(DownloadRecord record) onRetry;
 
   /// The active playlist source: only its downloads are listed. Null when
   /// none is connected.
@@ -74,7 +82,13 @@ class DownloadsView extends ConsumerWidget {
                 )
               : _DownloadsList(
                   groups: groupDownloads(recordsOfSource(all, sourceId)),
+                  sourceId: sourceId,
                   onPlay: onPlay,
+                  onRetry: onRetry,
+                  onPause: (String key) =>
+                      ref.read(downloadsProvider.notifier).pause(key),
+                  onResume: (String key) =>
+                      ref.read(downloadsProvider.notifier).resume(key),
                   onRemove: (String key) =>
                       ref.read(downloadsProvider.notifier).remove(key),
                 ),
@@ -86,12 +100,20 @@ class DownloadsView extends ConsumerWidget {
 class _DownloadsList extends StatelessWidget {
   const _DownloadsList({
     required this.groups,
+    required this.sourceId,
     required this.onPlay,
+    required this.onRetry,
+    required this.onPause,
+    required this.onResume,
     required this.onRemove,
   });
 
   final IList<DownloadSeriesGroup> groups;
+  final String? sourceId;
   final void Function(DownloadRecord record) onPlay;
+  final void Function(DownloadRecord record) onRetry;
+  final void Function(String key) onPause;
+  final void Function(String key) onResume;
   final void Function(String key) onRemove;
 
   @override
@@ -104,6 +126,7 @@ class _DownloadsList extends StatelessWidget {
         bottom: t.space.x8 + MediaQuery.paddingOf(context).bottom,
       ),
       children: <Widget>[
+        _StorageHeader(sourceId: sourceId),
         for (final DownloadSeriesGroup group in groups) ...<Widget>[
           _SeriesHeader(group: group),
           for (final DownloadSeasonGroup season in group.seasons) ...<Widget>[
@@ -112,12 +135,52 @@ class _DownloadsList extends StatelessWidget {
               _DownloadRow(
                 record: record,
                 onPlay: () => onPlay(record),
+                onRetry: () => onRetry(record),
+                onPause: () => onPause(record.key),
+                onResume: () => onResume(record.key),
                 onRemove: () => onRemove(record.key),
               ),
           ],
           SizedBox(height: t.space.x4),
         ],
       ],
+    );
+  }
+}
+
+/// Space used by finished episodes and free space left on the device.
+class _StorageHeader extends ConsumerWidget {
+  const _StorageHeader({required this.sourceId});
+
+  /// The active source, whose downloads the figure counts.
+  final String? sourceId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final AppTheme t = context.appTheme;
+    final AppLocalizations l = AppLocalizations.of(context);
+    final AsyncState<DownloadStorageInfo> state =
+        ref.watch(downloadStorageProvider(sourceId));
+    final String text = switch (state) {
+      AsyncIdle<DownloadStorageInfo>() => "",
+      AsyncLoading<DownloadStorageInfo>() => "",
+      AsyncError<DownloadStorageInfo>() => "",
+      AsyncSuccess<DownloadStorageInfo>(:final DownloadStorageInfo data) =>
+        <String>[
+          l.downloadsStorageUsed(formatBytes(data.usedBytes)),
+          if (data.totalUsedBytes > data.usedBytes)
+            l.downloadsStorageTotal(formatBytes(data.totalUsedBytes)),
+          if (data.freeBytes != null)
+            l.downloadsStorageFree(formatBytes(data.freeBytes!)),
+        ].join(" · "),
+    };
+    if (text.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: EdgeInsets.only(top: t.space.x2),
+      child: Text(
+        text,
+        style: t.typography.caption.copyWith(color: t.colors.textSecondary),
+      ),
     );
   }
 }
@@ -203,11 +266,17 @@ class _DownloadRow extends StatelessWidget {
   const _DownloadRow({
     required this.record,
     required this.onPlay,
+    required this.onRetry,
+    required this.onPause,
+    required this.onResume,
     required this.onRemove,
   });
 
   final DownloadRecord record;
   final VoidCallback onPlay;
+  final VoidCallback onRetry;
+  final VoidCallback onPause;
+  final VoidCallback onResume;
   final VoidCallback onRemove;
 
   @override
@@ -238,17 +307,102 @@ class _DownloadRow extends StatelessWidget {
                       style: t.typography.bodyStrong
                           .copyWith(color: t.colors.textPrimary),
                     ),
-                    if (record.duration.isNotEmpty)
-                      Text(
-                        record.duration,
-                        style: t.typography.caption
-                            .copyWith(color: t.colors.textSecondary),
-                      ),
+                    _RowSubtitle(record: record),
                   ],
                 ),
               ),
+              _ActionButton(
+                phase: record.phase,
+                onPause: onPause,
+                onResume: onResume,
+                onRetry: onRetry,
+              ),
               _DeleteButton(record: record, onRemove: onRemove),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Duration, or why a download is stopped.
+class _RowSubtitle extends StatelessWidget {
+  const _RowSubtitle({required this.record});
+
+  final DownloadRecord record;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppTheme t = context.appTheme;
+    final AppLocalizations l = AppLocalizations.of(context);
+    final (String text, Color color) = switch (record.phase) {
+      DownloadFailed(:final DownloadFailureReason reason) => (
+          downloadFailureLabel(l, reason),
+          t.colors.error,
+        ),
+      DownloadPaused() => (l.downloadsEpisodePaused, t.colors.textSecondary),
+      DownloadCompleted() => (record.duration, t.colors.textSecondary),
+      DownloadQueued() => (record.duration, t.colors.textSecondary),
+      DownloadRunning() => (record.duration, t.colors.textSecondary),
+    };
+    if (text.isEmpty) return const SizedBox.shrink();
+    return Text(
+      text,
+      style: t.typography.caption.copyWith(color: color),
+    );
+  }
+}
+
+/// Pause while it moves, resume when paused, retry when failed.
+class _ActionButton extends StatelessWidget {
+  const _ActionButton({
+    required this.phase,
+    required this.onPause,
+    required this.onResume,
+    required this.onRetry,
+  });
+
+  final DownloadPhase phase;
+  final VoidCallback onPause;
+  final VoidCallback onResume;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppTheme t = context.appTheme;
+    final AppLocalizations l = AppLocalizations.of(context);
+    final (String, IconData, VoidCallback)? action = switch (phase) {
+      DownloadRunning() => (l.downloadsPause, Icons.pause, onPause),
+      // Queued: waiting in the plugin's holding queue, which cannot pause.
+      DownloadQueued() => null,
+      DownloadPaused() => (
+          l.downloadsResume,
+          Icons.play_arrow_outlined,
+          onResume,
+        ),
+      DownloadFailed() => (l.downloadsEpisodeRetry, Icons.refresh, onRetry),
+      DownloadCompleted() => null,
+    };
+    if (action == null) return const SizedBox.shrink();
+    final (String label, IconData icon, VoidCallback onTap) = action;
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      onTap: onTap,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: SizedBox(
+          width: _kDeleteSize,
+          height: _kDeleteSize,
+          child: Center(
+            child: Icon(
+              icon,
+              size: _kGlyphSize,
+              color: t.colors.textSecondary,
+            ),
           ),
         ),
       ),
@@ -293,6 +447,11 @@ class _PhaseGlyph extends StatelessWidget {
                 color: t.colors.textTertiary,
               ),
             ),
+          DownloadPaused() => Icon(
+              Icons.pause_circle_outline,
+              size: _kGlyphSize,
+              color: t.colors.textSecondary,
+            ),
           DownloadFailed() => Icon(
               Icons.error_outline,
               size: _kGlyphSize,
@@ -319,6 +478,7 @@ class _DeleteButton extends StatelessWidget {
       DownloadCompleted() => () => confirmRemoveDownload(context, onRemove),
       DownloadQueued() => onRemove,
       DownloadRunning() => onRemove,
+      DownloadPaused() => onRemove,
       DownloadFailed() => onRemove,
     };
     return Semantics(

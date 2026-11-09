@@ -39,4 +39,39 @@ extension DownloadLaunch on WidgetRef {
         .toIList();
     await read(downloadsProvider.notifier).enqueue(requests);
   }
+
+  /// Restarts a failed [record] from zero. Returns false unless the active
+  /// source is the record's own: the URL is not stored, it is rebuilt here,
+  /// and another panel's credentials would fetch the wrong episode.
+  ///
+  /// Trap: the rebuilt URL embeds the Xtream password; never log it.
+  Future<bool> retryDownload(DownloadRecord record) async {
+    final IPlaylistSource? source = read(activePlaylistSourceProvider);
+    final String? activeId = read(activeSourceStoreProvider).sourceId;
+    if (source == null ||
+        activeId == null ||
+        record.sourceId.isEmpty ||
+        record.sourceId != activeId) {
+      return false;
+    }
+    final DownloadRequest request = DownloadRequest(
+      contentId: record.contentId,
+      sourceId: record.sourceId,
+      seriesId: record.seriesId,
+      seriesTitle: record.seriesTitle,
+      seasonNumber: record.seasonNumber,
+      episodeNumber: record.episodeNumber,
+      title: record.title,
+      containerExtension: record.containerExtension,
+      url: source.buildSeriesUrl(
+        record.contentId,
+        record.containerExtension,
+      ),
+      seriesCoverUrl: record.seriesCoverUrl,
+      duration: record.duration,
+    );
+    await read(downloadsProvider.notifier)
+        .enqueue(<DownloadRequest>[request].toIList());
+    return true;
+  }
 }

@@ -1268,6 +1268,66 @@ abstract class AppLocalizations {
   /// **'Lire {title}'**
   String downloadsPlayEpisode(String title);
 
+  /// No description provided for @downloadsPause.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mettre en pause'**
+  String get downloadsPause;
+
+  /// No description provided for @downloadsResume.
+  ///
+  /// In fr, this message translates to:
+  /// **'Reprendre'**
+  String get downloadsResume;
+
+  /// No description provided for @downloadsEpisodePaused.
+  ///
+  /// In fr, this message translates to:
+  /// **'Téléchargement en pause'**
+  String get downloadsEpisodePaused;
+
+  /// No description provided for @downloadsReasonStorage.
+  ///
+  /// In fr, this message translates to:
+  /// **'Pas assez de place sur cet appareil'**
+  String get downloadsReasonStorage;
+
+  /// No description provided for @downloadsReasonNetwork.
+  ///
+  /// In fr, this message translates to:
+  /// **'Problème de réseau'**
+  String get downloadsReasonNetwork;
+
+  /// No description provided for @downloadsReasonServer.
+  ///
+  /// In fr, this message translates to:
+  /// **'Le fournisseur a refusé ou ne peut pas reprendre'**
+  String get downloadsReasonServer;
+
+  /// No description provided for @downloadsReasonUnknown.
+  ///
+  /// In fr, this message translates to:
+  /// **'Échec du téléchargement'**
+  String get downloadsReasonUnknown;
+
+  /// No description provided for @downloadsRetryNoSource.
+  ///
+  /// In fr, this message translates to:
+  /// **'Choisissez un fournisseur pour relancer ce téléchargement'**
+  String get downloadsRetryNoSource;
+
+  /// No description provided for @downloadsStorageUsed.
+  ///
+  /// In fr, this message translates to:
+  /// **'Téléchargements : {size}'**
+  String downloadsStorageUsed(String size);
+
+  /// No description provided for @downloadsStorageFree.
+  ///
+  /// In fr, this message translates to:
+  /// **'{size} libres'**
+  String downloadsStorageFree(String size);
+
   /// No description provided for @downloadsUnavailable.
   ///
   /// In fr, this message translates to:
@@ -1291,6 +1351,12 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Source indisponible'**
   String get sourceUnavailable;
+
+  /// No description provided for @downloadsStorageTotal.
+  ///
+  /// In fr, this message translates to:
+  /// **'{size} au total, toutes sources'**
+  String downloadsStorageTotal(String size);
 }
 
 class _AppLocalizationsDelegate

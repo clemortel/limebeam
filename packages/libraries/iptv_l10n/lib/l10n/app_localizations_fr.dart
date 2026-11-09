@@ -640,6 +640,42 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
+  String get downloadsPause => 'Mettre en pause';
+
+  @override
+  String get downloadsResume => 'Reprendre';
+
+  @override
+  String get downloadsEpisodePaused => 'Téléchargement en pause';
+
+  @override
+  String get downloadsReasonStorage => 'Pas assez de place sur cet appareil';
+
+  @override
+  String get downloadsReasonNetwork => 'Problème de réseau';
+
+  @override
+  String get downloadsReasonServer =>
+      'Le fournisseur a refusé ou ne peut pas reprendre';
+
+  @override
+  String get downloadsReasonUnknown => 'Échec du téléchargement';
+
+  @override
+  String get downloadsRetryNoSource =>
+      'Choisissez un fournisseur pour relancer ce téléchargement';
+
+  @override
+  String downloadsStorageUsed(String size) {
+    return 'Téléchargements : $size';
+  }
+
+  @override
+  String downloadsStorageFree(String size) {
+    return '$size libres';
+  }
+
+  @override
   String get downloadsUnavailable => 'Téléchargement indisponible';
 
   @override
@@ -652,4 +688,9 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get sourceUnavailable => 'Source indisponible';
+
+  @override
+  String downloadsStorageTotal(String size) {
+    return '$size au total, toutes sources';
+  }
 }

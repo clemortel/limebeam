@@ -1,9 +1,12 @@
 import "package:flutter/material.dart";
+import "package:flutter_riverpod/flutter_riverpod.dart"
+    hide AsyncData, AsyncError, AsyncLoading, AsyncValue;
 import "package:iptv_l10n/iptv_l10n.dart";
 import "package:iptv_ui/iptv_ui.dart";
 
 import "../models/download_phase.dart";
 import "../models/download_record.dart";
+import "../riverpods/providers.dart";
 import "remove_download_sheet.dart";
 
 const double _kTapTarget = 44;
@@ -16,8 +19,9 @@ const int _kPercent = 100;
 ///
 /// [onDownload] fires for "no record" and "failed" (retry). Tapping a
 /// completed one asks for confirmation, then calls [onRemove]. The row
-/// around it keeps playing on tap.
-class EpisodeDownloadButton extends StatelessWidget {
+/// around it keeps playing on tap. Pause and resume go straight to the
+/// downloads notifier, so callers keep the same three parameters.
+class EpisodeDownloadButton extends ConsumerWidget {
   const EpisodeDownloadButton({
     required this.record,
     required this.onDownload,
@@ -30,7 +34,7 @@ class EpisodeDownloadButton extends StatelessWidget {
   final VoidCallback onRemove;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final AppTheme t = context.appTheme;
     final AppLocalizations l = AppLocalizations.of(context);
     final DownloadRecord? current = record;
@@ -46,6 +50,15 @@ class EpisodeDownloadButton extends StatelessWidget {
             onDownload,
           )
         : switch (current.phase) {
+            DownloadPaused() => (
+                l.downloadsEpisodePaused,
+                Icon(
+                  Icons.pause_circle_outline,
+                  size: _kGlyphSize,
+                  color: t.colors.textSecondary,
+                ),
+                () => ref.read(downloadsProvider.notifier).resume(current.key),
+              ),
             DownloadQueued() => (
                 l.downloadsEpisodeQueued,
                 SizedBox(
@@ -70,7 +83,7 @@ class EpisodeDownloadButton extends StatelessWidget {
                     backgroundColor: t.colors.borderDefault,
                   ),
                 ),
-                null,
+                () => ref.read(downloadsProvider.notifier).pause(current.key),
               ),
             DownloadCompleted() => (
                 l.downloadsEpisodeDone,
