@@ -9,11 +9,15 @@ class SourceTypeView extends StatelessWidget {
   const SourceTypeView({
     required this.onXtream,
     required this.onM3u,
+    this.onPasteLink,
     super.key,
   });
 
   final VoidCallback onXtream;
   final VoidCallback onM3u;
+
+  /// Reads the clipboard and starts the flow from a pasted provider link.
+  final VoidCallback? onPasteLink;
 
   @override
   Widget build(BuildContext context) {
@@ -30,11 +34,21 @@ class SourceTypeView extends StatelessWidget {
           padding: EdgeInsets.all(t.space.x4),
           child: Column(
             children: <Widget>[
+              if (onPasteLink != null) ...<Widget>[
+                _TypeCard(
+                  icon: Icons.content_paste,
+                  title: l.onboardingPasteLink,
+                  subtitle: l.onboardingPasteLinkSub,
+                  autofocus: FormFactorScope.isTv(context),
+                  onTap: onPasteLink,
+                ),
+                SizedBox(height: t.space.x4),
+              ],
               _TypeCard(
                 icon: Icons.vpn_key,
                 title: l.sourceTypeXtream,
                 subtitle: l.sourceTypeXtreamSub,
-                autofocus: FormFactorScope.isTv(context),
+                autofocus: onPasteLink == null && FormFactorScope.isTv(context),
                 onTap: onXtream,
               ),
               SizedBox(height: t.space.x4),

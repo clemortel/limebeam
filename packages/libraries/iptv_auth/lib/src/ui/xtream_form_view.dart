@@ -8,6 +8,7 @@ import "package:iptv_ui/iptv_ui.dart";
 import "../models/pairing.dart";
 import "../riverpods/add_xtream_source_notifier.dart";
 import "../riverpods/xtream_form_state.dart";
+import "form_issue_text.dart";
 import "pairing_sheet.dart";
 
 const double _kFormMaxWidth = 560;
@@ -148,8 +149,7 @@ class _XtreamFormViewState extends ConsumerState<XtreamFormView> {
                   // On TV dpad handles autofocus per route; phone opens keyboard.
                   autofocus: !isTv,
                   label: l.formSourceName,
-                  placeholder: l.xtreamNameHint,
-                  errorText: state.nameError,
+                  placeholder: l.onboardingNameOptional,
                   onChanged: notifier.setName,
                   onEditingComplete: _advance,
                 ),
@@ -157,9 +157,9 @@ class _XtreamFormViewState extends ConsumerState<XtreamFormView> {
                 AppInput(
                   controller: _host,
                   label: l.xtreamHost,
-                  placeholder: "http://monportail.tv:8080",
+                  placeholder: l.onboardingXtreamUrlPlaceholder,
                   keyboardType: TextInputType.url,
-                  errorText: state.hostError,
+                  errorText: state.hostError.text(l),
                   onChanged: notifier.setHost,
                   onEditingComplete: _advance,
                 ),
@@ -168,7 +168,7 @@ class _XtreamFormViewState extends ConsumerState<XtreamFormView> {
                   controller: _user,
                   label: l.xtreamUsername,
                   placeholder: l.xtreamUsernameHint,
-                  errorText: state.usernameError,
+                  errorText: state.usernameError.text(l),
                   onChanged: notifier.setUsername,
                   onEditingComplete: _advance,
                 ),
@@ -180,7 +180,7 @@ class _XtreamFormViewState extends ConsumerState<XtreamFormView> {
                   placeholder: "••••••••",
                   obscure: true,
                   textInputAction: TextInputAction.done,
-                  errorText: state.passwordError,
+                  errorText: state.passwordError.text(l),
                   onChanged: notifier.setPassword,
                   onEditingComplete: _submit,
                 ),

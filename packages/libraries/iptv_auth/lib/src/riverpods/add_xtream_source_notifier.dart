@@ -4,6 +4,7 @@ import "package:dartz/dartz.dart" hide IList, IMap, ISet;
 import "package:iptv_core/iptv_core.dart";
 import "package:riverpod_annotation/riverpod_annotation.dart";
 
+import "../models/form_field_issue.dart";
 import "../models/source.dart";
 import "providers.dart";
 import "xtream_form_state.dart";
@@ -21,35 +22,33 @@ class AddXtreamSourceNotifier extends _$AddXtreamSourceNotifier {
   /// Clears the form when starting a fresh add flow.
   void reset() => state = const XtreamFormState();
 
-  void setName(String value) => state = state.copyWith(
-        name: value,
-        nameError: value.trim().isEmpty ? "Nom requis" : null,
-      );
+  void setName(String value) => state = state.copyWith(name: value);
+
+  /// Pre-fills the whole form from a pasted `get.php?username=…` link.
+  void applyLink({
+    required String host,
+    required String username,
+    required String password,
+  }) {
+    setHost(host);
+    setUsername(username);
+    setPassword(password);
+  }
 
   void setHost(String value) => state = state.copyWith(
         host: value,
-        hostError: _validateHost(value),
+        hostError: validateUrlField(value),
       );
 
   void setUsername(String value) => state = state.copyWith(
         username: value,
-        usernameError: value.trim().isEmpty ? "Nom d'utilisateur requis" : null,
+        usernameError: value.trim().isEmpty ? FormFieldIssue.required : null,
       );
 
   void setPassword(String value) => state = state.copyWith(
         password: value,
-        passwordError: value.isEmpty ? "Mot de passe requis" : null,
+        passwordError: value.isEmpty ? FormFieldIssue.required : null,
       );
-
-  String? _validateHost(String value) {
-    final String v = value.trim();
-    if (v.isEmpty) return "URL requise";
-    final Uri? uri = Uri.tryParse(v.contains("://") ? v : "http://$v");
-    if (uri == null || uri.host.isEmpty) {
-      return "URL invalide (ex. : http://monportail.tv:8080)";
-    }
-    return null;
-  }
 
   /// Validates then connects. On success `state.submission` becomes
   /// `AsyncState.success(source)`; the screen listens and navigates.
@@ -63,7 +62,7 @@ class AddXtreamSourceNotifier extends _$AddXtreamSourceNotifier {
 
     final Either<Failures, Source> result =
         await ref.read(sourceRepositoryProvider).addXtreamSource(
-              name: state.name.trim(),
+              name: state.effectiveName,
               host: state.host.trim(),
               username: state.username.trim(),
               password: state.password,

@@ -226,5 +226,78 @@
         "type": "int"
       }
     }
+  },
+  "onboardingSyncConnecting": "Connexion à la source…",
+  "onboardingSyncLive": "Récupération des chaînes…",
+  "onboardingSyncVod": "Récupération des films…",
+  "onboardingSyncSeries": "Récupération des séries…",
+  "onboardingSyncEpg": "Chargement du guide TV…",
+  "onboardingSyncDone": "Terminé",
+  "onboardingSyncFailed": "Échec de la synchronisation",
+  "onboardingSyncStepOf": "Étape {current} sur {total}",
+  "@onboardingSyncStepOf": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "onboardingPasteLink": "Coller un lien",
+  "onboardingPasteLinkSub": "Colle l'adresse complète de ta liste M3U ou de ton portail Xtream, on s'occupe du reste.",
+  "onboardingPasteInvalid": "Ce lien n'est pas reconnu. Vérifie qu'il commence par http.",
+  "onboardingNameOptional": "Facultatif",
+  "onboardingErrorRequired": "Ce champ est requis.",
+  "onboardingErrorInvalidUrl": "Cette adresse n'est pas valide. Elle doit commencer par http.",
+  "onboardingXtreamUrlPlaceholder": "http://monportail.tv:8080",
+  "onboardingM3uUrlPlaceholder": "http://exemple.com/playlist.m3u",
+  "onboardingEpgUrlPlaceholder": "http://exemple.com/guide.xml",
+  "onboardingPairingStarting": "Démarrage…",
+  "onboardingPairingTitle": "Saisis sur ton téléphone",
+  "onboardingPairingScan": "Scanne ce code avec l'appareil photo de ton téléphone, puis saisis-y les infos de ta source.",
+  "onboardingPairingConnected": "Téléphone connecté : saisis et touche Envoyer",
+  "onboardingPairingWaiting": "En attente de ton téléphone…",
+  "onboardingPairingReceived": "Reçu depuis ton téléphone",
+  "onboardingPairingFill": "Remplir le formulaire",
+  "onboardingPairingFailedTitle": "Impossible de lancer l'appairage",
+  "onboardingPairingFailedMessage": "Vérifie que cet appareil est connecté au Wi-Fi puis réessaie, ou saisis tes infos avec la télécommande.",
+  "onboardingClose": "Fermer",
+  "sourcesAddTooltip": "Ajouter une source",
+  "sourcesActive": "Active",
+  "sourcesActivateHint": "Passer sur cette source",
+  "sourcesMenuTooltip": "Options de la source",
+  "sourcesTypeDemo": "Démo",
+  "sourcesRename": "Renommer",
+  "sourcesRenameTitle": "Renommer la source",
+  "sourcesRenameSave": "Enregistrer",
+  "sourcesDelete": "Supprimer",
+  "sourcesDeleteTitle": "Supprimer cette source ?",
+  "sourcesDeleteMessage": "« {name} » sera retirée de cet appareil.",
+  "@sourcesDeleteMessage": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "sourcesDeleteActiveMessage": "« {name} » est ta source active : l’app passera sur une autre source.",
+  "@sourcesDeleteActiveMessage": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "sourcesRefresh": "Actualiser le catalogue",
+  "sourcesSyncing": "Actualisation du catalogue…",
+  "sourcesSwitched": "Source active : {name}",
+  "@sourcesSwitched": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   }
 }

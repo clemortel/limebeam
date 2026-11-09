@@ -4,6 +4,7 @@ import "package:dartz/dartz.dart" hide IList, IMap, ISet;
 import "package:iptv_core/iptv_core.dart";
 import "package:riverpod_annotation/riverpod_annotation.dart";
 
+import "../models/form_field_issue.dart";
 import "../models/source.dart";
 import "m3u_form_state.dart";
 import "providers.dart";
@@ -19,27 +20,17 @@ class AddM3uSourceNotifier extends _$AddM3uSourceNotifier {
 
   void reset() => state = const M3uFormState();
 
-  void setName(String value) => state = state.copyWith(
-        name: value,
-        nameError: value.trim().isEmpty ? "Nom requis" : null,
-      );
+  void setName(String value) => state = state.copyWith(name: value);
+
+  /// Pre-fills the playlist address from a pasted link.
+  void applyLink({required String url}) => setUrl(url);
 
   void setUrl(String value) => state = state.copyWith(
         url: value,
-        urlError: _validateUrl(value),
+        urlError: validateUrlField(value),
       );
 
   void setEpgUrl(String value) => state = state.copyWith(epgUrl: value);
-
-  String? _validateUrl(String value) {
-    final String v = value.trim();
-    if (v.isEmpty) return "URL requise";
-    final Uri? uri = Uri.tryParse(v.contains("://") ? v : "http://$v");
-    if (uri == null || uri.host.isEmpty) {
-      return "URL invalide (ex. : http://exemple.com/playlist.m3u)";
-    }
-    return null;
-  }
 
   Future<void> submit() async {
     if (!state.canSubmit) {
@@ -51,7 +42,7 @@ class AddM3uSourceNotifier extends _$AddM3uSourceNotifier {
     final String epg = state.epgUrl.trim();
     final Either<Failures, Source> result =
         await ref.read(sourceRepositoryProvider).addM3uSource(
-              name: state.name.trim(),
+              name: state.effectiveName,
               url: state.url.trim(),
               epgUrl: epg.isEmpty ? null : epg,
             );

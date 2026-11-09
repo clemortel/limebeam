@@ -2,6 +2,7 @@ import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart"
     hide AsyncData, AsyncError, AsyncLoading, AsyncValue;
 import "package:iptv_core/iptv_core.dart";
+import "package:iptv_l10n/iptv_l10n.dart";
 import "package:iptv_ui/iptv_ui.dart";
 import "package:pretty_qr_code/pretty_qr_code.dart";
 
@@ -22,7 +23,7 @@ const double _kIconSizeSmall = 18;
 /// "Unavailable" state icon size.
 const double _kIconSizeLarge = 40;
 
-/// "Type on your phone" dialog. Starts an on-device pairing server, shows a QR
+/// AppLocalizations.of(context).onboardingPairingTitle dialog. Starts an on-device pairing server, shows a QR
 /// the phone scans, then — once the phone submits — asks the user to confirm on
 /// the TV before returning the [PhoneCredentials]. Returns null if dismissed.
 ///
@@ -102,7 +103,7 @@ class _Starting extends StatelessWidget {
         CircularProgressIndicator(color: t.colors.accent),
         SizedBox(height: t.space.x4),
         Text(
-          "Starting…",
+          AppLocalizations.of(context).onboardingPairingStarting,
           style: t.typography.body.copyWith(color: t.colors.textSecondary),
         ),
       ],
@@ -123,14 +124,13 @@ class _ShowQr extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         Text(
-          "Type on your phone",
+          AppLocalizations.of(context).onboardingPairingTitle,
           textAlign: TextAlign.center,
           style: t.typography.h3.copyWith(color: t.colors.textPrimary),
         ),
         SizedBox(height: t.space.x2),
         Text(
-          "Scan this code with your phone camera, then type your IPTV "
-          "details there.",
+          AppLocalizations.of(context).onboardingPairingScan,
           textAlign: TextAlign.center,
           style: t.typography.caption.copyWith(color: t.colors.textSecondary),
         ),
@@ -173,8 +173,8 @@ class _ShowQr extends StatelessWidget {
             SizedBox(width: t.space.x2),
             Text(
               session.phoneConnected
-                  ? "Phone connected — type and tap Send"
-                  : "Waiting for your phone…",
+                  ? AppLocalizations.of(context).onboardingPairingConnected
+                  : AppLocalizations.of(context).onboardingPairingWaiting,
               style: t.typography.caption.copyWith(
                 color: session.phoneConnected
                     ? t.colors.accent
@@ -207,24 +207,24 @@ class _ConfirmReceived extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         Text(
-          "Received from your phone",
+          AppLocalizations.of(context).onboardingPairingReceived,
           textAlign: TextAlign.center,
           style: t.typography.h3.copyWith(color: t.colors.textPrimary),
         ),
         SizedBox(height: t.space.x4),
-        _Field(label: "Name", value: credentials.name),
-        _Field(label: "Portal URL", value: credentials.host),
-        _Field(label: "Username", value: credentials.username),
+        _Field(label: AppLocalizations.of(context).summaryName, value: credentials.name),
+        _Field(label: AppLocalizations.of(context).xtreamHost, value: credentials.host),
+        _Field(label: AppLocalizations.of(context).xtreamUsername, value: credentials.username),
         _Field(
-          label: "Password",
+          label: AppLocalizations.of(context).commonPassword,
           value: credentials.password.isEmpty
               ? ""
               : "•" * credentials.password.length,
         ),
         SizedBox(height: t.space.x5),
-        PrimaryButton(label: "Fill the form", onPressed: onApply),
+        PrimaryButton(label: AppLocalizations.of(context).onboardingPairingFill, onPressed: onApply),
         SizedBox(height: t.space.x2),
-        SecondaryButton(label: "Cancel", onPressed: onCancel),
+        SecondaryButton(label: AppLocalizations.of(context).commonCancel, onPressed: onCancel),
       ],
     );
   }
@@ -276,19 +276,18 @@ class _Unavailable extends StatelessWidget {
         Icon(Icons.wifi_off, size: _kIconSizeLarge, color: t.colors.textTertiary),
         SizedBox(height: t.space.x4),
         Text(
-          "Can't start phone pairing",
+          AppLocalizations.of(context).onboardingPairingFailedTitle,
           textAlign: TextAlign.center,
           style: t.typography.h3.copyWith(color: t.colors.textPrimary),
         ),
         SizedBox(height: t.space.x2),
         Text(
-          "Make sure this device is on Wi-Fi, then try again — or enter your "
-          "details with the remote.",
+          AppLocalizations.of(context).onboardingPairingFailedMessage,
           textAlign: TextAlign.center,
           style: t.typography.caption.copyWith(color: t.colors.textSecondary),
         ),
         SizedBox(height: t.space.x5),
-        SecondaryButton(label: "Close", onPressed: onClose),
+        SecondaryButton(label: AppLocalizations.of(context).onboardingClose, onPressed: onClose),
       ],
     );
   }

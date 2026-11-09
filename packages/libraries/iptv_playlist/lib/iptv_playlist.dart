@@ -4,4 +4,6 @@
 library;
 
 export "src/riverpods/source_sync_notifier.dart";
+export "src/riverpods/success_auto_advance.dart";
 export "src/riverpods/sync_progress.dart";
+export "src/ui/sync_step_label.dart";

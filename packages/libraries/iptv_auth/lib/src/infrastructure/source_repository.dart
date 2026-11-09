@@ -44,6 +44,9 @@ abstract interface class ISourceRepository {
 
   Future<Either<Failures, Unit>> setActive(String id);
 
+  /// Changes the display name only; credentials are untouched.
+  Future<Either<Failures, Unit>> renameSource(String id, String name);
+
   /// Loads the persisted active source into [ActiveSourceStore]. Call once on
   /// launch before building the UI.
   Future<void> hydrateOnLaunch();
@@ -218,6 +221,23 @@ class SourceRepository implements ISourceRepository {
       final SourceConfig? config = await _readConfig(id);
       if (config == null) return left(const Failures.notFound());
       await _setActiveInternal(id, config);
+      return right(unit);
+    } catch (error, stackTrace) {
+      return left(catchError(error, stackTrace));
+    }
+  }
+
+  @override
+  Future<Either<Failures, Unit>> renameSource(String id, String name) async {
+    try {
+      final String? raw = await _cache.read(_metaKey(id));
+      if (raw == null) return left(const Failures.notFound());
+      final Source current =
+          Source.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      await _cache.write(
+        _metaKey(id),
+        jsonEncode(current.copyWith(name: name.trim()).toJson()),
+      );
       return right(unit);
     } catch (error, stackTrace) {
       return left(catchError(error, stackTrace));

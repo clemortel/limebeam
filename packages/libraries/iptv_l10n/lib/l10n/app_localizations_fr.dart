@@ -580,4 +580,145 @@ class AppLocalizationsFr extends AppLocalizations {
   String nextEpisodeIn(int seconds) {
     return 'Épisode suivant dans ${seconds}s';
   }
+
+  @override
+  String get onboardingSyncConnecting => 'Connexion à la source…';
+
+  @override
+  String get onboardingSyncLive => 'Récupération des chaînes…';
+
+  @override
+  String get onboardingSyncVod => 'Récupération des films…';
+
+  @override
+  String get onboardingSyncSeries => 'Récupération des séries…';
+
+  @override
+  String get onboardingSyncEpg => 'Chargement du guide TV…';
+
+  @override
+  String get onboardingSyncDone => 'Terminé';
+
+  @override
+  String get onboardingSyncFailed => 'Échec de la synchronisation';
+
+  @override
+  String onboardingSyncStepOf(int current, int total) {
+    return 'Étape $current sur $total';
+  }
+
+  @override
+  String get onboardingPasteLink => 'Coller un lien';
+
+  @override
+  String get onboardingPasteLinkSub =>
+      'Colle l\'adresse complète de ta liste M3U ou de ton portail Xtream, on s\'occupe du reste.';
+
+  @override
+  String get onboardingPasteInvalid =>
+      'Ce lien n\'est pas reconnu. Vérifie qu\'il commence par http.';
+
+  @override
+  String get onboardingNameOptional => 'Facultatif';
+
+  @override
+  String get onboardingErrorRequired => 'Ce champ est requis.';
+
+  @override
+  String get onboardingErrorInvalidUrl =>
+      'Cette adresse n\'est pas valide. Elle doit commencer par http.';
+
+  @override
+  String get onboardingXtreamUrlPlaceholder => 'http://monportail.tv:8080';
+
+  @override
+  String get onboardingM3uUrlPlaceholder => 'http://exemple.com/playlist.m3u';
+
+  @override
+  String get onboardingEpgUrlPlaceholder => 'http://exemple.com/guide.xml';
+
+  @override
+  String get onboardingPairingStarting => 'Démarrage…';
+
+  @override
+  String get onboardingPairingTitle => 'Saisis sur ton téléphone';
+
+  @override
+  String get onboardingPairingScan =>
+      'Scanne ce code avec l\'appareil photo de ton téléphone, puis saisis-y les infos de ta source.';
+
+  @override
+  String get onboardingPairingConnected =>
+      'Téléphone connecté : saisis et touche Envoyer';
+
+  @override
+  String get onboardingPairingWaiting => 'En attente de ton téléphone…';
+
+  @override
+  String get onboardingPairingReceived => 'Reçu depuis ton téléphone';
+
+  @override
+  String get onboardingPairingFill => 'Remplir le formulaire';
+
+  @override
+  String get onboardingPairingFailedTitle =>
+      'Impossible de lancer l\'appairage';
+
+  @override
+  String get onboardingPairingFailedMessage =>
+      'Vérifie que cet appareil est connecté au Wi-Fi puis réessaie, ou saisis tes infos avec la télécommande.';
+
+  @override
+  String get onboardingClose => 'Fermer';
+
+  @override
+  String get sourcesAddTooltip => 'Ajouter une source';
+
+  @override
+  String get sourcesActive => 'Active';
+
+  @override
+  String get sourcesActivateHint => 'Passer sur cette source';
+
+  @override
+  String get sourcesMenuTooltip => 'Options de la source';
+
+  @override
+  String get sourcesTypeDemo => 'Démo';
+
+  @override
+  String get sourcesRename => 'Renommer';
+
+  @override
+  String get sourcesRenameTitle => 'Renommer la source';
+
+  @override
+  String get sourcesRenameSave => 'Enregistrer';
+
+  @override
+  String get sourcesDelete => 'Supprimer';
+
+  @override
+  String get sourcesDeleteTitle => 'Supprimer cette source ?';
+
+  @override
+  String sourcesDeleteMessage(String name) {
+    return '« $name » sera retirée de cet appareil.';
+  }
+
+  @override
+  String sourcesDeleteActiveMessage(String name) {
+    return '« $name » est ta source active : l’app passera sur une autre source.';
+  }
+
+  @override
+  String get sourcesRefresh => 'Actualiser le catalogue';
+
+  @override
+  String get sourcesSyncing => 'Actualisation du catalogue…';
+
+  @override
+  String sourcesSwitched(String name) {
+    return 'Source active : $name';
+  }
 }

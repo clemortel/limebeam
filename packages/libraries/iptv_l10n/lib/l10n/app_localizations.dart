@@ -1171,6 +1171,258 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Épisode suivant dans {seconds}s'**
   String nextEpisodeIn(int seconds);
+
+  /// No description provided for @onboardingSyncConnecting.
+  ///
+  /// In fr, this message translates to:
+  /// **'Connexion à la source…'**
+  String get onboardingSyncConnecting;
+
+  /// No description provided for @onboardingSyncLive.
+  ///
+  /// In fr, this message translates to:
+  /// **'Récupération des chaînes…'**
+  String get onboardingSyncLive;
+
+  /// No description provided for @onboardingSyncVod.
+  ///
+  /// In fr, this message translates to:
+  /// **'Récupération des films…'**
+  String get onboardingSyncVod;
+
+  /// No description provided for @onboardingSyncSeries.
+  ///
+  /// In fr, this message translates to:
+  /// **'Récupération des séries…'**
+  String get onboardingSyncSeries;
+
+  /// No description provided for @onboardingSyncEpg.
+  ///
+  /// In fr, this message translates to:
+  /// **'Chargement du guide TV…'**
+  String get onboardingSyncEpg;
+
+  /// No description provided for @onboardingSyncDone.
+  ///
+  /// In fr, this message translates to:
+  /// **'Terminé'**
+  String get onboardingSyncDone;
+
+  /// No description provided for @onboardingSyncFailed.
+  ///
+  /// In fr, this message translates to:
+  /// **'Échec de la synchronisation'**
+  String get onboardingSyncFailed;
+
+  /// No description provided for @onboardingSyncStepOf.
+  ///
+  /// In fr, this message translates to:
+  /// **'Étape {current} sur {total}'**
+  String onboardingSyncStepOf(int current, int total);
+
+  /// No description provided for @onboardingPasteLink.
+  ///
+  /// In fr, this message translates to:
+  /// **'Coller un lien'**
+  String get onboardingPasteLink;
+
+  /// No description provided for @onboardingPasteLinkSub.
+  ///
+  /// In fr, this message translates to:
+  /// **'Colle l\'adresse complète de ta liste M3U ou de ton portail Xtream, on s\'occupe du reste.'**
+  String get onboardingPasteLinkSub;
+
+  /// No description provided for @onboardingPasteInvalid.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ce lien n\'est pas reconnu. Vérifie qu\'il commence par http.'**
+  String get onboardingPasteInvalid;
+
+  /// No description provided for @onboardingNameOptional.
+  ///
+  /// In fr, this message translates to:
+  /// **'Facultatif'**
+  String get onboardingNameOptional;
+
+  /// No description provided for @onboardingErrorRequired.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ce champ est requis.'**
+  String get onboardingErrorRequired;
+
+  /// No description provided for @onboardingErrorInvalidUrl.
+  ///
+  /// In fr, this message translates to:
+  /// **'Cette adresse n\'est pas valide. Elle doit commencer par http.'**
+  String get onboardingErrorInvalidUrl;
+
+  /// No description provided for @onboardingXtreamUrlPlaceholder.
+  ///
+  /// In fr, this message translates to:
+  /// **'http://monportail.tv:8080'**
+  String get onboardingXtreamUrlPlaceholder;
+
+  /// No description provided for @onboardingM3uUrlPlaceholder.
+  ///
+  /// In fr, this message translates to:
+  /// **'http://exemple.com/playlist.m3u'**
+  String get onboardingM3uUrlPlaceholder;
+
+  /// No description provided for @onboardingEpgUrlPlaceholder.
+  ///
+  /// In fr, this message translates to:
+  /// **'http://exemple.com/guide.xml'**
+  String get onboardingEpgUrlPlaceholder;
+
+  /// No description provided for @onboardingPairingStarting.
+  ///
+  /// In fr, this message translates to:
+  /// **'Démarrage…'**
+  String get onboardingPairingStarting;
+
+  /// No description provided for @onboardingPairingTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Saisis sur ton téléphone'**
+  String get onboardingPairingTitle;
+
+  /// No description provided for @onboardingPairingScan.
+  ///
+  /// In fr, this message translates to:
+  /// **'Scanne ce code avec l\'appareil photo de ton téléphone, puis saisis-y les infos de ta source.'**
+  String get onboardingPairingScan;
+
+  /// No description provided for @onboardingPairingConnected.
+  ///
+  /// In fr, this message translates to:
+  /// **'Téléphone connecté : saisis et touche Envoyer'**
+  String get onboardingPairingConnected;
+
+  /// No description provided for @onboardingPairingWaiting.
+  ///
+  /// In fr, this message translates to:
+  /// **'En attente de ton téléphone…'**
+  String get onboardingPairingWaiting;
+
+  /// No description provided for @onboardingPairingReceived.
+  ///
+  /// In fr, this message translates to:
+  /// **'Reçu depuis ton téléphone'**
+  String get onboardingPairingReceived;
+
+  /// No description provided for @onboardingPairingFill.
+  ///
+  /// In fr, this message translates to:
+  /// **'Remplir le formulaire'**
+  String get onboardingPairingFill;
+
+  /// No description provided for @onboardingPairingFailedTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Impossible de lancer l\'appairage'**
+  String get onboardingPairingFailedTitle;
+
+  /// No description provided for @onboardingPairingFailedMessage.
+  ///
+  /// In fr, this message translates to:
+  /// **'Vérifie que cet appareil est connecté au Wi-Fi puis réessaie, ou saisis tes infos avec la télécommande.'**
+  String get onboardingPairingFailedMessage;
+
+  /// No description provided for @onboardingClose.
+  ///
+  /// In fr, this message translates to:
+  /// **'Fermer'**
+  String get onboardingClose;
+
+  /// No description provided for @sourcesAddTooltip.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ajouter une source'**
+  String get sourcesAddTooltip;
+
+  /// No description provided for @sourcesActive.
+  ///
+  /// In fr, this message translates to:
+  /// **'Active'**
+  String get sourcesActive;
+
+  /// No description provided for @sourcesActivateHint.
+  ///
+  /// In fr, this message translates to:
+  /// **'Passer sur cette source'**
+  String get sourcesActivateHint;
+
+  /// No description provided for @sourcesMenuTooltip.
+  ///
+  /// In fr, this message translates to:
+  /// **'Options de la source'**
+  String get sourcesMenuTooltip;
+
+  /// No description provided for @sourcesTypeDemo.
+  ///
+  /// In fr, this message translates to:
+  /// **'Démo'**
+  String get sourcesTypeDemo;
+
+  /// No description provided for @sourcesRename.
+  ///
+  /// In fr, this message translates to:
+  /// **'Renommer'**
+  String get sourcesRename;
+
+  /// No description provided for @sourcesRenameTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Renommer la source'**
+  String get sourcesRenameTitle;
+
+  /// No description provided for @sourcesRenameSave.
+  ///
+  /// In fr, this message translates to:
+  /// **'Enregistrer'**
+  String get sourcesRenameSave;
+
+  /// No description provided for @sourcesDelete.
+  ///
+  /// In fr, this message translates to:
+  /// **'Supprimer'**
+  String get sourcesDelete;
+
+  /// No description provided for @sourcesDeleteTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Supprimer cette source ?'**
+  String get sourcesDeleteTitle;
+
+  /// No description provided for @sourcesDeleteMessage.
+  ///
+  /// In fr, this message translates to:
+  /// **'« {name} » sera retirée de cet appareil.'**
+  String sourcesDeleteMessage(String name);
+
+  /// No description provided for @sourcesDeleteActiveMessage.
+  ///
+  /// In fr, this message translates to:
+  /// **'« {name} » est ta source active : l’app passera sur une autre source.'**
+  String sourcesDeleteActiveMessage(String name);
+
+  /// No description provided for @sourcesRefresh.
+  ///
+  /// In fr, this message translates to:
+  /// **'Actualiser le catalogue'**
+  String get sourcesRefresh;
+
+  /// No description provided for @sourcesSyncing.
+  ///
+  /// In fr, this message translates to:
+  /// **'Actualisation du catalogue…'**
+  String get sourcesSyncing;
+
+  /// No description provided for @sourcesSwitched.
+  ///
+  /// In fr, this message translates to:
+  /// **'Source active : {name}'**
+  String sourcesSwitched(String name);
 }
 
 class _AppLocalizationsDelegate

@@ -10,6 +10,8 @@ import "package:iptv_ui/iptv_ui.dart";
 
 import "../router.gr.dart";
 
+const double _kConnectingBarHeight = 4;
+
 /// Loading screen (§4.1.6). Authenticates + persists the source, then runs
 /// the eager sync (live, vod, series, epg) with real sub-steps. Handles both
 /// Xtream and M3U sources via [kind].
@@ -112,9 +114,9 @@ class _ProgressState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final AppTheme t = context.appTheme;
-    final String label = authLoading
-        ? AppLocalizations.of(context).connectingLabel
-        : progress.statusLabel;
+    final AppLocalizations l = AppLocalizations.of(context);
+    final String label =
+        authLoading ? l.connectingLabel : progress.step.label(l);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
@@ -122,8 +124,26 @@ class _ProgressState extends StatelessWidget {
         SizedBox(height: t.space.x6),
         Text(
           label,
-          style: t.typography.body.copyWith(color: t.colors.textSecondary),
+          textAlign: TextAlign.center,
+          style: t.typography.body.copyWith(color: t.colors.textPrimary),
         ),
+        if (!authLoading && progress.stepNumber > 0) ...<Widget>[
+          SizedBox(height: t.space.x2),
+          Text(
+            l.onboardingSyncStepOf(progress.stepNumber, kSyncStepCount),
+            style: t.typography.caption.copyWith(color: t.colors.textSecondary),
+          ),
+          SizedBox(height: t.space.x4),
+          ClipRRect(
+            borderRadius: t.radius.fullAll,
+            child: LinearProgressIndicator(
+              value: progress.stepNumber / kSyncStepCount,
+              minHeight: _kConnectingBarHeight,
+              color: t.colors.accent,
+              backgroundColor: t.colors.bgElevated,
+            ),
+          ),
+        ],
       ],
     );
   }

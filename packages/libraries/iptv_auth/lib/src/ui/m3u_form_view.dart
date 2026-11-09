@@ -6,6 +6,7 @@ import "package:iptv_ui/iptv_ui.dart";
 
 import "../riverpods/add_m3u_source_notifier.dart";
 import "../riverpods/m3u_form_state.dart";
+import "form_issue_text.dart";
 
 /// Form — M3U playlist. Name + playlist URL (+ optional EPG URL); "Continuer"
 /// enabled only when valid. Field state + validation live in the notifier.
@@ -61,25 +62,24 @@ class _M3uFormViewState extends ConsumerState<M3uFormView> {
             AppInput(
               controller: _name,
               label: l.formSourceName,
-              placeholder: l.m3uNameHint,
-              errorText: state.nameError,
+              placeholder: l.onboardingNameOptional,
               onChanged: notifier.setName,
             ),
             SizedBox(height: t.space.x4),
             AppInput(
               controller: _url,
               label: l.m3uUrl,
-              placeholder: "http://exemple.com/playlist.m3u",
+              placeholder: l.onboardingM3uUrlPlaceholder,
               helperText: l.m3uUrlHint,
               keyboardType: TextInputType.url,
-              errorText: state.urlError,
+              errorText: state.urlError.text(l),
               onChanged: notifier.setUrl,
             ),
             SizedBox(height: t.space.x4),
             AppInput(
               controller: _epg,
               label: l.m3uEpgUrl,
-              placeholder: "http://exemple.com/epg.xml",
+              placeholder: l.onboardingEpgUrlPlaceholder,
               keyboardType: TextInputType.url,
               onChanged: notifier.setEpgUrl,
             ),
