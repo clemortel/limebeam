@@ -42,13 +42,24 @@ class SourceSyncNotifier extends _$SourceSyncNotifier {
     return _syncAndFinish(done);
   }
 
-  /// The only way to change the active source: [change] runs under the same
+  /// The only way to change the active source, in two phases under the same
   /// gate as [run], so a switch can never land mid-sync (the repositories
   /// read the active store after their network await). Refused when a sync
-  /// or another change is in flight. On success, when [shouldSync] agrees
-  /// (default: yes), the sync starts inside the same claim, with no window.
+  /// or another change is in flight.
+  ///
+  /// [prepare] does everything that can fail WITHOUT touching the active
+  /// store (validation, authentication, existence checks) and returns the
+  /// commit. Only when it succeeds do the before-switch hooks run, still
+  /// with the old source active, then the commit persists and switches.
+  /// The trap this order avoids: hooks stop playback, so running them before
+  /// a change that then fails would tear the player down for nothing. A
+  /// commit that fails after the hooks is reported, but playback is already
+  /// stopped: accepted, the switch was certain when it started.
+  ///
+  /// On success, when [shouldSync] agrees (default: yes), the sync starts
+  /// inside the same claim, with no window.
   Future<SyncGateOutcome<T>> changeSource<T>(
-    Future<Either<Failures, T>> Function() change, {
+    Future<Either<Failures, SourceSwitchCommit<T>>> Function() prepare, {
     bool Function(T value)? shouldSync,
   }) async {
     if (_inFlight != null) return SyncGateRefused<T>();
@@ -59,8 +70,14 @@ class SourceSyncNotifier extends _$SourceSyncNotifier {
 
     Either<Failures, T> result;
     try {
-      await _runBeforeSwitchHooks();
-      result = await change();
+      final Either<Failures, SourceSwitchCommit<T>> prepared = await prepare();
+      result = await prepared.fold(
+        (Failures failure) async => left<Failures, T>(failure),
+        (SourceSwitchCommit<T> commit) async {
+          await _runBeforeSwitchHooks();
+          return commit();
+        },
+      );
     } on Object catch (error, stackTrace) {
       result = left(catchError(error, stackTrace));
     }

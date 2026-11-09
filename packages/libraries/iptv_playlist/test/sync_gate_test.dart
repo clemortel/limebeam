@@ -57,8 +57,10 @@ void main() {
 
     final SyncGateOutcome<Unit> outcome =
         await gate().changeSource<Unit>(() async {
-      changed = true;
-      return right(unit);
+      return right(() async {
+        changed = true;
+        return right(unit);
+      });
     });
 
     expect(outcome, isA<SyncGateRefused<Unit>>());
@@ -69,10 +71,12 @@ void main() {
 
   test("should let only one of two racing changes through", () async {
     int changes = 0;
-    Future<Either<Failures, Unit>> change() async {
-      changes++;
+    Future<Either<Failures, SourceSwitchCommit<Unit>>> change() async {
       await Future<void>.delayed(Duration.zero);
-      return right(unit);
+      return right(() async {
+        changes++;
+        return right(unit);
+      });
     }
 
     final Future<SyncGateOutcome<Unit>> a = gate().changeSource<Unit>(change);
@@ -89,7 +93,7 @@ void main() {
     final Future<SyncGateOutcome<Unit>> change =
         gate().changeSource<Unit>(() async {
       await slowChange.future;
-      return right(unit);
+      return right(() async => right(unit));
     });
     final Future<SyncProgress> joined = gate().run();
 
@@ -128,8 +132,7 @@ void main() {
     expect((await gate().run()).isDone, isTrue);
   });
 
-  test("should run the before-switch hooks first, in order, then change",
-      () async {
+  test("should run the hooks in order between prepare and commit", () async {
     final List<String> order = <String>[];
     final _GatedSync local = _GatedSync();
     final ProviderContainer hooked = ProviderContainer(
@@ -148,13 +151,16 @@ void main() {
 
     final Future<SyncGateOutcome<Unit>> outcome =
         hooked.read(sourceSyncProvider.notifier).changeSource<Unit>(() async {
-      order.add("change");
-      return right(unit);
+      order.add("prepare");
+      return right(() async {
+        order.add("commit");
+        return right(unit);
+      });
     });
     local.release.complete();
     await outcome;
 
-    expect(order, <String>["hook1", "hook2", "change"]);
+    expect(order, <String>["prepare", "hook1", "hook2", "commit"]);
   });
 
   test("should run no hook for a change refused mid-sync", () async {
@@ -174,12 +180,66 @@ void main() {
     final SourceSyncNotifier gate2 = hooked.read(sourceSyncProvider.notifier);
     final Future<SyncProgress> running = gate2.run();
 
-    final SyncGateOutcome<Unit> outcome =
-        await gate2.changeSource<Unit>(() async => right(unit));
+    final SyncGateOutcome<Unit> outcome = await gate2.changeSource<Unit>(
+      () async => right(() async => right(unit)),
+    );
     local.release.complete();
     await running;
 
     expect(outcome, isA<SyncGateRefused<Unit>>());
     expect(hooks, 0);
+  });
+
+  test("should run no hook and not commit when the prepare fails", () async {
+    int hooks = 0;
+    final _GatedSync local = _GatedSync();
+    final ProviderContainer hooked = ProviderContainer(
+      overrides: <Override>[
+        sourceSyncProvider.overrideWith(() => local),
+        beforeSourceSwitchHooksProvider.overrideWithValue(
+          IList<BeforeSourceSwitchHook>(<BeforeSourceSwitchHook>[
+            (Ref ref) async => hooks++,
+          ]),
+        ),
+      ],
+    );
+    addTearDown(hooked.dispose);
+    final SourceSyncNotifier gate2 = hooked.read(sourceSyncProvider.notifier);
+
+    final SyncGateOutcome<Unit> outcome = await gate2.changeSource<Unit>(
+      () async => left(const Failures.portalAuth()),
+    );
+
+    expect(outcome, isA<SyncGateRan<Unit>>());
+    expect((outcome as SyncGateRan<Unit>).result.isLeft(), isTrue);
+    expect(hooks, 0);
+    expect(hooked.read(sourceSyncProvider).isRunning, isFalse);
+  });
+
+  test("should report a throwing commit after the hooks and free the gate",
+      () async {
+    int hooks = 0;
+    final _GatedSync local = _GatedSync();
+    final ProviderContainer hooked = ProviderContainer(
+      overrides: <Override>[
+        sourceSyncProvider.overrideWith(() => local),
+        beforeSourceSwitchHooksProvider.overrideWithValue(
+          IList<BeforeSourceSwitchHook>(<BeforeSourceSwitchHook>[
+            (Ref ref) async => hooks++,
+          ]),
+        ),
+      ],
+    );
+    addTearDown(hooked.dispose);
+    final SourceSyncNotifier gate2 = hooked.read(sourceSyncProvider.notifier);
+
+    final SyncGateOutcome<Unit> outcome = await gate2.changeSource<Unit>(
+      () async => right(() async => throw StateError("commit boom")),
+    );
+
+    expect((outcome as SyncGateRan<Unit>).result.isLeft(), isTrue);
+    expect(outcome.sync, isNull);
+    expect(hooks, 1);
+    expect(hooked.read(sourceSyncProvider).isRunning, isFalse);
   });
 }

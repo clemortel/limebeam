@@ -61,7 +61,7 @@ class _FakeRepository implements ISourceRepository {
   }
 
   @override
-  Future<Either<Failures, Source>> addXtreamSource({
+  Future<Either<Failures, SourceSwitchCommit<Source>>> prepareXtreamSource({
     required String name,
     required String host,
     required String username,
@@ -70,7 +70,7 @@ class _FakeRepository implements ISourceRepository {
       throw UnimplementedError();
 
   @override
-  Future<Either<Failures, Source>> addM3uSource({
+  Future<Either<Failures, SourceSwitchCommit<Source>>> prepareM3uSource({
     required String name,
     required String url,
     String? epgUrl,
@@ -78,8 +78,24 @@ class _FakeRepository implements ISourceRepository {
       throw UnimplementedError();
 
   @override
-  Future<Either<Failures, Source>> addDemoSource() =>
+  Future<Either<Failures, SourceSwitchCommit<Source>>> prepareDemoSource() =>
       throw UnimplementedError();
+
+  /// When set, the commit step of an activation fails.
+  bool failCommit = false;
+
+  @override
+  Future<Either<Failures, SourceSwitchCommit<Unit>>> prepareActivate(
+    String id,
+  ) async {
+    if (!_sources.any((Source s) => s.id == id)) {
+      return left(const Failures.notFound());
+    }
+    return right(() async {
+      if (failCommit) return left(const Failures.network());
+      return setActive(id);
+    });
+  }
 
   @override
   Future<void> hydrateOnLaunch() async {}
@@ -254,6 +270,29 @@ void main() {
     expect(result.isLeft(), isTrue);
     expect(container.read(activeSourceIdProvider), "a");
     expect(sync.runs, 0);
+  });
+
+  test("should run no hook when activating an unknown source", () async {
+    final SourcesNotifier notifier = await loaded();
+
+    await notifier.activate("zzz");
+
+    expect(hookSaw, isEmpty);
+    expect(store.sourceId, "a");
+    expect(container.read(sourceSyncProvider).isRunning, isFalse);
+  });
+
+  test("should report a failing commit after the hook ran", () async {
+    final SourcesNotifier notifier = await loaded();
+    repository.failCommit = true;
+
+    final Either<SourceActionFailure, Unit> result =
+        await notifier.activate("b");
+
+    expect(result.isLeft(), isTrue);
+    expect(hookSaw, <String?>["a"]);
+    expect(store.sourceId, "a");
+    expect(container.read(sourceSyncProvider).isRunning, isFalse);
   });
 
   test("deleting the active source hands over to the next one", () async {

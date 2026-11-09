@@ -45,7 +45,7 @@ class AddM3uSourceNotifier extends _$AddM3uSourceNotifier {
     }
     final String epg = state.epgUrl.trim();
     return _add(
-      () => ref.read(sourceRepositoryProvider).addM3uSource(
+      () => ref.read(sourceRepositoryProvider).prepareM3uSource(
             name: state.effectiveName,
             url: state.url.trim(),
             epgUrl: epg.isEmpty ? null : epg,
@@ -58,7 +58,7 @@ class AddM3uSourceNotifier extends _$AddM3uSourceNotifier {
   /// progress exactly like a normal add.
   Future<SyncProgress?> startDemo() {
     _demo = true;
-    return _add(() => ref.read(sourceRepositoryProvider).addDemoSource());
+    return _add(() => ref.read(sourceRepositoryProvider).prepareDemoSource());
   }
 
   /// Whether the last submission was the demo one, so [retry] repeats it.
@@ -75,8 +75,18 @@ class AddM3uSourceNotifier extends _$AddM3uSourceNotifier {
     return _demo ? startDemo() : submit();
   }
 
+  /// Wraps [commit] so the active-source id provider follows the switch.
+  SourceSwitchCommit<Source> _followingCommit(
+    SourceSwitchCommit<Source> commit,
+  ) =>
+      () async {
+        final Either<Failures, Source> added = await commit();
+        if (added.isRight()) _followActiveSource();
+        return added;
+      };
+
   Future<SyncProgress?> _add(
-    Future<Either<Failures, Source>> Function() add,
+    Future<Either<Failures, SourceSwitchCommit<Source>>> Function() prepare,
   ) async {
     state = state.copyWith(
       submission: const AsyncState<Source>.loading(),
@@ -84,12 +94,8 @@ class AddM3uSourceNotifier extends _$AddM3uSourceNotifier {
     );
     final SyncGateOutcome<Source> outcome =
         await ref.read(sourceSyncProvider.notifier).changeSource<Source>(
-      () async {
-        final Either<Failures, Source> added = await add();
-        if (added.isRight()) _followActiveSource();
-        return added;
-      },
-    );
+              () async => (await prepare()).map(_followingCommit),
+            );
     switch (outcome) {
       case SyncGateRefused<Source>():
         state = state.copyWith(

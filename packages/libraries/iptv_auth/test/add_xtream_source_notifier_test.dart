@@ -1,13 +1,15 @@
 import "dart:async";
 
 import "package:dartz/dartz.dart" hide IList, IMap, ISet;
+import "package:fast_immutable_collections/fast_immutable_collections.dart";
+import "package:flutter_riverpod/flutter_riverpod.dart" show Ref;
 import "package:flutter_test/flutter_test.dart";
 import "package:iptv_auth/iptv_auth.dart";
 import "package:iptv_core/iptv_core.dart";
 import "package:iptv_playlist/iptv_playlist.dart";
 import "package:mockito/annotations.dart";
 import "package:mockito/mockito.dart";
-import "package:riverpod/src/framework.dart";
+import "package:riverpod/src/framework.dart" show Override, ProviderContainer;
 
 import "add_xtream_source_notifier_test.mocks.dart";
 
@@ -44,11 +46,25 @@ void main() {
     status: ConnectionStatus.ok,
   );
 
+  /// Order of events: "hook" when a before-switch hook ran, "commit" when
+  /// the repository's commit step ran.
+  late List<String> events;
+
+  SourceSwitchCommit<Source> commitOf(Source added) => () async {
+        events.add("commit");
+        return right(added);
+      };
+
   setUpAll(() {
-    provideDummy<Either<Failures, Source>>(right(source));
+    provideDummy<Either<Failures, SourceSwitchCommit<Source>>>(
+      right(() async => right(source)),
+    );
   });
 
-  setUp(() => repository = MockISourceRepository());
+  setUp(() {
+    repository = MockISourceRepository();
+    events = <String>[];
+  });
 
   late _FakeSync sync;
 
@@ -59,6 +75,11 @@ void main() {
         sourceSyncProvider.overrideWith(() => sync),
         sourceRepositoryProvider.overrideWithValue(repository),
         activeSourceStoreProvider.overrideWithValue(ActiveSourceStore()),
+        beforeSourceSwitchHooksProvider.overrideWithValue(
+          IList<BeforeSourceSwitchHook>(<BeforeSourceSwitchHook>[
+            (Ref ref) async => events.add("hook"),
+          ]),
+        ),
       ],
     );
     addTearDown(container.dispose);
@@ -80,7 +101,7 @@ void main() {
     await notifier.submit();
 
     verifyNever(
-      repository.addXtreamSource(
+      repository.prepareXtreamSource(
         name: anyNamed("name"),
         host: anyNamed("host"),
         username: anyNamed("username"),
@@ -91,13 +112,13 @@ void main() {
 
   test("should expose success submission when repository connects", () async {
     when(
-      repository.addXtreamSource(
+      repository.prepareXtreamSource(
         name: anyNamed("name"),
         host: anyNamed("host"),
         username: anyNamed("username"),
         password: anyNamed("password"),
       ),
-    ).thenAnswer((_) async => right(source));
+    ).thenAnswer((_) async => right(commitOf(source)));
 
     final ProviderContainer container = makeContainer();
     final AddXtreamSourceNotifier notifier =
@@ -114,7 +135,7 @@ void main() {
 
   test("should expose portalAuth error when credentials are invalid", () async {
     when(
-      repository.addXtreamSource(
+      repository.prepareXtreamSource(
         name: anyNamed("name"),
         host: anyNamed("host"),
         username: anyNamed("username"),
@@ -153,7 +174,7 @@ void main() {
       const AsyncState<Source>.idle(),
     );
     verifyNever(
-      repository.addXtreamSource(
+      repository.prepareXtreamSource(
         name: anyNamed("name"),
         host: anyNamed("host"),
         username: anyNamed("username"),
@@ -166,13 +187,13 @@ void main() {
 
   test("should complete submit with the sync the add started", () async {
     when(
-      repository.addXtreamSource(
+      repository.prepareXtreamSource(
         name: anyNamed("name"),
         host: anyNamed("host"),
         username: anyNamed("username"),
         password: anyNamed("password"),
       ),
-    ).thenAnswer((_) async => right(source));
+    ).thenAnswer((_) async => right(commitOf(source)));
     final ProviderContainer container = makeContainer();
     final AddXtreamSourceNotifier notifier =
         container.read(addXtreamSourceProvider.notifier);
@@ -186,13 +207,13 @@ void main() {
   test("should re-run only the sync when retrying after a failed sync",
       () async {
     when(
-      repository.addXtreamSource(
+      repository.prepareXtreamSource(
         name: anyNamed("name"),
         host: anyNamed("host"),
         username: anyNamed("username"),
         password: anyNamed("password"),
       ),
-    ).thenAnswer((_) async => right(source));
+    ).thenAnswer((_) async => right(commitOf(source)));
     final ProviderContainer container = makeContainer();
     final AddXtreamSourceNotifier notifier =
         container.read(addXtreamSourceProvider.notifier);
@@ -207,7 +228,7 @@ void main() {
     expect(retried?.isDone, isTrue);
     expect(sync.syncs, 2);
     verify(
-      repository.addXtreamSource(
+      repository.prepareXtreamSource(
         name: anyNamed("name"),
         host: anyNamed("host"),
         username: anyNamed("username"),
@@ -218,7 +239,7 @@ void main() {
 
   test("should re-submit when retrying after a failed add", () async {
     when(
-      repository.addXtreamSource(
+      repository.prepareXtreamSource(
         name: anyNamed("name"),
         host: anyNamed("host"),
         username: anyNamed("username"),
@@ -234,12 +255,82 @@ void main() {
     await notifier.retry();
 
     verify(
-      repository.addXtreamSource(
+      repository.prepareXtreamSource(
         name: anyNamed("name"),
         host: anyNamed("host"),
         username: anyNamed("username"),
         password: anyNamed("password"),
       ),
     ).called(2);
+  });
+
+  test("should run no hook and not commit when the auth fails", () async {
+    when(
+      repository.prepareXtreamSource(
+        name: anyNamed("name"),
+        host: anyNamed("host"),
+        username: anyNamed("username"),
+        password: anyNamed("password"),
+      ),
+    ).thenAnswer((_) async => left(const Failures.portalAuth()));
+    final ProviderContainer container = makeContainer();
+    final AddXtreamSourceNotifier notifier =
+        container.read(addXtreamSourceProvider.notifier);
+    fillValidForm(notifier);
+
+    await notifier.submit();
+
+    expect(events, isEmpty);
+    expect(container.read(sourceSyncProvider).isRunning, isFalse);
+  });
+
+  test("should run the hook before the commit when the add is certain",
+      () async {
+    when(
+      repository.prepareXtreamSource(
+        name: anyNamed("name"),
+        host: anyNamed("host"),
+        username: anyNamed("username"),
+        password: anyNamed("password"),
+      ),
+    ).thenAnswer((_) async => right(commitOf(source)));
+    final ProviderContainer container = makeContainer();
+    final AddXtreamSourceNotifier notifier =
+        container.read(addXtreamSourceProvider.notifier);
+    fillValidForm(notifier);
+
+    await notifier.submit();
+
+    expect(events, <String>["hook", "commit"]);
+  });
+
+  test("should report a failing commit, after the hook, and free the gate",
+      () async {
+    when(
+      repository.prepareXtreamSource(
+        name: anyNamed("name"),
+        host: anyNamed("host"),
+        username: anyNamed("username"),
+        password: anyNamed("password"),
+      ),
+    ).thenAnswer(
+      (_) async => right(() async {
+        events.add("commit");
+        throw StateError("disk full");
+      }),
+    );
+    final ProviderContainer container = makeContainer();
+    final AddXtreamSourceNotifier notifier =
+        container.read(addXtreamSourceProvider.notifier);
+    fillValidForm(notifier);
+
+    await notifier.submit();
+
+    expect(events, <String>["hook", "commit"]);
+    expect(
+      container.read(addXtreamSourceProvider).submission,
+      isA<AsyncError<Source>>(),
+    );
+    expect(container.read(sourceSyncProvider).isRunning, isFalse);
   });
 }

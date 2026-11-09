@@ -81,15 +81,20 @@ class AddXtreamSourceNotifier extends _$AddXtreamSourceNotifier {
     final SyncGateOutcome<Source> outcome =
         await ref.read(sourceSyncProvider.notifier).changeSource<Source>(
       () async {
-        final Either<Failures, Source> added =
-            await ref.read(sourceRepositoryProvider).addXtreamSource(
+        final Either<Failures, SourceSwitchCommit<Source>> prepared =
+            await ref.read(sourceRepositoryProvider).prepareXtreamSource(
                   name: state.effectiveName,
                   host: state.host.trim(),
                   username: state.username.trim(),
                   password: state.password,
                 );
-        if (added.isRight()) _followActiveSource();
-        return added;
+        return prepared.map(
+          (SourceSwitchCommit<Source> commit) => () async {
+            final Either<Failures, Source> added = await commit();
+            if (added.isRight()) _followActiveSource();
+            return added;
+          },
+        );
       },
     );
 

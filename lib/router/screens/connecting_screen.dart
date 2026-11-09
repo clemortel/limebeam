@@ -80,7 +80,8 @@ class _ConnectingScreenState extends ConsumerState<ConnectingScreen> {
       AsyncSuccess<Source>() => progress.isFailed ? progress.failure : null,
     };
 
-    final String? message = syncBusy ? l.sourcesSyncBusy : failure?.localized(l);
+    final String? message =
+        syncBusy ? l.sourcesSyncBusy : failure?.localized(l);
 
     return Scaffold(
       backgroundColor: t.colors.bgBase,

@@ -81,17 +81,19 @@ class SourcesNotifier extends _$SourcesNotifier {
   Future<Either<SourceActionFailure, Unit>> activate(String id) async {
     if (ref.read(activeSourceIdProvider) == id) return right(unit);
     final SyncGateOutcome<Unit> outcome = await _gate.changeSource<Unit>(
-      () => _setActive(id),
+      () async => (await ref.read(sourceRepositoryProvider).prepareActivate(id))
+          .map(_followingCommit),
     );
     return _settle<Unit>(outcome);
   }
 
-  Future<Either<Failures, Unit>> _setActive(String id) async {
-    final Either<Failures, Unit> result =
-        await ref.read(sourceRepositoryProvider).setActive(id);
-    if (result.isRight()) ref.read(activeSourceIdProvider.notifier).sync();
-    return result;
-  }
+  /// Wraps [commit] so the active-source id provider follows the switch.
+  SourceSwitchCommit<Unit> _followingCommit(SourceSwitchCommit<Unit> commit) =>
+      () async {
+        final Either<Failures, Unit> result = await commit();
+        if (result.isRight()) ref.read(activeSourceIdProvider.notifier).sync();
+        return result;
+      };
 
   /// Turns a gate outcome into the action result: refusal, change failure,
   /// or the sync's own failure once it has ended.
@@ -153,7 +155,9 @@ class SourcesNotifier extends _$SourcesNotifier {
     }
     final SyncGateOutcome<DeleteOutcome> outcome =
         await _gate.changeSource<DeleteOutcome>(
-      _deleteActive(id),
+      // Nothing to prepare: the delete itself is the commit, and playback
+      // of the source being deleted has to stop anyway.
+      () async => right(_deleteActive(id)),
       shouldSync: (DeleteOutcome o) => o == DeleteOutcome.deleted,
     );
     // Reload before awaiting the takeover sync: the deleted row must leave

@@ -3,6 +3,11 @@ import "package:iptv_core/iptv_core.dart";
 
 import "sync_progress.dart";
 
+/// The second phase of a source change: persists and switches the active
+/// store. Produced by a prepare step that has already done everything that
+/// can fail without touching it.
+typedef SourceSwitchCommit<T> = Future<Either<Failures, T>> Function();
+
 /// What the sync gate did with a source change: it either refused it (a sync
 /// is in flight) or ran it. Sealed so callers cannot forget the refusal.
 sealed class SyncGateOutcome<T> {
