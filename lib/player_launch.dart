@@ -216,6 +216,20 @@ extension PlayerLaunch on WidgetRef {
       _toastUnavailable(context);
       return;
     }
+    // Offline (cached sheet on screen): the queue is the downloaded part of
+    // the season, as in openDownloadedEpisode. Not downloaded: fall through.
+    if (isServedFromCache(read(seriesDetailProvider(seriesId)))) {
+      final DownloadRecord? local = completedDownloadFor(
+        await _downloadRecords(),
+        _activeSourceId,
+        episode.id,
+      );
+      if (!context.mounted) return;
+      if (local != null) {
+        await openDownloadedEpisode(context, local);
+        return;
+      }
+    }
     final int index =
         season.episodes.indexWhere((Episode e) => e.id == episode.id);
     final AppPreferences prefs = read(appPreferencesProvider);
@@ -269,6 +283,12 @@ extension PlayerLaunch on WidgetRef {
           season = s;
           break;
         }
+      }
+      // Cached sheet = offline: resume from the downloads (local queue and
+      // offlineResumeTarget's near-end rule). None downloaded: online path.
+      if (detail != null && detail.fromCache) {
+        if (await _resumeOffline(context, session)) return;
+        if (!context.mounted) return;
       }
       if (season != null) {
         final int current =
