@@ -15,6 +15,7 @@ import "flavors/flavor.dart";
 import "injection.dart";
 import "platform/form_factor_detector.dart";
 import "router/router.dart";
+import "source_scope.dart";
 
 /// Painted immediately at launch, before any async init, so the window has a
 /// real first frame within ~1s. This both removes the blank launch screen and
@@ -60,6 +61,8 @@ Future<void> bootstrap(Flavor flavor) async {
     ProviderScope(
       overrides: <Override>[
         televisionDetectedProvider.overrideWithValue(isTelevision),
+        sourceScopedProvidersOverride(),
+        beforeSourceSwitchHooksOverride(),
       ],
       child: IptvApp(appRouter: AppRouter()),
     ),

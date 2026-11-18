@@ -13,11 +13,20 @@ import "../router.gr.dart";
 class SourceSuccessScreen extends ConsumerWidget {
   const SourceSuccessScreen({super.key});
 
+  void _discover(BuildContext context) {
+    if (!context.mounted) return;
+    context.router.replaceAll(<PageRouteInfo<dynamic>>[const MainShellRoute()]);
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final AppTheme t = context.appTheme;
     final AppLocalizations l = AppLocalizations.of(context);
     final SyncProgress p = ref.watch(sourceSyncProvider);
+    // The summary is a confirmation, not a gate: move on by itself.
+    ref.listen<bool>(successAutoAdvanceProvider, (bool? _, bool elapsed) {
+      if (elapsed) _discover(context);
+    });
     final String summary = l.successCounts(p.channels, p.movies, p.series);
 
     return Scaffold(
@@ -62,10 +71,7 @@ class SourceSuccessScreen extends ConsumerWidget {
                       const Spacer(),
                       PrimaryButton(
                         label: l.successDiscover,
-                        onPressed: () =>
-                            context.router.replaceAll(<PageRouteInfo<dynamic>>[
-                          const MainShellRoute(),
-                        ]),
+                        onPressed: () => _discover(context),
                       ),
                       SizedBox(height: t.space.x4),
                     ],

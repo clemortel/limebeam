@@ -1,3 +1,4 @@
+import "package:fast_immutable_collections/fast_immutable_collections.dart";
 import "package:get_it/get_it.dart";
 import "package:iptv_api/iptv_api.dart";
 import "package:iptv_core/iptv_core.dart";
@@ -25,3 +26,10 @@ IPlaylistSource? activePlaylistSource(Ref ref) {
   if (config == null) return null;
   return GetIt.instance<PlaylistSourceFactory>().create(config);
 }
+
+/// Providers holding per-source data (favorites, watch sessions…) that live
+/// in features this package must not depend on. The app root overrides it;
+/// every one is invalidated as soon as the active source changes.
+@Riverpod(keepAlive: true)
+IList<ProviderOrFamily> sourceScopedProviders(Ref ref) =>
+    IList<ProviderOrFamily>();

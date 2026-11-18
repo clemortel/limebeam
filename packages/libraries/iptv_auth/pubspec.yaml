@@ -26,6 +26,8 @@ dependencies:
     path: ../iptv_core
   iptv_l10n:
     path: ../iptv_l10n
+  iptv_playlist:
+    path: ../iptv_playlist
   iptv_ui:
     path: ../iptv_ui
   json_annotation: ^4.9.0

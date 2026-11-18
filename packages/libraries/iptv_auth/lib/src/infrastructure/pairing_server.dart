@@ -130,9 +130,7 @@ class PairingServer {
     final Random rng = Random.secure();
     final List<int> bytes =
         List<int>.generate(_kTokenBytes, (_) => rng.nextInt(256));
-    return bytes
-        .map((int b) => b.toRadixString(16).padLeft(2, "0"))
-        .join();
+    return bytes.map((int b) => b.toRadixString(16).padLeft(2, "0")).join();
   }
 
   /// Parses a `{"type":"submit", ...}` payload into [PhoneCredentials], or null
