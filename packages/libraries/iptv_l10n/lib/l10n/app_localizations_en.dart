@@ -573,4 +573,114 @@ class AppLocalizationsEn extends AppLocalizations {
   String nextEpisodeIn(int seconds) {
     return 'Next episode in ${seconds}s';
   }
+
+  @override
+  String get downloadsTitle => 'Downloads';
+
+  @override
+  String get downloadsSeasonAction => 'Download season';
+
+  @override
+  String downloadsSeasonProgress(int done, int total) {
+    return '$done/$total';
+  }
+
+  @override
+  String get downloadsSeasonDone => 'Season downloaded';
+
+  @override
+  String get downloadsEpisodeDownload => 'Download episode';
+
+  @override
+  String get downloadsEpisodeQueued => 'Download queued';
+
+  @override
+  String downloadsEpisodeRunning(int percent) {
+    return 'Downloading, $percent%';
+  }
+
+  @override
+  String get downloadsEpisodeDone => 'Episode downloaded';
+
+  @override
+  String get downloadsEpisodeRetry => 'Retry download';
+
+  @override
+  String get downloadsRemove => 'Delete';
+
+  @override
+  String get downloadsRemoveTitle => 'Delete this download?';
+
+  @override
+  String get downloadsRemoveMessage =>
+      'The episode will no longer be available offline.';
+
+  @override
+  String get downloadsEmptyTitle => 'No downloads';
+
+  @override
+  String get downloadsEmptyMessage =>
+      'Download episodes from a series page to watch them without a connection.';
+
+  @override
+  String downloadsSeasonHeader(int n) {
+    return 'Season $n';
+  }
+
+  @override
+  String downloadsPlayEpisode(String title) {
+    return 'Play $title';
+  }
+
+  @override
+  String get downloadsPause => 'Pause';
+
+  @override
+  String get downloadsResume => 'Resume';
+
+  @override
+  String get downloadsEpisodePaused => 'Download paused';
+
+  @override
+  String get downloadsReasonStorage => 'Not enough space on this device';
+
+  @override
+  String get downloadsReasonNetwork => 'Network problem';
+
+  @override
+  String get downloadsReasonServer => 'The provider refused or cannot resume';
+
+  @override
+  String get downloadsReasonUnknown => 'Download failed';
+
+  @override
+  String get downloadsRetryNoSource =>
+      'Select a provider to retry this download';
+
+  @override
+  String downloadsStorageUsed(String size) {
+    return 'Downloads: $size';
+  }
+
+  @override
+  String downloadsStorageFree(String size) {
+    return '$size free';
+  }
+
+  @override
+  String get downloadsUnavailable => 'Download unavailable';
+
+  @override
+  String get downloadsEnqueueFailed => 'Could not start the download.';
+
+  @override
+  String get downloadsRemoveFailed => 'Could not delete the download.';
+
+  @override
+  String get sourceUnavailable => 'Source unavailable';
+
+  @override
+  String downloadsStorageTotal(String size) {
+    return '$size across all sources';
+  }
 }

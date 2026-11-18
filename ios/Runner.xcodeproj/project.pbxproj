@@ -18,6 +18,7 @@
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
 		AE17A1900AB10000C636F201 /* AirPlayRoutePickerFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE17A1900AB10000C636F202 /* AirPlayRoutePickerFactory.swift */; };
+		AE17A1900AB10000C636F301 /* DownloadStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE17A1900AB10000C636F302 /* DownloadStorage.swift */; };
 		AE17A1900AB10000C636F211 /* AVPlayerEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE17A1900AB10000C636F212 /* AVPlayerEngine.swift */; };
 		B4373FB4CAEC21AD7C792FD7 /* Pods_RunnerTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4819BB58150E00786E40DDE3 /* Pods_RunnerTests.framework */; };
 /* End PBXBuildFile section */
@@ -70,6 +71,7 @@
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AB2A53C4E313DE08D3D80AB9 /* Pods-Runner.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"; sourceTree = "<group>"; };
 		AE17A1900AB10000C636F202 /* AirPlayRoutePickerFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AirPlayRoutePickerFactory.swift; sourceTree = "<group>"; };
+		AE17A1900AB10000C636F302 /* DownloadStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadStorage.swift; sourceTree = "<group>"; };
 		AE17A1900AB10000C636F212 /* AVPlayerEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AVPlayerEngine.swift; sourceTree = "<group>"; };
 		B2D8B5711CB480A3DDAD559C /* Pods-RunnerTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.debug.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.debug.xcconfig"; sourceTree = "<group>"; };
 		C4F53D17437C8D149E4034C5 /* Pods_Runner.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Runner.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -171,6 +173,7 @@
 				74858FAE1ED2DC5600515810 /* AppDelegate.swift */,
 				7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */,
 				AE17A1900AB10000C636F202 /* AirPlayRoutePickerFactory.swift */,
+				AE17A1900AB10000C636F302 /* DownloadStorage.swift */,
 				AE17A1900AB10000C636F212 /* AVPlayerEngine.swift */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
 			);
@@ -411,6 +414,7 @@
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 				7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */,
 				AE17A1900AB10000C636F201 /* AirPlayRoutePickerFactory.swift in Sources */,
+				AE17A1900AB10000C636F301 /* DownloadStorage.swift in Sources */,
 				AE17A1900AB10000C636F211 /* AVPlayerEngine.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

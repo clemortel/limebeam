@@ -4,6 +4,7 @@ import "package:iptv_auth/iptv_auth.dart";
 import "package:iptv_cast/iptv_cast.dart";
 import "package:iptv_core/iptv_core.dart";
 import "package:iptv_donations/iptv_donations.dart";
+import "package:iptv_downloads/iptv_downloads.dart";
 import "package:iptv_epg/iptv_epg.dart";
 import "package:iptv_favorites/iptv_favorites.dart";
 import "package:iptv_live/iptv_live.dart";
@@ -29,4 +30,5 @@ Future<void> configureDependencies() async {
   registerFavorites(getIt); // continue-watching + favorites store
   registerDonations(getIt); // Tip Jar (platform billing)
   registerCast(getIt); // Chromecast / AirPlay handoff
+  await registerDownloads(getIt); // offline episodes (own Hive box)
 }

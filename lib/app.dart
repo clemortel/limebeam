@@ -6,6 +6,7 @@ import "package:iptv_l10n/iptv_l10n.dart";
 import "package:iptv_settings/iptv_settings.dart";
 import "package:iptv_ui/iptv_ui.dart";
 
+import "downloads_source_sync.dart";
 import "platform/form_factor_detector.dart";
 import "player/floating_player.dart";
 import "router/router.dart";
@@ -20,6 +21,8 @@ class IptvApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Cleans up downloads of deleted sources and adopts pre-scoping ones.
+    ref.watch(downloadsSourceSyncProvider);
     final AppPreferences prefs = ref.watch(appPreferencesProvider);
     final ThemeMode themeMode = switch (prefs.themeMode) {
       AppThemeMode.system => ThemeMode.system,

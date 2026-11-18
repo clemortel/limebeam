@@ -178,5 +178,88 @@
   "castingOn": "Casting to",
   "castUnavailableTitle": "Casting unavailable",
   "castDiscovering": "Searching for devices…",
-  "nextEpisodeIn": "Next episode in {seconds}s"
+  "nextEpisodeIn": "Next episode in {seconds}s",
+  "downloadsTitle": "Downloads",
+  "downloadsSeasonAction": "Download season",
+  "downloadsSeasonProgress": "{done}/{total}",
+  "@downloadsSeasonProgress": {
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "downloadsSeasonDone": "Season downloaded",
+  "downloadsEpisodeDownload": "Download episode",
+  "downloadsEpisodeQueued": "Download queued",
+  "downloadsEpisodeRunning": "Downloading, {percent}%",
+  "@downloadsEpisodeRunning": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "downloadsEpisodeDone": "Episode downloaded",
+  "downloadsEpisodeRetry": "Retry download",
+  "downloadsRemove": "Delete",
+  "downloadsRemoveTitle": "Delete this download?",
+  "downloadsRemoveMessage": "The episode will no longer be available offline.",
+  "downloadsEmptyTitle": "No downloads",
+  "downloadsEmptyMessage": "Download episodes from a series page to watch them without a connection.",
+  "downloadsSeasonHeader": "Season {n}",
+  "@downloadsSeasonHeader": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "downloadsPlayEpisode": "Play {title}",
+  "@downloadsPlayEpisode": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadsPause": "Pause",
+  "downloadsResume": "Resume",
+  "downloadsEpisodePaused": "Download paused",
+  "downloadsReasonStorage": "Not enough space on this device",
+  "downloadsReasonNetwork": "Network problem",
+  "downloadsReasonServer": "The provider refused or cannot resume",
+  "downloadsReasonUnknown": "Download failed",
+  "downloadsRetryNoSource": "Select a provider to retry this download",
+  "downloadsStorageUsed": "Downloads: {size}",
+  "@downloadsStorageUsed": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadsStorageFree": "{size} free",
+  "@downloadsStorageFree": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadsUnavailable": "Download unavailable",
+  "downloadsEnqueueFailed": "Could not start the download.",
+  "downloadsRemoveFailed": "Could not delete the download.",
+  "sourceUnavailable": "Source unavailable",
+  "downloadsStorageTotal": "{size} across all sources",
+  "@downloadsStorageTotal": {
+    "placeholders": {
+      "size": {
+        "type": "String"
+      }
+    }
+  }
 }

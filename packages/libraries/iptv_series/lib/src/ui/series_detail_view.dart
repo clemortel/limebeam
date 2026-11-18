@@ -34,11 +34,19 @@ class SeriesDetailView extends ConsumerWidget {
     required this.series,
     this.onPlayEpisode,
     this.actions,
+    this.episodeTrailing,
+    this.seasonAction,
     super.key,
   });
 
   final Series series;
   final void Function(Season season, Episode episode)? onPlayEpisode;
+
+  /// Phone only: trailing control of each episode row (e.g. download).
+  final Widget Function(Season season, Episode episode)? episodeTrailing;
+
+  /// Phone only: control beside the season chips (e.g. download season).
+  final Widget Function(Season season)? seasonAction;
 
   /// App-layer actions (e.g. a favorite toggle). App bar on mobile; beside
   /// Play on TV.
@@ -81,7 +89,12 @@ class SeriesDetailView extends ConsumerWidget {
                 SizedBox(height: t.space.x4),
                 _Synopsis(plot: series.plot ?? ""),
                 SizedBox(height: t.space.x6),
-                _SeasonsSection(detail: detail, onPlayEpisode: onPlayEpisode),
+                _SeasonsSection(
+                  detail: detail,
+                  onPlayEpisode: onPlayEpisode,
+                  episodeTrailing: episodeTrailing,
+                  seasonAction: seasonAction,
+                ),
               ],
             ),
           ),
@@ -319,10 +332,17 @@ class _SynopsisState extends State<_Synopsis> {
 }
 
 class _SeasonsSection extends StatelessWidget {
-  const _SeasonsSection({required this.detail, required this.onPlayEpisode});
+  const _SeasonsSection({
+    required this.detail,
+    required this.onPlayEpisode,
+    this.episodeTrailing,
+    this.seasonAction,
+  });
 
   final AsyncState<SeriesDetail> detail;
   final void Function(Season season, Episode episode)? onPlayEpisode;
+  final Widget Function(Season season, Episode episode)? episodeTrailing;
+  final Widget Function(Season season)? seasonAction;
 
   @override
   Widget build(BuildContext context) {
@@ -343,16 +363,25 @@ class _SeasonsSection extends StatelessWidget {
       AsyncSuccess<SeriesDetail>(:final SeriesDetail data) => _Seasons(
           seasons: data.seasons,
           onPlayEpisode: onPlayEpisode,
+          episodeTrailing: episodeTrailing,
+          seasonAction: seasonAction,
         ),
     };
   }
 }
 
 class _Seasons extends StatefulWidget {
-  const _Seasons({required this.seasons, required this.onPlayEpisode});
+  const _Seasons({
+    required this.seasons,
+    required this.onPlayEpisode,
+    this.episodeTrailing,
+    this.seasonAction,
+  });
 
   final IList<Season> seasons;
   final void Function(Season season, Episode episode)? onPlayEpisode;
+  final Widget Function(Season season, Episode episode)? episodeTrailing;
+  final Widget Function(Season season)? seasonAction;
 
   @override
   State<_Seasons> createState() => _SeasonsState();
@@ -377,19 +406,27 @@ class _SeasonsState extends State<_Seasons> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        SizedBox(
-          height: _kSeasonChipsHeight,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: seasons.length,
-            separatorBuilder: (BuildContext c, int i) =>
-                SizedBox(width: t.space.x2),
-            itemBuilder: (BuildContext c, int i) => FilterChipX(
-              label: seasons[i].name,
-              selected: i == index,
-              onTap: () => setState(() => _seasonIndex = i),
+        Row(
+          children: <Widget>[
+            Expanded(
+              child: SizedBox(
+                height: _kSeasonChipsHeight,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: seasons.length,
+                  separatorBuilder: (BuildContext c, int i) =>
+                      SizedBox(width: t.space.x2),
+                  itemBuilder: (BuildContext c, int i) => FilterChipX(
+                    label: seasons[i].name,
+                    selected: i == index,
+                    onTap: () => setState(() => _seasonIndex = i),
+                  ),
+                ),
+              ),
             ),
-          ),
+            if (!isTv && widget.seasonAction != null)
+              widget.seasonAction!(season),
+          ],
         ),
         SizedBox(height: t.space.x3),
         for (int i = 0; i < season.episodes.length; i++)
@@ -400,6 +437,9 @@ class _SeasonsState extends State<_Seasons> {
             autofocus: false,
             onPlay: () =>
                 widget.onPlayEpisode?.call(season, season.episodes[i]),
+            trailing: !isTv && widget.episodeTrailing != null
+                ? widget.episodeTrailing!(season, season.episodes[i])
+                : null,
           ),
         if (isTv) SizedBox(height: t.space.x6),
       ],
@@ -433,11 +473,13 @@ class _EpisodeRow extends StatelessWidget {
     required this.episode,
     required this.onPlay,
     this.autofocus = false,
+    this.trailing,
   });
 
   final Episode episode;
   final VoidCallback onPlay;
   final bool autofocus;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -478,6 +520,7 @@ class _EpisodeRow extends StatelessWidget {
                 ],
               ),
             ),
+            if (trailing != null) trailing!,
           ],
         ),
       ),

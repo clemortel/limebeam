@@ -580,4 +580,117 @@ class AppLocalizationsFr extends AppLocalizations {
   String nextEpisodeIn(int seconds) {
     return 'Épisode suivant dans ${seconds}s';
   }
+
+  @override
+  String get downloadsTitle => 'Téléchargements';
+
+  @override
+  String get downloadsSeasonAction => 'Télécharger la saison';
+
+  @override
+  String downloadsSeasonProgress(int done, int total) {
+    return '$done/$total';
+  }
+
+  @override
+  String get downloadsSeasonDone => 'Saison téléchargée';
+
+  @override
+  String get downloadsEpisodeDownload => 'Télécharger l\'épisode';
+
+  @override
+  String get downloadsEpisodeQueued => 'Téléchargement en attente';
+
+  @override
+  String downloadsEpisodeRunning(int percent) {
+    return 'Téléchargement en cours, $percent %';
+  }
+
+  @override
+  String get downloadsEpisodeDone => 'Épisode téléchargé';
+
+  @override
+  String get downloadsEpisodeRetry => 'Réessayer le téléchargement';
+
+  @override
+  String get downloadsRemove => 'Supprimer';
+
+  @override
+  String get downloadsRemoveTitle => 'Supprimer le téléchargement ?';
+
+  @override
+  String get downloadsRemoveMessage =>
+      'L\'épisode ne sera plus disponible hors connexion.';
+
+  @override
+  String get downloadsEmptyTitle => 'Aucun téléchargement';
+
+  @override
+  String get downloadsEmptyMessage =>
+      'Téléchargez des épisodes depuis une fiche série pour les regarder sans connexion.';
+
+  @override
+  String downloadsSeasonHeader(int n) {
+    return 'Saison $n';
+  }
+
+  @override
+  String downloadsPlayEpisode(String title) {
+    return 'Lire $title';
+  }
+
+  @override
+  String get downloadsPause => 'Mettre en pause';
+
+  @override
+  String get downloadsResume => 'Reprendre';
+
+  @override
+  String get downloadsEpisodePaused => 'Téléchargement en pause';
+
+  @override
+  String get downloadsReasonStorage => 'Pas assez de place sur cet appareil';
+
+  @override
+  String get downloadsReasonNetwork => 'Problème de réseau';
+
+  @override
+  String get downloadsReasonServer =>
+      'Le fournisseur a refusé ou ne peut pas reprendre';
+
+  @override
+  String get downloadsReasonUnknown => 'Échec du téléchargement';
+
+  @override
+  String get downloadsRetryNoSource =>
+      'Choisissez un fournisseur pour relancer ce téléchargement';
+
+  @override
+  String downloadsStorageUsed(String size) {
+    return 'Téléchargements : $size';
+  }
+
+  @override
+  String downloadsStorageFree(String size) {
+    return '$size libres';
+  }
+
+  @override
+  String get downloadsUnavailable => 'Téléchargement indisponible';
+
+  @override
+  String get downloadsEnqueueFailed =>
+      'Impossible de lancer le téléchargement.';
+
+  @override
+  String get downloadsRemoveFailed =>
+      'Impossible de supprimer le téléchargement.';
+
+  @override
+  String get sourceUnavailable => 'Source indisponible';
+
+  @override
+  String downloadsStorageTotal(String size) {
+    return '$size au total, toutes sources';
+  }
 }
